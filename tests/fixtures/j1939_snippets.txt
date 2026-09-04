@@ -1,0 +1,26 @@
+"""Minimal synthetic J1939 text snippets for parser unit tests (no licensed content)."""
+
+SPN_SNIPPET = """
+spn100 -ExampleParameterA-Description for parameter A example.
+DataLength: 2bytes
+Resolution: 1unit/bit,0offset
+DataRange: 0to100unit
+Type: Measured
+SuspectParameterNumber: 100
+ParameterGroupNumber: [65000]
+"""
+
+PGN_SNIPPET = """
+pgn65000-ExampleMessageA- EXA-
+TransmissionRepetitionRate: 100ms
+DataLength: 8bytes
+DataPage: 0
+PDUFormat: 254
+PDUSpecific: 136
+DefaultPriority: 6
+ParameterGroupNumber: 65000(00FE88 )
+16
+BitStartPosition/Bytes Length SPNDescription SPN
+1.1 4bits ExampleSignalOne 100
+2 1byte ExampleSignalTwo 101
+"""

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -94,6 +94,145 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_findings_session ON findings(session_id);
         CREATE INDEX IF NOT EXISTS idx_dbc_revisions_machine ON dbc_revisions(machine_id);
     """,
+    2: """
+        CREATE TABLE IF NOT EXISTS reference_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL UNIQUE,
+            source_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            revision TEXT,
+            coverage_date TEXT,
+            origin TEXT NOT NULL,
+            source_path TEXT,
+            source_url TEXT,
+            fingerprint TEXT,
+            imported_at TEXT NOT NULL DEFAULT (datetime('now')),
+            notes TEXT
+        );
+
+        ALTER TABLE reference_pgns RENAME TO reference_pgns_legacy_v1;
+        ALTER TABLE reference_spns RENAME TO reference_spns_legacy_v1;
+
+        CREATE TABLE reference_pgns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pgn INTEGER NOT NULL,
+            name TEXT,
+            acronym TEXT,
+            description TEXT,
+            transmission_rate TEXT,
+            payload_length INTEGER,
+            default_priority INTEGER,
+            data_page INTEGER,
+            pdu_format INTEGER,
+            pdu_specific INTEGER,
+            source_id INTEGER NOT NULL REFERENCES reference_sources(id),
+            origin TEXT NOT NULL,
+            source_page INTEGER,
+            raw_text TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_id, pgn)
+        );
+
+        CREATE TABLE reference_spns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            spn INTEGER NOT NULL,
+            name TEXT,
+            definition TEXT,
+            description TEXT,
+            data_length_bits INTEGER,
+            resolution TEXT,
+            offset TEXT,
+            minimum TEXT,
+            maximum TEXT,
+            unit TEXT,
+            data_type TEXT,
+            status TEXT,
+            source_id INTEGER NOT NULL REFERENCES reference_sources(id),
+            origin TEXT NOT NULL,
+            source_page INTEGER,
+            raw_text TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_id, spn)
+        );
+
+        CREATE TABLE reference_pgn_spns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pgn_id INTEGER NOT NULL REFERENCES reference_pgns(id) ON DELETE CASCADE,
+            spn_id INTEGER REFERENCES reference_spns(id),
+            spn INTEGER NOT NULL,
+            position_order INTEGER,
+            start_byte INTEGER,
+            start_bit INTEGER,
+            bit_length INTEGER,
+            byte_order TEXT,
+            source_id INTEGER NOT NULL REFERENCES reference_sources(id),
+            source_page INTEGER,
+            raw_position_text TEXT,
+            UNIQUE (source_id, pgn_id, spn, raw_position_text)
+        );
+
+        CREATE TABLE reference_ddis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ddi INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            definition TEXT,
+            comment TEXT,
+            unit_symbol TEXT,
+            unit_description TEXT,
+            resolution TEXT,
+            can_min TEXT,
+            can_max TEXT,
+            display_min TEXT,
+            display_max TEXT,
+            sae_spn INTEGER,
+            submit_by TEXT,
+            submit_date TEXT,
+            submit_company TEXT,
+            revision_number INTEGER,
+            current_status TEXT,
+            status_date TEXT,
+            status_comments TEXT,
+            source_id INTEGER NOT NULL REFERENCES reference_sources(id),
+            origin TEXT NOT NULL,
+            source_page INTEGER,
+            raw_text TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_id, ddi)
+        );
+
+        CREATE TABLE reference_ddi_device_classes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ddi_id INTEGER NOT NULL REFERENCES reference_ddis(id) ON DELETE CASCADE,
+            device_class INTEGER NOT NULL,
+            device_class_name TEXT,
+            UNIQUE (ddi_id, device_class)
+        );
+
+        CREATE TABLE reference_import_warnings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_id INTEGER REFERENCES reference_sources(id),
+            severity TEXT NOT NULL,
+            category TEXT,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_reference_pgns_pgn ON reference_pgns(pgn);
+        CREATE INDEX IF NOT EXISTS idx_reference_pgns_source ON reference_pgns(source_id);
+        CREATE INDEX IF NOT EXISTS idx_reference_pgns_origin ON reference_pgns(origin);
+        CREATE INDEX IF NOT EXISTS idx_reference_spns_spn ON reference_spns(spn);
+        CREATE INDEX IF NOT EXISTS idx_reference_spns_source ON reference_spns(source_id);
+        CREATE INDEX IF NOT EXISTS idx_reference_spns_origin ON reference_spns(origin);
+        CREATE INDEX IF NOT EXISTS idx_reference_pgn_spns_pgn ON reference_pgn_spns(pgn_id);
+        CREATE INDEX IF NOT EXISTS idx_reference_pgn_spns_spn ON reference_pgn_spns(spn);
+        CREATE INDEX IF NOT EXISTS idx_reference_ddis_ddi ON reference_ddis(ddi);
+        CREATE INDEX IF NOT EXISTS idx_reference_ddis_source ON reference_ddis(source_id);
+        CREATE INDEX IF NOT EXISTS idx_reference_ddis_origin ON reference_ddis(origin);
+        CREATE INDEX IF NOT EXISTS idx_reference_sources_origin ON reference_sources(origin);
+    """,
 }
 
 
@@ -125,10 +264,28 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
         if version not in MIGRATIONS:
             msg = f"No migration defined for schema version {version}"
             raise RuntimeError(msg)
-        conn.executescript(MIGRATIONS[version])
+        if version == 2:
+            _migrate_v2(conn)
+        else:
+            conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
         conn.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
         conn.commit()
+
+
+def _table_exists(conn: sqlite3.Connection, name: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?",
+        (name,),
+    ).fetchone()
+    return row is not None
+
+
+def _migrate_v2(conn: sqlite3.Connection) -> None:
+    """Upgrade reference tables to normalized provenance-aware schema."""
+    if _table_exists(conn, "reference_sources"):
+        return
+    conn.executescript(MIGRATIONS[2])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:
@@ -139,5 +296,5 @@ def initialize(db_path: Path) -> sqlite3.Connection:
 
 
 def default_db_path() -> Path:
-    """Default location for the local metadata database."""
-    return Path("data") / "canresearch.sqlite"
+    """Default location for the local metadata and reference database."""
+    return Path("data") / "references" / "canresearch.db"

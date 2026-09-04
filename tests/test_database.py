@@ -20,8 +20,11 @@ def test_database_initializes(tmp_path: Path) -> None:
     }
     expected = {
         "schema_version",
+        "reference_sources",
         "reference_pgns",
         "reference_spns",
+        "reference_pgn_spns",
+        "reference_ddis",
         "machines",
         "sessions",
         "observed_pgns",

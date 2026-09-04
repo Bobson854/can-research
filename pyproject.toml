@@ -9,6 +9,7 @@ authors = [{ name = "Mark Jones" }]
 dependencies = [
     "click>=8.1",
     "mcp>=1.0",
+    "pdfplumber>=0.11.10",
 ]
 
 [project.optional-dependencies]
@@ -40,6 +41,11 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["SIM113"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/canresearch/references/importers/*.py" = ["E501"]
+"src/canresearch/references/validation.py" = ["E501"]
 
 [tool.pyright]
 include = ["src", "tests"]

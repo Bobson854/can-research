@@ -103,6 +103,320 @@ def reference_import_dbc(dbc_path: str) -> None:
     click.echo("Note: only import DBCs you are licensed to use.")
 
 
+@reference_group.command("import-j1939")
+@click.argument("pdf_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_import_j1939(pdf_path: str, db_path: str | None) -> None:
+    """Import J1939-71 PDF into the local reference catalogue."""
+    from pathlib import Path
+
+    from canresearch.references.importers.j1939_pdf_importer import J1939PdfImporter
+    from canresearch.storage.database import default_db_path, initialize
+
+    path = Path(pdf_path)
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    importer = J1939PdfImporter()
+    report = importer.import_file(path, conn)
+    conn.close()
+
+    click.echo(f"source: {path.name}")
+    click.echo(f"SPNs parsed: {report.spns_parsed}")
+    click.echo(f"PGNs parsed: {report.pgns_parsed}")
+    click.echo(f"PGN/SPN mappings: {report.mappings_parsed}")
+    click.echo(f"inserted: {report.inserted}")
+    click.echo(f"updated: {report.updated}")
+    click.echo(f"unchanged: {report.unchanged}")
+    click.echo(f"warnings: {len(report.warnings)}")
+    click.echo(f"errors: {report.failed}")
+    for warning in report.warnings[:20]:
+        click.echo(f"  warning: {warning}")
+    if len(report.warnings) > 20:
+        click.echo(f"  ... and {len(report.warnings) - 20} more warnings")
+
+
+@reference_group.command("import-isobus-pdf")
+@click.argument("pdf_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_import_isobus_pdf(pdf_path: str, db_path: str | None) -> None:
+    """Import ISOBUS DDI PDF snapshot into the local reference catalogue."""
+    from pathlib import Path
+
+    from canresearch.references.importers.isobus_pdf_importer import IsobusPdfImporter
+    from canresearch.storage.database import default_db_path, initialize
+
+    path = Path(pdf_path)
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    importer = IsobusPdfImporter()
+    report = importer.import_file(path, conn)
+    conn.close()
+
+    click.echo(f"source: {path.name}")
+    click.echo(f"DDIs parsed: {report.ddis_parsed}")
+    click.echo(f"inserted: {report.inserted}")
+    click.echo(f"updated: {report.updated}")
+    click.echo(f"unchanged: {report.unchanged}")
+    click.echo(f"warnings: {len(report.warnings)}")
+    click.echo(f"errors: {report.failed}")
+
+
+@reference_group.command("validate")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_validate(db_path: str | None) -> None:
+    """Validate the local reference catalogue."""
+    from pathlib import Path
+
+    from canresearch.references.validation import validate_reference_catalogue
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    report = validate_reference_catalogue(conn)
+    conn.close()
+
+    click.echo(f"errors: {len(report.errors)}")
+    click.echo(f"warnings: {len(report.warnings)}")
+    click.echo(f"info: {len(report.infos)}")
+    for issue in report.issues[:50]:
+        click.echo(f"  [{issue.severity}] {issue.category}: {issue.message}")
+    if len(report.issues) > 50:
+        click.echo(f"  ... and {len(report.issues) - 50} more issues")
+
+
+@reference_group.command("stats")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_stats(db_path: str | None) -> None:
+    """Show reference catalogue statistics."""
+    from pathlib import Path
+
+    from canresearch.references.service import ReferenceService
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    stats = ReferenceService(conn).stats()
+    conn.close()
+    for key, value in stats.items():
+        click.echo(f"{key}: {value}")
+
+
+@reference_group.command("pgn")
+@click.argument("number", type=int)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_pgn(number: int, db_path: str | None) -> None:
+    """Look up a PGN by number."""
+    from pathlib import Path
+
+    from canresearch.references.service import ReferenceService
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    service = ReferenceService(conn)
+    rows = service.lookup_pgn(number)
+    if not rows:
+        click.echo(f"PGN {number} not found.")
+        conn.close()
+        return
+
+    row = rows[0]
+    click.echo(f"PGN: {row['pgn']}")
+    click.echo(f"Name: {row['name']}")
+    if row["acronym"]:
+        click.echo(f"Acronym: {row['acronym']}")
+    click.echo(f"Origin: {row['origin']}")
+    click.echo(f"Source: {row['source_title']}")
+    if row["coverage_date"]:
+        click.echo(f"Coverage: through {row['coverage_date']}")
+    if row["transmission_rate"]:
+        click.echo(f"Transmission rate: {row['transmission_rate']}")
+    if row["payload_length"] is not None:
+        click.echo(f"Payload length: {row['payload_length']} bytes")
+    mappings = service.pgn_spn_mappings(number, source_id=row["source_id"])
+    if mappings:
+        click.echo("SPNs:")
+        for mapping in mappings:
+            pos = mapping["raw_position_text"] or ""
+            name = mapping["spn_name"] or ""
+            click.echo(f"  {mapping['spn']:>5}  {pos:<12}  {name}")
+    conn.close()
+
+
+@reference_group.command("spn")
+@click.argument("number", type=int)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_spn(number: int, db_path: str | None) -> None:
+    """Look up an SPN by number."""
+    from pathlib import Path
+
+    from canresearch.references.service import ReferenceService
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    rows = ReferenceService(conn).lookup_spn(number)
+    conn.close()
+    if not rows:
+        click.echo(f"SPN {number} not found.")
+        return
+
+    row = rows[0]
+    click.echo(f"SPN: {row['spn']}")
+    click.echo(f"Name: {row['name']}")
+    click.echo(f"Origin: {row['origin']}")
+    click.echo(f"Source: {row['source_title']}")
+    if row["coverage_date"]:
+        click.echo(f"Coverage: through {row['coverage_date']}")
+    if row["definition"]:
+        click.echo(f"Definition: {row['definition'][:200]}")
+    if row["resolution"]:
+        click.echo(f"Resolution: {row['resolution']}")
+    if row["unit"]:
+        click.echo(f"Unit: {row['unit']}")
+    if row["data_length_bits"] is not None:
+        click.echo(f"Data length: {row['data_length_bits']} bits")
+
+
+@reference_group.command("ddi")
+@click.argument("number", type=int)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_ddi(number: int, db_path: str | None) -> None:
+    """Look up an ISOBUS DDI by number."""
+    from pathlib import Path
+
+    from canresearch.references.service import ReferenceService
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    rows = ReferenceService(conn).lookup_ddi(number)
+    conn.close()
+    if not rows:
+        click.echo(f"DDI {number} not found.")
+        return
+
+    row = rows[0]
+    click.echo(f"DDI: {row['ddi']}")
+    click.echo(f"Name: {row['name']}")
+    click.echo(f"Origin: {row['origin']}")
+    click.echo(f"Source: {row['source_title']}")
+    if row["definition"]:
+        click.echo(f"Definition: {row['definition'][:200]}")
+    if row["unit_symbol"]:
+        click.echo(f"Unit: {row['unit_symbol']}")
+
+
+@reference_group.group("source")
+def reference_source_group() -> None:
+    """List imported reference sources."""
+
+
+@reference_source_group.command("list")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_source_list(db_path: str | None) -> None:
+    """List imported reference sources."""
+    from pathlib import Path
+
+    from canresearch.references.service import ReferenceService
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    sources = ReferenceService(conn).list_sources()
+    conn.close()
+    if not sources:
+        click.echo("No reference sources imported.")
+        return
+    for source in sources:
+        click.echo(
+            f"{source['id']:>3}  {source['source_key']:<24}  "
+            f"{source['origin']:<18}  {source['title']}"
+        )
+
+
+@reference_group.command("warnings")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_warnings(db_path: str | None) -> None:
+    """Show stored import/validation warnings."""
+    from pathlib import Path
+
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    try:
+        rows = conn.execute(
+            """
+            SELECT severity, category, message
+            FROM reference_import_warnings
+            ORDER BY id DESC LIMIT 100
+            """
+        ).fetchall()
+    except Exception:
+        rows = []
+    conn.close()
+    if not rows:
+        click.echo("No stored warnings.")
+        return
+    for row in rows:
+        click.echo(f"[{row['severity']}] {row['category']}: {row['message']}")
+
+
 @main.group("mcp")
 def mcp_group() -> None:
     """Run the MCP server for AI client integration."""

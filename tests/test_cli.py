@@ -25,6 +25,14 @@ def test_cli_session_list() -> None:
     assert result.exit_code == 0
 
 
+def test_reference_cli_help() -> None:
+    runner = CliRunner()
+    result = runner.invoke(main, ["reference", "--help"])
+    assert result.exit_code == 0
+    assert "import-j1939" in result.output
+    assert "validate" in result.output
+
+
 def test_cli_mcp_help() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["mcp", "--help"])
