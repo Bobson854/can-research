@@ -19,10 +19,54 @@ def device_group() -> None:
 
 
 @device_group.command("list")
-def device_list() -> None:
+@click.option("--host", default=None, help="Direct CANsub.2 host/IP (skips network scan).")
+@click.option("--timeout", default=5.0, show_default=True, help="HTTP timeout in seconds.")
+def device_list(host: str | None, timeout: float) -> None:
     """List connected CANsub.2 devices (USB or Ethernet)."""
+    if host:
+        _print_device_info(host, timeout)
+        return
+
     click.echo("CANsub.2 device discovery is not yet implemented.")
     click.echo("Planned: scan USB and Ethernet for CSS Electronics CANsub.2 adapters.")
+    click.echo("Tip: use --host <ip> to query a known CANsub.2 directly.")
+
+
+@device_group.command("info")
+@click.option("--host", required=True, help="CANsub.2 host/IP address.")
+@click.option("--timeout", default=5.0, show_default=True, help="HTTP timeout in seconds.")
+def device_info(host: str, timeout: float) -> None:
+    """Show read-only information for a CANsub.2 at a supplied host/IP."""
+    _print_device_info(host, timeout)
+
+
+def _print_device_info(host: str, timeout: float) -> None:
+    from canresearch.cansub.client import probe_host
+    from canresearch.cansub.exceptions import CansubError
+
+    try:
+        info = probe_host(host, timeout=timeout)
+    except CansubError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo("CANsub.2")
+    click.echo(f"Host:       {info.host}")
+    click.echo(f"Status:     {info.status}")
+    if info.device_id:
+        click.echo(f"Device ID:  {info.device_id}")
+    if info.api_version:
+        click.echo(f"API:        {info.api_version}")
+    if info.hardware_version:
+        click.echo(f"Hardware:   {info.hardware_version}")
+    if info.firmware_version:
+        click.echo(f"Firmware:   {info.firmware_version}")
+    if info.mac_address:
+        click.echo(f"MAC:        {info.mac_address}")
+    if info.usb_id:
+        click.echo(f"USB ID:     {info.usb_id}")
+    if info.channels:
+        channel_text = ", ".join(str(channel) for channel in info.channels)
+        click.echo(f"Channels:   {channel_text}")
 
 
 @main.group("capture")
