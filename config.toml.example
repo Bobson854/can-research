@@ -1,0 +1,12 @@
+# Example local configuration for can-research.
+# Copy to data/config.toml and edit for your machine.
+#
+#   copy config.toml.example data\config.toml
+#
+# data/ is gitignored — do not commit machine-specific hosts.
+
+[cansub]
+# USB mDNS hostname (preferred) or direct IP address.
+host = "your-device-id-usb.local"
+timeout = 5.0
+verify_tls = false

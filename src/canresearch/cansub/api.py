@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from canresearch.cansub.client import CansubClient, CansubDeviceInfo, probe_host
+from canresearch.cansub.client import (
+    CansubChannelStatus,
+    CansubClient,
+    CansubDeviceInfo,
+    get_channel_info,
+    probe_host,
+)
 from canresearch.cansub.exceptions import (
     CansubApiError,
     CansubConnectionError,
@@ -13,6 +19,7 @@ from canresearch.cansub.exceptions import (
 )
 
 __all__ = [
+    "CansubChannelStatus",
     "CansubClient",
     "CansubDevice",
     "CansubDeviceInfo",
@@ -22,6 +29,7 @@ __all__ = [
     "CansubIdentificationError",
     "connect",
     "disconnect",
+    "get_channel_info",
     "probe_host",
 ]
 

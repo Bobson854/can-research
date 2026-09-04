@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import socket
 import ssl
 import urllib.error
 import urllib.request
@@ -39,6 +40,23 @@ class CansubDeviceInfo:
     usb_id: str | None = None
     channels: list[int] = field(default_factory=list)
     raw_info: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CansubChannelStatus:
+    """Read-only CAN channel status from GET /api/can/{channel}."""
+
+    channel: int
+    host: str
+    state: str | None = None
+    frame_count: int | None = None
+    frame_rate: int | None = None
+    bus_load: int | None = None
+    rx_error_count: int | None = None
+    tx_error_count: int | None = None
+    bus_error_count: int | None = None
+    phy: dict[str, Any] | None = None
+    raw_status: dict[str, Any] | None = None
 
 
 class CansubClient:
@@ -86,7 +104,11 @@ class CansubClient:
                 status = getattr(response, "status", 200)
                 body = response.read()
         except urllib.error.HTTPError as exc:
-            body = exc.read()
+            if exc.code == 404:
+                raise CansubApiError(
+                    f"CANsub.2 resource not found: {path}",
+                    status_code=404,
+                ) from exc
             raise CansubApiError(
                 f"CANsub.2 API request failed ({exc.code}) for {path}",
                 status_code=exc.code,
@@ -97,6 +119,8 @@ class CansubClient:
                 msg = f"Unable to connect to CANsub.2 at {self.host}: timeout"
             elif isinstance(reason, ConnectionRefusedError):
                 msg = f"Unable to connect to CANsub.2 at {self.host}: connection refused"
+            elif isinstance(reason, socket.gaierror):
+                msg = f"Unable to resolve CANsub.2 host {self.host}: {reason}"
             else:
                 msg = f"Unable to connect to CANsub.2 at {self.host}: {reason}"
             raise CansubConnectionError(msg) from exc
@@ -162,6 +186,52 @@ class CansubClient:
             )
         return payload
 
+    def get_json(self, path: str) -> Any:
+        """GET a JSON endpoint and return the decoded payload."""
+        status, body = self._request(path)
+        if status != 200:
+            raise CansubApiError(
+                f"CANsub.2 API request failed with status {status} for {path}",
+                status_code=status,
+            )
+        return self._decode_json(body)
+
+    def get_channel_status(self, channel: int) -> dict[str, Any]:
+        """GET /api/can/{channel} — returns channel status object."""
+        payload = self.get_json(f"/api/can/{channel}")
+        if not isinstance(payload, dict):
+            raise CansubIdentificationError(
+                f"Unexpected CANsub.2 channel {channel} response: expected object"
+            )
+        return payload
+
+    def get_channel_phy(self, channel: int) -> dict[str, Any]:
+        """GET /api/can/{channel}/phy — returns read-only PHY configuration."""
+        payload = self.get_json(f"/api/can/{channel}/phy")
+        if not isinstance(payload, dict):
+            raise CansubIdentificationError(
+                f"Unexpected CANsub.2 channel {channel} PHY response: expected object"
+            )
+        return payload
+
+    def get_channel_info(self, channel: int, *, include_phy: bool = True) -> CansubChannelStatus:
+        """Return read-only channel status (and optional PHY configuration)."""
+        status = self.get_channel_status(channel)
+        phy = self.get_channel_phy(channel) if include_phy else None
+        return CansubChannelStatus(
+            channel=channel,
+            host=self.host,
+            state=_as_str(status.get("state")),
+            frame_count=_as_int(status.get("frame_count")),
+            frame_rate=_as_int(status.get("frame_rate")),
+            bus_load=_as_int(status.get("bus_load")),
+            rx_error_count=_as_int(status.get("rx_error_count")),
+            tx_error_count=_as_int(status.get("tx_error_count")),
+            bus_error_count=_as_int(status.get("bus_error_count")),
+            phy=phy,
+            raw_status=status,
+        )
+
     def probe(self) -> CansubDeviceInfo:
         """Verify CANsub.2 identity and return read-only device information."""
         api_version = self.get_api_version()
@@ -194,6 +264,16 @@ def _as_str(value: Any) -> str | None:
     return str(value)
 
 
+def _as_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    return None
+
+
 def probe_host(
     host: str,
     *,
@@ -202,3 +282,17 @@ def probe_host(
 ) -> CansubDeviceInfo:
     """Connect directly to a CANsub.2 host and return device information."""
     return CansubClient(host, timeout=timeout, verify_tls=verify_tls).probe()
+
+
+def get_channel_info(
+    host: str,
+    channel: int,
+    *,
+    timeout: float = DEFAULT_TIMEOUT,
+    verify_tls: bool = False,
+    include_phy: bool = True,
+) -> CansubChannelStatus:
+    """Connect to a CANsub.2 host and return read-only channel information."""
+    return CansubClient(
+        host, timeout=timeout, verify_tls=verify_tls
+    ).get_channel_info(channel, include_phy=include_phy)

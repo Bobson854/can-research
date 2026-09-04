@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from click.testing import CliRunner
 
-from canresearch.cansub.client import CansubDeviceInfo
+from canresearch.cansub.client import CansubChannelStatus, CansubDeviceInfo
 from canresearch.cli import main
 
 
 def test_device_list_without_host_shows_discovery_stub() -> None:
     runner = CliRunner()
-    result = runner.invoke(main, ["device", "list"])
-    assert result.exit_code == 0
-    assert "discovery is not yet implemented" in result.output
-    assert "--host" in result.output or "Tip:" in result.output
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, ["device", "list"])
+        assert result.exit_code == 0
+        assert "discovery is not yet implemented" in result.output
 
 
 def test_device_list_with_host(monkeypatch) -> None:
@@ -32,22 +34,88 @@ def test_device_list_with_host(monkeypatch) -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["device", "list", "--host", "192.0.2.1"])
     assert result.exit_code == 0
-    assert "CANsub.2" in result.output
     assert "192.0.2.1" in result.output
     assert "7413f810" in result.output
-    assert "Channels:" in result.output
 
 
-def test_device_info_command(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "canresearch.cansub.client.probe_host",
-        lambda host, **kwargs: CansubDeviceInfo(host=host, device_id="abcd1234"),
-    )
+def test_device_info_uses_config_host(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text('[cansub]\nhost = "configured.local"\n', encoding="utf-8")
+
+    seen: dict[str, str] = {}
+
+    def fake_probe(host: str, **kwargs):
+        _ = kwargs
+        seen["host"] = host
+        return CansubDeviceInfo(host=host, device_id="abcd1234")
+
+    monkeypatch.setattr("canresearch.cansub.client.probe_host", fake_probe)
+    monkeypatch.setattr("canresearch.config.default_config_path", lambda: config_path)
 
     runner = CliRunner()
-    result = runner.invoke(main, ["device", "info", "--host", "192.0.2.2"])
+    result = runner.invoke(main, ["device", "info"])
     assert result.exit_code == 0
+    assert seen["host"] == "configured.local"
     assert "abcd1234" in result.output
+
+
+def test_device_info_cli_host_overrides_config(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text('[cansub]\nhost = "configured.local"\n', encoding="utf-8")
+
+    seen: dict[str, str] = {}
+
+    def fake_probe(host: str, **kwargs):
+        _ = kwargs
+        seen["host"] = host
+        return CansubDeviceInfo(host=host)
+
+    monkeypatch.setattr("canresearch.cansub.client.probe_host", fake_probe)
+    monkeypatch.setattr("canresearch.config.default_config_path", lambda: config_path)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["device", "info", "--host", "override.local"])
+    assert result.exit_code == 0
+    assert seen["host"] == "override.local"
+
+
+def test_device_info_missing_host_exits() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, ["device", "info"])
+        assert result.exit_code != 0
+        assert "No CANsub.2 host configured" in result.output
+
+
+def test_config_show_and_set_host() -> None:
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        set_result = runner.invoke(main, ["config", "set-host", "7413f810-usb.local"])
+        assert set_result.exit_code == 0
+        show_result = runner.invoke(main, ["config", "show"])
+        assert show_result.exit_code == 0
+        assert "7413f810-usb.local" in show_result.output
+
+
+def test_device_channel_info(monkeypatch) -> None:
+    def fake_get_channel_info(host: str, channel: int, **kwargs):
+        _ = kwargs
+        return CansubChannelStatus(
+            channel=channel,
+            host=host,
+            state="stopped",
+            frame_count=0,
+            phy={"listen_only": False},
+        )
+
+    monkeypatch.setattr("canresearch.cansub.client.get_channel_info", fake_get_channel_info)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["device", "channel-info", "1", "--host", "192.0.2.1"])
+    assert result.exit_code == 0
+    assert "Channel 1" in result.output
+    assert "stopped" in result.output
 
 
 def test_device_list_connection_error(monkeypatch) -> None:

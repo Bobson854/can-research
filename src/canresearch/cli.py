@@ -19,33 +19,58 @@ def device_group() -> None:
 
 
 @device_group.command("list")
-@click.option("--host", default=None, help="Direct CANsub.2 host/IP (skips network scan).")
-@click.option("--timeout", default=5.0, show_default=True, help="HTTP timeout in seconds.")
-def device_list(host: str | None, timeout: float) -> None:
+@click.option("--host", default=None, help="Direct CANsub.2 host/IP (overrides config).")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout in seconds.")
+def device_list(host: str | None, timeout: float | None) -> None:
     """List connected CANsub.2 devices (USB or Ethernet)."""
-    if host:
-        _print_device_info(host, timeout)
+    try:
+        resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    except click.ClickException as exc:
+        click.echo("CANsub.2 device discovery is not yet implemented.")
+        click.echo("Planned: scan USB and Ethernet for CSS Electronics CANsub.2 adapters.")
+        click.echo(exc.message)
         return
 
-    click.echo("CANsub.2 device discovery is not yet implemented.")
-    click.echo("Planned: scan USB and Ethernet for CSS Electronics CANsub.2 adapters.")
-    click.echo("Tip: use --host <ip> to query a known CANsub.2 directly.")
+    _print_device_info(resolved_host, resolved_timeout, verify_tls)
 
 
 @device_group.command("info")
-@click.option("--host", required=True, help="CANsub.2 host/IP address.")
-@click.option("--timeout", default=5.0, show_default=True, help="HTTP timeout in seconds.")
-def device_info(host: str, timeout: float) -> None:
-    """Show read-only information for a CANsub.2 at a supplied host/IP."""
-    _print_device_info(host, timeout)
+@click.option("--host", default=None, help="CANsub.2 host/IP (overrides config).")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout in seconds.")
+def device_info(host: str | None, timeout: float | None) -> None:
+    """Show read-only information for a CANsub.2."""
+    resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    _print_device_info(resolved_host, resolved_timeout, verify_tls)
 
 
-def _print_device_info(host: str, timeout: float) -> None:
+@device_group.command("channel-info")
+@click.argument("channel", type=int)
+@click.option("--host", default=None, help="CANsub.2 host/IP (overrides config).")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout in seconds.")
+def device_channel_info(channel: int, host: str | None, timeout: float | None) -> None:
+    """Show read-only status for a CAN channel."""
+    resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    _print_channel_info(resolved_host, channel, resolved_timeout, verify_tls)
+
+
+def _resolve_cansub_settings(
+    host: str | None,
+    timeout: float | None,
+) -> tuple[str, float, bool]:
+    from canresearch.config import ConfigError, resolve_cansub_settings
+
+    try:
+        return resolve_cansub_settings(host, timeout, None)
+    except ConfigError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+def _print_device_info(host: str, timeout: float, verify_tls: bool) -> None:
     from canresearch.cansub.client import probe_host
     from canresearch.cansub.exceptions import CansubError
 
     try:
-        info = probe_host(host, timeout=timeout)
+        info = probe_host(host, timeout=timeout, verify_tls=verify_tls)
     except CansubError as exc:
         raise SystemExit(str(exc)) from exc
 
@@ -65,8 +90,112 @@ def _print_device_info(host: str, timeout: float) -> None:
     if info.usb_id:
         click.echo(f"USB ID:     {info.usb_id}")
     if info.channels:
-        channel_text = ", ".join(str(channel) for channel in info.channels)
+        channel_text = ", ".join(str(ch) for ch in info.channels)
         click.echo(f"Channels:   {channel_text}")
+
+
+def _print_channel_info(host: str, channel: int, timeout: float, verify_tls: bool) -> None:
+    from canresearch.cansub.client import get_channel_info
+    from canresearch.cansub.exceptions import CansubApiError, CansubError
+
+    try:
+        info = get_channel_info(host, channel, timeout=timeout, verify_tls=verify_tls)
+    except CansubApiError as exc:
+        if exc.status_code == 404:
+            raise SystemExit(f"CAN channel {channel} not found on {host}") from exc
+        raise SystemExit(str(exc)) from exc
+    except CansubError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"CANsub.2 Channel {info.channel}")
+    click.echo(f"Host:       {info.host}")
+    click.echo(f"Channel:    {info.channel}")
+    if info.state is not None:
+        click.echo(f"State:      {info.state}")
+    if info.frame_count is not None:
+        click.echo(f"Frames:     {info.frame_count}")
+    if info.frame_rate is not None:
+        click.echo(f"Frame rate: {info.frame_rate} fps")
+    if info.bus_load is not None:
+        click.echo(f"Bus load:   {info.bus_load}%")
+    if info.rx_error_count is not None:
+        click.echo(f"RX errors:  {info.rx_error_count}")
+    if info.tx_error_count is not None:
+        click.echo(f"TX errors:  {info.tx_error_count}")
+    if info.bus_error_count is not None:
+        click.echo(f"Bus errors: {info.bus_error_count}")
+    if info.phy:
+        if "listen_only" in info.phy:
+            click.echo(f"Listen only: {info.phy['listen_only']}")
+        if "auto_reset" in info.phy:
+            click.echo(f"Auto reset:  {info.phy['auto_reset']}")
+        if "error_frames" in info.phy:
+            click.echo(f"Error frames: {info.phy['error_frames']}")
+        if "timing" in info.phy:
+            click.echo(f"Timing:      {info.phy['timing']}")
+        if "timing_data" in info.phy:
+            click.echo(f"Timing data: {info.phy['timing_data']}")
+
+
+@main.group("config")
+def config_group() -> None:
+    """Manage local can-research configuration."""
+
+
+@config_group.command("show")
+def config_show() -> None:
+    """Show current configuration."""
+    from canresearch.config import default_config_path, load_config
+
+    path = default_config_path()
+    config = load_config(path)
+    click.echo(f"Config file: {path}")
+    if not path.exists():
+        click.echo("Status:      not created (using defaults)")
+    click.echo("[cansub]")
+    click.echo(f"host = {config.cansub.host or '(not set)'}")
+    click.echo(f"timeout = {config.cansub.timeout:g}")
+    click.echo(f"verify_tls = {'true' if config.cansub.verify_tls else 'false'}")
+
+
+@config_group.command("set-host")
+@click.argument("host")
+def config_set_host(host: str) -> None:
+    """Save the default CANsub.2 host (hostname or IP)."""
+    from canresearch.config import ConfigError, default_config_path, update_cansub_config
+
+    try:
+        update_cansub_config(host=host)
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"Saved CANsub host: {host.strip()}")
+    click.echo(f"Config file: {default_config_path()}")
+
+
+@config_group.command("set-timeout")
+@click.argument("seconds", type=float)
+def config_set_timeout(seconds: float) -> None:
+    """Save the default CANsub.2 HTTP timeout."""
+    from canresearch.config import ConfigError, default_config_path, update_cansub_config
+
+    try:
+        update_cansub_config(timeout=seconds)
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"Saved CANsub timeout: {seconds:g}s")
+    click.echo(f"Config file: {default_config_path()}")
+
+
+@config_group.command("set-verify-tls")
+@click.argument("enabled", type=click.Choice(["true", "false"]))
+def config_set_verify_tls(enabled: str) -> None:
+    """Save whether TLS certificates are verified for CANsub.2."""
+    from canresearch.config import default_config_path, update_cansub_config
+
+    verify_tls = enabled == "true"
+    update_cansub_config(verify_tls=verify_tls)
+    click.echo(f"Saved CANsub verify_tls: {enabled}")
+    click.echo(f"Config file: {default_config_path()}")
 
 
 @main.group("capture")

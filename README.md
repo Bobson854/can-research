@@ -66,6 +66,9 @@ src/canresearch/
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/V1_SCOPE.md](docs/V1_SCOPE.md).
 
+For CANsub.2 USB/Ethernet connection notes (hostname vs IP, config), see
+[docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
