@@ -8,14 +8,14 @@ import pytest
 from canresearch.storage.database import SCHEMA_VERSION, get_schema_version, initialize
 
 
-def test_schema_version_is_v2() -> None:
-    assert SCHEMA_VERSION == 2
+def test_schema_version_is_v3() -> None:
+    assert SCHEMA_VERSION == 3
 
 
 def test_v2_tables_created(tmp_path: Path) -> None:
     db_path = tmp_path / "test.db"
     conn = initialize(db_path)
-    assert get_schema_version(conn) == 2
+    assert get_schema_version(conn) == SCHEMA_VERSION
 
     tables = {
         row[0]
@@ -82,7 +82,7 @@ def test_migrate_from_v1(tmp_path: Path) -> None:
     conn.close()
 
     conn2 = initialize(db_path)
-    assert get_schema_version(conn2) == 2
+    assert get_schema_version(conn2) == SCHEMA_VERSION
     row = conn2.execute("SELECT pgn, name FROM reference_pgns WHERE pgn = 65000").fetchone()
     assert row is not None
     conn2.close()

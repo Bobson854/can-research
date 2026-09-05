@@ -291,15 +291,82 @@ def capture_group() -> None:
 
 
 @capture_group.command("start")
-@click.option("--device", default=None, help="Device identifier from 'device list'.")
+@click.option("--channel", required=True, type=int, help="CAN channel number.")
+@click.option("--host", default=None, help="CANsub.2 host/IP (overrides config).")
 @click.option("--name", default=None, help="Optional session label.")
-def capture_start(device: str | None, name: str | None) -> None:
-    """Start a new capture session."""
-    click.echo("Capture start is not yet implemented.")
-    if device:
-        click.echo(f"  device: {device}")
-    if name:
-        click.echo(f"  name: {name}")
+@click.option(
+    "--duration",
+    default=5.0,
+    type=float,
+    show_default=True,
+    help="Seconds to capture before stopping.",
+)
+@click.option("--max-frames", default=None, type=int, help="Stop after this many frames.")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout for device validation.")
+def capture_start(
+    channel: int,
+    host: str | None,
+    name: str | None,
+    duration: float,
+    max_frames: int | None,
+    timeout: float | None,
+) -> None:
+    """Start a capture session and receive frames until duration or limit."""
+    resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    _run_capture_start(
+        resolved_host,
+        channel,
+        name=name,
+        duration=duration,
+        max_frames=max_frames,
+        timeout=resolved_timeout,
+        verify_tls=verify_tls,
+    )
+
+
+def _run_capture_start(
+    host: str,
+    channel: int,
+    *,
+    name: str | None,
+    duration: float,
+    max_frames: int | None,
+    timeout: float,
+    verify_tls: bool,
+) -> None:
+    from canresearch.cansub.capture import run_capture
+    from canresearch.cansub.exceptions import CansubWebSocketError
+
+    try:
+        result = run_capture(
+            host,
+            channel,
+            duration=duration,
+            max_frames=max_frames,
+            name=name,
+            timeout=timeout,
+            verify_tls=verify_tls,
+        )
+    except KeyboardInterrupt:
+        click.echo("Interrupted")
+        raise SystemExit(0) from None
+    except CansubWebSocketError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    session = result.session
+    click.echo("Capture complete")
+    click.echo(f"Session:     {session.id}")
+    if session.name:
+        click.echo(f"Name:        {session.name}")
+    if session.host:
+        click.echo(f"Host:        {session.host}")
+    if session.channel is not None:
+        click.echo(f"Channel:     {session.channel}")
+    click.echo(f"Duration:    {result.duration_s:g} s")
+    click.echo(f"Frames:      {session.frame_count or 0}")
+    if session.frame_store_path:
+        click.echo(f"Store:       {session.frame_store_path}")
+    click.echo(f"Status:      {session.status.value}")
 
 
 @capture_group.command("stop")
@@ -314,19 +381,59 @@ def session_group() -> None:
 
 
 @session_group.command("list")
-def session_list() -> None:
+@click.option("--limit", default=20, show_default=True, help="Maximum sessions to show.")
+def session_list(limit: int) -> None:
     """List stored capture sessions."""
-    click.echo("Session list is not yet implemented.")
-    click.echo("Planned: read session metadata from SQLite.")
+    from canresearch.core.sessions import list_sessions
+
+    sessions = list_sessions(limit=limit)
+    if not sessions:
+        click.echo("No capture sessions found.")
+        return
+
+    click.echo("Capture sessions")
+    for session in sessions:
+        name = session.name or "-"
+        started = session.started_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+        frames = session.frame_count if session.frame_count is not None else 0
+        channel = session.channel if session.channel is not None else "-"
+        click.echo(
+            f"{session.id}  {session.status.value:<11}  ch={channel}  "
+            f"frames={frames}  {started}  {name}"
+        )
 
 
 @session_group.command("summary")
-@click.argument("session_id", required=False, default=None)
-def session_summary(session_id: str | None) -> None:
-    """Summarize a capture session (observed PGNs, rates, etc.)."""
-    click.echo("Session summary is not yet implemented.")
-    if session_id:
-        click.echo(f"  session_id: {session_id}")
+@click.argument("session_id")
+def session_summary(session_id: str) -> None:
+    """Summarize a capture session."""
+    from canresearch.core.sessions import summarize_session
+
+    try:
+        summary = summarize_session(session_id)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Session:     {summary['id']}")
+    if summary.get("name"):
+        click.echo(f"Name:        {summary['name']}")
+    if summary.get("host"):
+        click.echo(f"Host:        {summary['host']}")
+    if summary.get("channel") is not None:
+        click.echo(f"Channel:     {summary['channel']}")
+    if summary.get("device_id"):
+        click.echo(f"Device ID:   {summary['device_id']}")
+    click.echo(f"Status:      {summary['status']}")
+    click.echo(f"Started:     {summary['started_at']}")
+    if summary.get("stopped_at"):
+        click.echo(f"Stopped:     {summary['stopped_at']}")
+    if summary.get("duration_s") is not None:
+        click.echo(f"Duration:    {summary['duration_s']:.1f} s")
+    click.echo(f"Frames:      {summary.get('frame_count', 0)}")
+    if summary.get("frame_store_path"):
+        click.echo(f"Store:       {summary['frame_store_path']}")
+    if summary.get("notes"):
+        click.echo(f"Notes:       {summary['notes']}")
 
 
 @main.group("dbc")

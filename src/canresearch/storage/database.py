@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -233,6 +233,10 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_reference_ddis_origin ON reference_ddis(origin);
         CREATE INDEX IF NOT EXISTS idx_reference_sources_origin ON reference_sources(origin);
     """,
+    3: """
+        ALTER TABLE sessions ADD COLUMN host TEXT;
+        ALTER TABLE sessions ADD COLUMN channel INTEGER;
+    """,
 }
 
 
@@ -266,6 +270,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             raise RuntimeError(msg)
         if version == 2:
             _migrate_v2(conn)
+        elif version == 3:
+            _migrate_v3(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -286,6 +292,18 @@ def _migrate_v2(conn: sqlite3.Connection) -> None:
     if _table_exists(conn, "reference_sources"):
         return
     conn.executescript(MIGRATIONS[2])
+
+
+def _migrate_v3(conn: sqlite3.Connection) -> None:
+    """Add capture host/channel columns to sessions."""
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(sessions)").fetchall()
+    }
+    if "host" not in columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN host TEXT")
+    if "channel" not in columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN channel INTEGER")
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:
