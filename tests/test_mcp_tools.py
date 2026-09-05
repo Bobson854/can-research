@@ -217,12 +217,23 @@ EXPECTED_LIVE_TOOLS = frozenset(
     }
 )
 
+EXPECTED_SIGNAL_RESEARCH_TOOLS = frozenset(
+    {
+        "rank_signal_candidates",
+        "analyze_can_id_activity",
+        "analyze_repeated_action",
+        "detect_counters",
+        "detect_checksums",
+        "correlate_candidate_field",
+    }
+)
+
 
 def test_expected_tools_registered() -> None:
     all_tools = frozenset(list_tool_names())
     assert READ_ONLY_TOOL_NAMES == EXPECTED_TOOLS
     assert LIVE_TOOL_NAMES == EXPECTED_LIVE_TOOLS
-    assert all_tools == EXPECTED_TOOLS | EXPECTED_LIVE_TOOLS
+    assert all_tools == EXPECTED_TOOLS | EXPECTED_LIVE_TOOLS | EXPECTED_SIGNAL_RESEARCH_TOOLS
     assert FORBIDDEN_MUTATION_TOOLS.isdisjoint(all_tools)
 
 

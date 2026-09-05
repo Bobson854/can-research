@@ -18,6 +18,7 @@
 - [x] J1939 NAME / Address Claim → asset identity mapping (`session nodes`, `asset node`)
 - [x] Read-only MCP session/research tools (`mcp serve`, `mcp tools`)
 - [x] Live CANsub.2 MCP research controls (passive observation, capture, events, comparison)
+- [x] Proprietary signal research primitives (candidate evidence, repeat consistency, correlation)
 - [x] J1939 29-bit identifier parsing
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
@@ -41,6 +42,7 @@ permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 | Automated CAN transmission | Research/analysis tool, not a bus simulator |
 | NVRAM / ECU programming | Out of scope; legal and safety concerns |
 | Autonomous proprietary decoding | Human-in-the-loop + AI-assisted, not black-box decode |
+| Automatic research DBC writes | Candidate evidence only until explicit confirmation milestone |
 | Cloud sync | Local-first; no account infrastructure in V1 |
 | Community data sharing | Licensed data stays private per user |
 | Bundled SAE J1939 / ISO 11783 database | Copyright; user imports their own licensed sources |

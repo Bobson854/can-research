@@ -905,6 +905,169 @@ def session_compare(
         )
 
 
+@session_group.group("research")
+def session_research_group() -> None:
+    """Proprietary signal research (candidate evidence only)."""
+
+
+def _parse_can_id(value: str) -> int:
+    cleaned = value.strip().lower()
+    if cleaned.startswith("0x"):
+        return int(cleaned, 16)
+    return int(cleaned)
+
+
+@session_research_group.command("rank")
+@click.argument("session_id")
+@click.option("--baseline-event", required=True)
+@click.option("--action-event", required=True)
+@click.option("--window-seconds", default=3.0, show_default=True)
+@click.option("--limit", default=20, show_default=True)
+def session_research_rank(
+    session_id: str,
+    baseline_event: str,
+    action_event: str,
+    window_seconds: float,
+    limit: int,
+) -> None:
+    """Rank CAN ID candidates between baseline and action windows."""
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.signal_research import rank_candidate_ids
+
+    try:
+        result = rank_candidate_ids(
+            session_id,
+            baseline_event=baseline_event,
+            action_event=action_event,
+            window_seconds=window_seconds,
+            limit=limit,
+        )
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+
+    for item in result.get("candidates", []):
+        evidence = item.get("evidence", {})
+        click.echo(
+            f"#{item.get('rank')} {item['can_id']} score={item.get('change_score')} "
+            f"bytes={evidence.get('changed_bytes')}"
+        )
+
+
+@session_research_group.command("id")
+@click.argument("session_id")
+@click.argument("can_id")
+@click.option("--baseline-event")
+@click.option("--action-event")
+@click.option("--window-seconds", default=3.0, show_default=True)
+def session_research_id(
+    session_id: str,
+    can_id: str,
+    baseline_event: str | None,
+    action_event: str | None,
+    window_seconds: float,
+) -> None:
+    """Analyze byte/bit activity for one CAN ID."""
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.signal_research import analyze_can_id_activity
+
+    try:
+        result = analyze_can_id_activity(
+            session_id,
+            _parse_can_id(can_id),
+            baseline_event=baseline_event,
+            action_event=action_event,
+            window_seconds=window_seconds,
+        )
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"CAN ID: {result['can_id']}  frames action={result['action']['frame_count']}")
+    for row in result["action"]["byte_activity"]:
+        click.echo(
+            f"  byte {row['byte']}: unique={row['unique_values']} "
+            f"change_rate={row['change_rate']}"
+        )
+    click.echo(f"Field candidates: {len(result.get('field_candidates', []))}")
+
+
+@session_research_group.command("counters")
+@click.argument("session_id")
+@click.argument("can_id")
+def session_research_counters(session_id: str, can_id: str) -> None:
+    """Detect counter candidates for one CAN ID."""
+    from canresearch.core.signal_research import detect_counters_for_can_id
+
+    try:
+        result = detect_counters_for_can_id(session_id, _parse_can_id(can_id))
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    for item in result.get("candidates", []):
+        click.echo(
+            f"byte {item['byte_index']} {item['field_type']} "
+            f"match={item['match_ratio']} modulus={item['modulus']}"
+        )
+
+
+@session_research_group.command("checksums")
+@click.argument("session_id")
+@click.argument("can_id")
+def session_research_checksums(session_id: str, can_id: str) -> None:
+    """Detect checksum candidates for one CAN ID."""
+    from canresearch.core.signal_research import detect_checksums_for_can_id
+
+    try:
+        result = detect_checksums_for_can_id(session_id, _parse_can_id(can_id))
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    for item in result.get("candidates", []):
+        click.echo(
+            f"{item['algorithm']} byte={item['checksum_byte']} match={item['match_ratio']}"
+        )
+
+
+@session_research_group.command("repeat")
+@click.argument("session_id")
+@click.option("--baseline-events", required=True, help="Comma-separated baseline labels.")
+@click.option("--action-events", required=True, help="Comma-separated action labels.")
+@click.option("--window-seconds", default=3.0, show_default=True)
+@click.option("--can-id", default=None)
+def session_research_repeat(
+    session_id: str,
+    baseline_events: str,
+    action_events: str,
+    window_seconds: float,
+    can_id: str | None,
+) -> None:
+    """Compare repeated baseline/action pairs for consistency."""
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.signal_research import compare_repeated_actions
+
+    base_labels = [part.strip() for part in baseline_events.split(",") if part.strip()]
+    act_labels = [part.strip() for part in action_events.split(",") if part.strip()]
+    kwargs: dict = {
+        "session_id": session_id,
+        "baseline_events": base_labels,
+        "action_events": act_labels,
+        "window_seconds": window_seconds,
+    }
+    if can_id is not None:
+        kwargs["can_id"] = _parse_can_id(can_id)
+    try:
+        result = compare_repeated_actions(**kwargs)
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+
+    for row in result.get("bit_consistency", [])[:20]:
+        click.echo(
+            f"{row['can_id']} bit {row['bit_index']} consistency={row['consistency']} "
+            f"specificity={row['action_specificity_score']}"
+        )
+
+
 @session_group.group("asset")
 def session_asset_group() -> None:
     """Manage assets linked to a capture session."""
@@ -1576,13 +1739,21 @@ def mcp_group() -> None:
 @mcp_group.command("tools")
 def mcp_tools() -> None:
     """List MCP tools registered by the server."""
-    from canresearch.mcp.server import LIVE_TOOL_NAMES, READ_ONLY_TOOL_NAMES, list_tool_names
+    from canresearch.mcp.server import (
+        LIVE_TOOL_NAMES,
+        READ_ONLY_TOOL_NAMES,
+        SIGNAL_RESEARCH_TOOL_NAMES,
+        list_tool_names,
+    )
 
     click.echo("Read-only session/research tools:")
     for name in sorted(READ_ONLY_TOOL_NAMES):
         click.echo(f"  {name}")
     click.echo("Live CANsub research tools (passive):")
     for name in sorted(LIVE_TOOL_NAMES):
+        click.echo(f"  {name}")
+    click.echo("Signal research tools (candidate evidence):")
+    for name in sorted(SIGNAL_RESEARCH_TOOL_NAMES):
         click.echo(f"  {name}")
     click.echo(f"Total: {len(list_tool_names())}")
 

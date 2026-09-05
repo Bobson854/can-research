@@ -32,24 +32,26 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 
 - Exposes **read-only** tools for stored sessions, reference lookup, analysis, transport
   inspection, J1939 nodes/assets, and in-memory DBC preview
-- Exposes **live passive** CANsub.2 tools: device/channel status, capture start/stop,
-  bounded live observation, experiment markers, baseline/action window comparison
+- Exposes **signal research** tools: candidate ID ranking, byte/bit activity,
+  repeated-action consistency, counter/checksum detection, reference correlation
 - Thin adapter over `core/` and `cansub/` — delegates to existing service APIs
-- **No CAN transmission** tools; no autonomous experimentation
+- **No CAN transmission** tools; **no automatic DBC mutation**
 - Stdio transport in V1 (desktop MCP clients); SSE/HTTP reserved for later
 
 ```text
 AI agent
   ↓ MCP tool call
-thin MCP handlers (mcp/handlers.py, mcp/live_handlers.py)
+thin MCP handlers (handlers.py, live_handlers.py, signal_research_handlers.py)
   ↓
 CAN Research core / cansub
+  ├─ signal_research (candidates, repeat consistency, correlation)
+  ├─ counter_detection / checksum_detection / candidate_fields
   ├─ live_research (observation, events, comparison)
   ├─ live_capture (background capture registry)
   ├─ sessions / analysis / decode
   ├─ J1939 TP / nodes / assets
   ├─ references
-  └─ DBC preview (in-memory only)
+  └─ DBC preview (in-memory only; no research DBC writes)
 ```
 
 Read-only MCP tools: `list_sessions`, `get_session`, `analyze_session`,
@@ -61,14 +63,15 @@ Live MCP tools (passive): `get_cansub_device_status`, `get_cansub_channel_status
 `start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
 `mark_experiment_event`, `compare_experiment_windows`.
 
-Concurrency: one active capture per channel. `observe_live_traffic` fails with
-`channel_rx_in_use` if the channel RX WebSocket is owned by an active capture.
+Signal research MCP tools (evidence only): `rank_signal_candidates`,
+`analyze_can_id_activity`, `analyze_repeated_action`, `detect_counters`,
+`detect_checksums`, `correlate_candidate_field`.
 
-`compare_experiment_windows` is implemented in `core/live_research.py` as a
-deterministic ranking heuristic (frequency delta, payload changes, byte change rate,
-new-ID bonus). It is not ML-based.
+**Candidate ≠ confirmed.** Research tools do not modify DBC files or persist inferred
+signals. Repeated-action consistency (`compare_repeated_actions`) is the strongest
+primitive for narrowing proprietary field candidates.
 
-Responses are bounded (row/line limits, observation duration, comparison window size).
+Concurrency: one active capture per channel.
 
 ### `storage/` — persistence
 

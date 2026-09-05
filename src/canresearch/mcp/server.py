@@ -8,7 +8,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from canresearch.mcp import handlers, live_handlers
+from canresearch.mcp import handlers, live_handlers, signal_research_handlers
 from canresearch.mcp.errors import McpToolError
 
 
@@ -184,16 +184,73 @@ LIVE_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
     ),
 )
 
-TOOL_BINDINGS: tuple[_ToolBinding, ...] = READ_ONLY_TOOL_BINDINGS + LIVE_TOOL_BINDINGS
+SIGNAL_RESEARCH_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
+    _ToolBinding(
+        name="rank_signal_candidates",
+        description=(
+            "Rank CAN IDs and changing bytes that differ between baseline and action windows. "
+            "Use after marking a repeatable physical action. Returns evidence only; "
+            "does not infer signal meaning or modify a DBC."
+        ),
+        handler=signal_research_handlers.handle_rank_signal_candidates,
+    ),
+    _ToolBinding(
+        name="analyze_can_id_activity",
+        description=(
+            "Inspect byte/bit activity and bounded field candidates for one CAN ID "
+            "across baseline and action windows. Evidence only; no DBC changes."
+        ),
+        handler=signal_research_handlers.handle_analyze_can_id_activity,
+    ),
+    _ToolBinding(
+        name="analyze_repeated_action",
+        description=(
+            "Compare repeated baseline/action experiment pairs for bit/byte consistency evidence. "
+            "Use when the operator repeated the same action multiple times."
+        ),
+        handler=signal_research_handlers.handle_analyze_repeated_action,
+    ),
+    _ToolBinding(
+        name="detect_counters",
+        description=(
+            "Detect bounded counter patterns (8-bit, nibble, 2-bit) in one CAN ID payload series. "
+            "Returns candidate evidence, not confirmed counters."
+        ),
+        handler=signal_research_handlers.handle_detect_counters,
+    ),
+    _ToolBinding(
+        name="detect_checksums",
+        description=(
+            "Detect bounded checksum patterns (xor8, sum8, twos-complement) for one CAN ID. "
+            "Returns candidate evidence only."
+        ),
+        handler=signal_research_handlers.handle_detect_checksums,
+    ),
+    _ToolBinding(
+        name="correlate_candidate_field",
+        description=(
+            "Correlate a candidate bitfield against a timestamped reference value series. "
+            "Returns Pearson correlation and linear scale/offset fit. Evidence only."
+        ),
+        handler=signal_research_handlers.handle_correlate_candidate_field,
+    ),
+)
+
+TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
+    READ_ONLY_TOOL_BINDINGS + LIVE_TOOL_BINDINGS + SIGNAL_RESEARCH_TOOL_BINDINGS
+)
 
 READ_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
     binding.name for binding in READ_ONLY_TOOL_BINDINGS
 )
 LIVE_TOOL_NAMES: frozenset[str] = frozenset(binding.name for binding in LIVE_TOOL_BINDINGS)
+SIGNAL_RESEARCH_TOOL_NAMES: frozenset[str] = frozenset(
+    binding.name for binding in SIGNAL_RESEARCH_TOOL_BINDINGS
+)
 
 
 def list_tool_names() -> list[str]:
-    """Return all registered MCP tool names (read-only + live)."""
+    """Return all registered MCP tool names."""
     return [binding.name for binding in TOOL_BINDINGS]
 
 
@@ -208,7 +265,10 @@ def create_server() -> MCPServer:
             "inspect_transport → build_session_dbc_preview. "
             "Live passive experiment flow: get_cansub_device_status → "
             "get_cansub_channel_status → start_live_capture → mark_experiment_event → "
-            "stop_live_capture → compare_experiment_windows → analyze_session. "
+            "stop_live_capture → compare_experiment_windows → rank_signal_candidates → "
+            "analyze_can_id_activity → detect_counters/detect_checksums → "
+            "analyze_repeated_action → correlate_candidate_field. "
+            "Signal research tools return candidate evidence only — no DBC modification. "
             "No CAN transmission tools are available."
         ),
     )
@@ -414,6 +474,102 @@ def create_server() -> MCPServer:
             baseline_event=baseline_event,
             action_event=action_event,
             window_seconds=window_seconds,
+        )
+
+    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[0].description)
+    def rank_signal_candidates(
+        session_id: str,
+        baseline_event: str,
+        action_event: str,
+        window_seconds: float | None = None,
+        source_address: int | None = None,
+        asset_key: str | None = None,
+        can_id: int | None = None,
+        pgn: int | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            signal_research_handlers.handle_rank_signal_candidates,
+            session_id=session_id,
+            baseline_event=baseline_event,
+            action_event=action_event,
+            window_seconds=window_seconds,
+            source_address=source_address,
+            asset_key=asset_key,
+            can_id=can_id,
+            pgn=pgn,
+            limit=limit,
+        )
+
+    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[1].description)
+    def analyze_can_id_activity(
+        session_id: str,
+        can_id: int,
+        baseline_event: str | None = None,
+        action_event: str | None = None,
+        window_seconds: float | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            signal_research_handlers.handle_analyze_can_id_activity,
+            session_id=session_id,
+            can_id=can_id,
+            baseline_event=baseline_event,
+            action_event=action_event,
+            window_seconds=window_seconds,
+        )
+
+    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[2].description)
+    def analyze_repeated_action(
+        session_id: str,
+        baseline_events: list[str],
+        action_events: list[str],
+        window_seconds: float | None = None,
+        can_id: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            signal_research_handlers.handle_analyze_repeated_action,
+            session_id=session_id,
+            baseline_events=baseline_events,
+            action_events=action_events,
+            window_seconds=window_seconds,
+            can_id=can_id,
+        )
+
+    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[3].description)
+    def detect_counters(session_id: str, can_id: int) -> dict[str, Any]:
+        return _invoke(
+            signal_research_handlers.handle_detect_counters,
+            session_id=session_id,
+            can_id=can_id,
+        )
+
+    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[4].description)
+    def detect_checksums(session_id: str, can_id: int) -> dict[str, Any]:
+        return _invoke(
+            signal_research_handlers.handle_detect_checksums,
+            session_id=session_id,
+            can_id=can_id,
+        )
+
+    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[5].description)
+    def correlate_candidate_field(
+        session_id: str,
+        can_id: int,
+        start_bit: int,
+        length: int,
+        reference_series: list[dict[str, Any]],
+        signed: bool = False,
+        tolerance_us: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            signal_research_handlers.handle_correlate_candidate_field,
+            session_id=session_id,
+            can_id=can_id,
+            start_bit=start_bit,
+            length=length,
+            reference_series=reference_series,
+            signed=signed,
+            tolerance_us=tolerance_us,
         )
 
     return server

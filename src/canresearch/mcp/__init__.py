@@ -3,6 +3,7 @@
 from canresearch.mcp.server import (
     LIVE_TOOL_NAMES,
     READ_ONLY_TOOL_NAMES,
+    SIGNAL_RESEARCH_TOOL_NAMES,
     create_server,
     list_tool_names,
     serve,
@@ -11,6 +12,7 @@ from canresearch.mcp.server import (
 __all__ = [
     "LIVE_TOOL_NAMES",
     "READ_ONLY_TOOL_NAMES",
+    "SIGNAL_RESEARCH_TOOL_NAMES",
     "create_server",
     "list_tool_names",
     "serve",

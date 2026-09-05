@@ -26,8 +26,9 @@ The following milestones are **complete** on the development desk unit (Device I
 | J1939 NAME / Address Claim → asset identity mapping | Done |
 | Read-only MCP session/research tools | Done |
 | Live CANsub.2 MCP research controls | Done |
+| Proprietary signal research primitives | Done |
 
-**Next major milestone:** Proprietary signal research primitives.
+**Next major milestone:** Candidate review / confirmation + research DBC generation.
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -103,6 +104,11 @@ uv run canresearch session asset list <session-id>
 uv run canresearch session event add <session-id> --label "baseline_start"
 uv run canresearch session event list <session-id>
 uv run canresearch session compare <session-id> --baseline-event baseline_start --action-event scv2_extend
+uv run canresearch session research rank <session-id> --baseline-event ... --action-event ...
+uv run canresearch session research id <session-id> <can-id> ...
+uv run canresearch session research counters <session-id> <can-id>
+uv run canresearch session research checksums <session-id> <can-id>
+uv run canresearch session research repeat <session-id> --baseline-events ... --action-events ...
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch reference import-j1939 ...
 uv run canresearch mcp serve
@@ -145,6 +151,23 @@ max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in
 
 Responses are bounded (default limits on decode rows, observed traffic, DBC preview
 lines, observation duration, and comparison windows).
+
+### Signal research (candidate evidence only)
+
+After capture and experiment marking, use deterministic research primitives to rank
+**candidates** — not confirmed signals. **No DBC files are modified automatically.**
+
+Research workflow:
+
+1. `compare_experiment_windows` or `session compare`
+2. `rank_signal_candidates` / `session research rank`
+3. `analyze_can_id_activity` / `session research id`
+4. `detect_counters` / `detect_checksums`
+5. `analyze_repeated_action` (3–5 deliberate repetitions strongly preferred)
+6. `correlate_candidate_field` with a reference series (SPN decode, CSV, operator values)
+
+MCP adds 6 read-only signal research tools (25 total). Terminology uses *candidate*,
+*evidence*, *consistency*, and *correlation* — never *confirmed*.
 
 ### Agricultural workflow example
 

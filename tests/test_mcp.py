@@ -5,6 +5,7 @@ import asyncio
 from canresearch.mcp.server import (
     LIVE_TOOL_NAMES,
     READ_ONLY_TOOL_NAMES,
+    SIGNAL_RESEARCH_TOOL_NAMES,
     create_server,
     list_tool_names,
     serve,
@@ -23,7 +24,8 @@ def test_mcp_serve_is_callable() -> None:
 def test_read_only_tool_registry() -> None:
     assert len(READ_ONLY_TOOL_NAMES) == 12
     assert len(LIVE_TOOL_NAMES) == 7
-    assert len(list_tool_names()) == 19
+    assert len(SIGNAL_RESEARCH_TOOL_NAMES) == 6
+    assert len(list_tool_names()) == 25
     assert "analyze_session" in READ_ONLY_TOOL_NAMES
     assert "build_session_dbc_preview" in READ_ONLY_TOOL_NAMES
     assert "start_live_capture" in LIVE_TOOL_NAMES
