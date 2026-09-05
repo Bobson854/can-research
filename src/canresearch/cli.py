@@ -370,9 +370,36 @@ def _run_capture_start(
 
 
 @capture_group.command("stop")
-def capture_stop() -> None:
-    """Stop the active capture session."""
-    click.echo("Capture stop is not yet implemented.")
+@click.argument("session_id", required=False)
+def capture_stop(session_id: str | None) -> None:
+    """Stop an active background live capture."""
+    from canresearch.cansub.live_capture import get_live_capture_registry, stop_live_capture
+    from canresearch.core.live_errors import LiveResearchError
+
+    target = session_id
+    if target is None:
+        active = get_live_capture_registry().list_active_session_ids()
+        if not active:
+            raise SystemExit("No active capture session.")
+        if len(active) > 1:
+            raise SystemExit(
+                "Multiple active captures; specify session_id: "
+                + ", ".join(active)
+            )
+        target = active[0]
+
+    try:
+        result = stop_live_capture(target)
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+
+    click.echo(f"Session:     {result['session_id']}")
+    click.echo(f"Stopped at:  {result.get('stopped_at') or '-'}")
+    click.echo(f"Frames:      {result.get('frame_count', 0)}")
+    duration = result.get("duration_s")
+    if duration is not None:
+        click.echo(f"Duration:    {duration:.1f}s")
+    click.echo(f"Status:      {result.get('capture_state', '-')}")
 
 
 @main.group("session")
@@ -767,6 +794,115 @@ def session_summary(session_id: str) -> None:
         click.echo(f"Store:       {summary['frame_store_path']}")
     if summary.get("notes"):
         click.echo(f"Notes:       {summary['notes']}")
+
+
+@session_group.group("event")
+def session_event_group() -> None:
+    """Experiment event markers for capture sessions."""
+
+
+@session_event_group.command("add")
+@click.argument("session_id")
+@click.option("--label", required=True, help="Event label (e.g. baseline_start, scv2_extend).")
+@click.option("--notes", default=None, help="Optional annotation.")
+def session_event_add(session_id: str, label: str, notes: str | None) -> None:
+    """Add an experiment event marker to a session."""
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.live_research import mark_experiment_event
+
+    try:
+        event = mark_experiment_event(session_id, label, notes=notes)
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Event:       {event['label']}")
+    click.echo(f"Session:     {event['session_id']}")
+    click.echo(f"Timestamp:   {event['timestamp']}")
+    if event.get("notes"):
+        click.echo(f"Notes:       {event['notes']}")
+
+
+@session_event_group.command("list")
+@click.argument("session_id")
+def session_event_list(session_id: str) -> None:
+    """List experiment event markers for a session."""
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.live_research import list_experiment_events
+
+    try:
+        events = list_experiment_events(session_id)
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+
+    if not events:
+        click.echo("No experiment events.")
+        return
+    click.echo(f"Experiment events for session {session_id}")
+    for event in events:
+        notes = f"  ({event['notes']})" if event.get("notes") else ""
+        click.echo(f"  {event['timestamp']}  {event['label']}{notes}")
+
+
+@session_group.command("compare")
+@click.argument("session_id")
+@click.option("--baseline-event", required=True, help="Baseline event label.")
+@click.option("--action-event", required=True, help="Action event label.")
+@click.option(
+    "--window-seconds",
+    default=3.0,
+    show_default=True,
+    help="Comparison window length after each marker.",
+)
+def session_compare(
+    session_id: str,
+    baseline_event: str,
+    action_event: str,
+    window_seconds: float,
+) -> None:
+    """Compare baseline and action experiment windows in a session."""
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.live_research import compare_experiment_windows
+
+    try:
+        result = compare_experiment_windows(
+            session_id,
+            baseline_event=baseline_event,
+            action_event=action_event,
+            window_seconds=window_seconds,
+        )
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
+
+    click.echo(f"Session:     {result['session_id']}")
+    baseline = result["baseline"]
+    action = result["action"]
+    click.echo(
+        f"Baseline:    {baseline['event']}  {baseline['start']} → {baseline['end']}  "
+        f"({baseline['frames']} frames)"
+    )
+    click.echo(
+        f"Action:      {action['event']}  {action['start']} → {action['end']}  "
+        f"({action['frames']} frames)"
+    )
+    if result.get("baseline_only_can_ids"):
+        click.echo("Baseline-only CAN IDs:")
+        for cid in result["baseline_only_can_ids"]:
+            click.echo(f"  {cid}")
+    if result.get("action_only_can_ids"):
+        click.echo("Action-only CAN IDs:")
+        for cid in result["action_only_can_ids"]:
+            click.echo(f"  {cid}")
+    click.echo("Top changes:")
+    for item in result.get("top_changes", []):
+        changed = item.get("changed_byte_indices") or []
+        changed_text = ",".join(str(i) for i in changed) if changed else "-"
+        click.echo(
+            f"  {item['can_id']}  score={item['change_score']:.3f}  "
+            f"baseline={item['baseline_count']} action={item['action_count']}  "
+            f"bytes=[{changed_text}]"
+        )
 
 
 @session_group.group("asset")
@@ -1439,11 +1575,16 @@ def mcp_group() -> None:
 
 @mcp_group.command("tools")
 def mcp_tools() -> None:
-    """List read-only MCP tools registered by the server."""
-    from canresearch.mcp.server import list_tool_names
+    """List MCP tools registered by the server."""
+    from canresearch.mcp.server import LIVE_TOOL_NAMES, READ_ONLY_TOOL_NAMES, list_tool_names
 
-    for name in list_tool_names():
-        click.echo(name)
+    click.echo("Read-only session/research tools:")
+    for name in sorted(READ_ONLY_TOOL_NAMES):
+        click.echo(f"  {name}")
+    click.echo("Live CANsub research tools (passive):")
+    for name in sorted(LIVE_TOOL_NAMES):
+        click.echo(f"  {name}")
+    click.echo(f"Total: {len(list_tool_names())}")
 
 
 @mcp_group.command("serve")

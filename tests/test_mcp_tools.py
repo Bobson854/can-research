@@ -36,7 +36,12 @@ from canresearch.mcp.handlers import (
     handle_lookup_pgn,
     handle_lookup_spn,
 )
-from canresearch.mcp.server import READ_ONLY_TOOL_NAMES, create_server, list_tool_names
+from canresearch.mcp.server import (
+    LIVE_TOOL_NAMES,
+    READ_ONLY_TOOL_NAMES,
+    create_server,
+    list_tool_names,
+)
 from canresearch.storage.database import initialize
 
 EXPECTED_TOOLS = frozenset(
@@ -200,10 +205,25 @@ def mcp_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return {"db_path": db_path, "root": tmp_path}
 
 
+EXPECTED_LIVE_TOOLS = frozenset(
+    {
+        "get_cansub_device_status",
+        "get_cansub_channel_status",
+        "start_live_capture",
+        "stop_live_capture",
+        "observe_live_traffic",
+        "mark_experiment_event",
+        "compare_experiment_windows",
+    }
+)
+
+
 def test_expected_tools_registered() -> None:
-    assert frozenset(list_tool_names()) == EXPECTED_TOOLS
+    all_tools = frozenset(list_tool_names())
     assert READ_ONLY_TOOL_NAMES == EXPECTED_TOOLS
-    assert FORBIDDEN_MUTATION_TOOLS.isdisjoint(READ_ONLY_TOOL_NAMES)
+    assert LIVE_TOOL_NAMES == EXPECTED_LIVE_TOOLS
+    assert all_tools == EXPECTED_TOOLS | EXPECTED_LIVE_TOOLS
+    assert FORBIDDEN_MUTATION_TOOLS.isdisjoint(all_tools)
 
 
 def test_async_tool_list_matches() -> None:

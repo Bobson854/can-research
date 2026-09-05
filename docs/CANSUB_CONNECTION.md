@@ -188,6 +188,33 @@ status `completed`, frames `0`). Frame data is stored under
 Earlier failed sessions from connectivity attempts remain in SQLite as audit
 history and are not deleted automatically.
 
+## Live MCP research (passive)
+
+The MCP server exposes live CANsub.2 research tools alongside read-only session tools.
+These are **passive only** — no CAN transmission, no autonomous experimentation.
+
+| Tool | Purpose |
+|------|---------|
+| `get_cansub_device_status` | Device ID, firmware, API version, channels |
+| `get_cansub_channel_status` | Bus state, counters, PHY config |
+| `start_live_capture` | Background capture → session JSONL |
+| `stop_live_capture` | Stop active capture by session_id |
+| `observe_live_traffic` | Bounded aggregated traffic (3s default, max 15s) |
+| `mark_experiment_event` | Annotation markers (baseline_start, scv2_extend, …) |
+| `compare_experiment_windows` | Deterministic baseline vs action comparison |
+
+**Concurrency:** one active capture per channel. `observe_live_traffic` returns
+`channel_rx_in_use` if the channel WebSocket is owned by a capture.
+
+**CLI equivalents:**
+
+```powershell
+uv run canresearch capture stop [<session-id>]
+uv run canresearch session event add <session-id> --label baseline_start
+uv run canresearch session event list <session-id>
+uv run canresearch session compare <session-id> --baseline-event baseline_start --action-event scv2_extend
+```
+
 ## Data flow (verified path)
 
 ```text

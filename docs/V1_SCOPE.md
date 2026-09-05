@@ -17,6 +17,7 @@
 - [x] J1939 transport-protocol reassembly (`session tp`)
 - [x] J1939 NAME / Address Claim → asset identity mapping (`session nodes`, `asset node`)
 - [x] Read-only MCP session/research tools (`mcp serve`, `mcp tools`)
+- [x] Live CANsub.2 MCP research controls (passive observation, capture, events, comparison)
 - [x] J1939 29-bit identifier parsing
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
@@ -28,7 +29,6 @@ permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 
 ## In scope (remaining V1)
 
-- [ ] Live CANsub.2 MCP research controls (device status, capture start/stop)
 - [ ] CANsub.2 device discovery (USB + Ethernet scan)
 - [ ] Import reference PGN/SPN data from user-provided DBC files
 

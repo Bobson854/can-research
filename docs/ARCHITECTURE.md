@@ -32,29 +32,43 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 
 - Exposes **read-only** tools for stored sessions, reference lookup, analysis, transport
   inspection, J1939 nodes/assets, and in-memory DBC preview
-- Thin adapter over `core/` and `storage/` — delegates to existing service APIs
-- No direct hardware access; no mutating asset/DBC/capture operations in this milestone
+- Exposes **live passive** CANsub.2 tools: device/channel status, capture start/stop,
+  bounded live observation, experiment markers, baseline/action window comparison
+- Thin adapter over `core/` and `cansub/` — delegates to existing service APIs
+- **No CAN transmission** tools; no autonomous experimentation
 - Stdio transport in V1 (desktop MCP clients); SSE/HTTP reserved for later
 
 ```text
 AI agent
   ↓ MCP tool call
-thin MCP handlers (mcp/handlers.py)
+thin MCP handlers (mcp/handlers.py, mcp/live_handlers.py)
   ↓
-CAN Research core
+CAN Research core / cansub
+  ├─ live_research (observation, events, comparison)
+  ├─ live_capture (background capture registry)
   ├─ sessions / analysis / decode
   ├─ J1939 TP / nodes / assets
   ├─ references
   └─ DBC preview (in-memory only)
 ```
 
-Read-only MCP tools (V1): `list_sessions`, `get_session`, `analyze_session`,
+Read-only MCP tools: `list_sessions`, `get_session`, `analyze_session`,
 `decode_session`, `inspect_transport`, `list_session_nodes`, `list_assets`,
 `get_asset`, `list_asset_nodes`, `lookup_pgn`, `lookup_spn`,
 `build_session_dbc_preview`.
 
-Responses are bounded (row/line limits). Live CANsub.2 MCP controls are a later
-milestone.
+Live MCP tools (passive): `get_cansub_device_status`, `get_cansub_channel_status`,
+`start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
+`mark_experiment_event`, `compare_experiment_windows`.
+
+Concurrency: one active capture per channel. `observe_live_traffic` fails with
+`channel_rx_in_use` if the channel RX WebSocket is owned by an active capture.
+
+`compare_experiment_windows` is implemented in `core/live_research.py` as a
+deterministic ranking heuristic (frequency delta, payload changes, byte change rate,
+new-ID bonus). It is not ML-based.
+
+Responses are bounded (row/line limits, observation duration, comparison window size).
 
 ### `storage/` — persistence
 

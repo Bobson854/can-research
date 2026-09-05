@@ -25,8 +25,9 @@ The following milestones are **complete** on the development desk unit (Device I
 | J1939 transport-protocol reassembly (BAM / RTS-CTS) | Done |
 | J1939 NAME / Address Claim → asset identity mapping | Done |
 | Read-only MCP session/research tools | Done |
+| Live CANsub.2 MCP research controls | Done |
 
-**Next major milestone:** Live CANsub.2 MCP research controls.
+**Next major milestone:** Proprietary signal research primitives.
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -84,6 +85,7 @@ uv run canresearch device info
 uv run canresearch device channel-info <channel>
 uv run canresearch device rx <channel>
 uv run canresearch capture start --channel <n>
+uv run canresearch capture stop [<session-id>]
 uv run canresearch session list
 uv run canresearch session summary <session-id>
 uv run canresearch session analyze <session-id>
@@ -98,19 +100,26 @@ uv run canresearch asset node list <asset-key>
 uv run canresearch asset node remove <asset-key> <j1939-name>
 uv run canresearch session asset add <session-id> <asset-key> --role tractor
 uv run canresearch session asset list <session-id>
+uv run canresearch session event add <session-id> --label "baseline_start"
+uv run canresearch session event list <session-id>
+uv run canresearch session compare <session-id> --baseline-event baseline_start --action-event scv2_extend
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch reference import-j1939 ...
 uv run canresearch mcp serve
 uv run canresearch mcp tools
 ```
 
-### MCP (read-only)
+### MCP (read-only + live passive research)
 
-The MCP server exposes **read-only** tools for stored sessions, reference lookups,
-transport inspection, J1939 node identity, and in-memory DBC preview. It does not
-control live capture, mutate assets, or write DBC files.
+The MCP server exposes **12 read-only** tools for stored sessions, reference lookups,
+transport inspection, J1939 node identity, and in-memory DBC preview. It also exposes
+**7 live CANsub.2 research tools** for passive observation, controlled capture,
+experiment markers, and baseline/action window comparison.
 
-Suggested agent workflow:
+**No CAN transmission tools** are registered. The agent operates CANsub.2 as a passive
+research instrument; physical actions remain human-in-the-loop.
+
+Offline agent workflow:
 
 1. `list_sessions` → `get_session`
 2. `analyze_session` → `list_session_nodes`
@@ -119,8 +128,23 @@ Suggested agent workflow:
 5. `get_asset` / `list_asset_nodes`
 6. `build_session_dbc_preview`
 
+Live experiment workflow:
+
+1. `get_cansub_device_status` → `get_cansub_channel_status`
+2. `start_live_capture`
+3. `mark_experiment_event` (e.g. `baseline_start`)
+4. operator idle / no action
+5. `mark_experiment_event` (e.g. `scv2_extend`)
+6. operator performs physical action
+7. `stop_live_capture`
+8. `compare_experiment_windows`
+9. `analyze_session` / `decode_session` / `lookup_pgn` as needed
+
+`observe_live_traffic` provides bounded aggregated traffic (default 3s, max 15s;
+max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in_use`).
+
 Responses are bounded (default limits on decode rows, observed traffic, DBC preview
-lines). Live CANsub.2 MCP controls are planned for a later milestone.
+lines, observation duration, and comparison windows).
 
 ### Agricultural workflow example
 

@@ -1,4 +1,4 @@
-"""MCP server exposing read-only CAN Research session tools to AI clients."""
+"""MCP server exposing CAN Research session and live CANsub tools."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from canresearch.mcp import handlers
+from canresearch.mcp import handlers, live_handlers
 from canresearch.mcp.errors import McpToolError
 
 
@@ -17,6 +17,7 @@ class _ToolBinding:
     name: str
     description: str
     handler: Callable[..., dict[str, Any]]
+    live: bool = False
 
 
 def _invoke(handler: Callable[..., dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
@@ -26,7 +27,7 @@ def _invoke(handler: Callable[..., dict[str, Any]], **kwargs: Any) -> dict[str, 
         return exc.to_dict()
 
 
-TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
+READ_ONLY_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
     _ToolBinding(
         name="list_sessions",
         description=(
@@ -119,36 +120,108 @@ TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
     ),
 )
 
-READ_ONLY_TOOL_NAMES: frozenset[str] = frozenset(binding.name for binding in TOOL_BINDINGS)
+LIVE_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
+    _ToolBinding(
+        name="get_cansub_device_status",
+        description=(
+            "Return read-only CANsub.2 device status (host, firmware, API version, channels). "
+            "Passive observation only; no CAN transmission."
+        ),
+        handler=live_handlers.handle_get_cansub_device_status,
+        live=True,
+    ),
+    _ToolBinding(
+        name="get_cansub_channel_status",
+        description=(
+            "Return read-only status for one CANsub.2 channel (bus state, counters, PHY). "
+            "Passive observation only."
+        ),
+        handler=live_handlers.handle_get_cansub_channel_status,
+        live=True,
+    ),
+    _ToolBinding(
+        name="start_live_capture",
+        description=(
+            "Start a background live capture on a CANsub channel. "
+            "Creates a session and JSONL frame store. One active capture per channel."
+        ),
+        handler=live_handlers.handle_start_live_capture,
+        live=True,
+    ),
+    _ToolBinding(
+        name="stop_live_capture",
+        description="Stop an active background live capture by session_id.",
+        handler=live_handlers.handle_stop_live_capture,
+        live=True,
+    ),
+    _ToolBinding(
+        name="observe_live_traffic",
+        description=(
+            "Observe live CAN traffic for a bounded duration (default 3s, max 15s). "
+            "Returns aggregated traffic summary, not a raw frame stream. "
+            "Fails if the channel RX is in use by an active capture."
+        ),
+        handler=live_handlers.handle_observe_live_traffic,
+        live=True,
+    ),
+    _ToolBinding(
+        name="mark_experiment_event",
+        description=(
+            "Mark a physical experiment event (annotation only) during a capture session. "
+            "Examples: baseline_start, scv2_extend, pto_on."
+        ),
+        handler=live_handlers.handle_mark_experiment_event,
+        live=True,
+    ),
+    _ToolBinding(
+        name="compare_experiment_windows",
+        description=(
+            "Compare two bounded time windows in a session using experiment event markers. "
+            "Returns deterministic frequency and payload change metrics for CAN IDs."
+        ),
+        handler=live_handlers.handle_compare_experiment_windows,
+        live=True,
+    ),
+)
+
+TOOL_BINDINGS: tuple[_ToolBinding, ...] = READ_ONLY_TOOL_BINDINGS + LIVE_TOOL_BINDINGS
+
+READ_ONLY_TOOL_NAMES: frozenset[str] = frozenset(
+    binding.name for binding in READ_ONLY_TOOL_BINDINGS
+)
+LIVE_TOOL_NAMES: frozenset[str] = frozenset(binding.name for binding in LIVE_TOOL_BINDINGS)
 
 
 def list_tool_names() -> list[str]:
-    """Return registered read-only MCP tool names."""
+    """Return all registered MCP tool names (read-only + live)."""
     return [binding.name for binding in TOOL_BINDINGS]
 
 
 def create_server() -> MCPServer:
-    """Build the can-research MCP server with read-only tools registered."""
+    """Build the can-research MCP server with read-only and live research tools."""
     server = MCPServer(
         "can-research",
         instructions=(
-            "Read-only CAN Research tools for stored capture sessions, J1939 reference "
-            "lookups, transport inspection, node identity, and DBC preview. "
-            "Suggested flow: list_sessions → get_session → analyze_session → "
+            "CAN Research tools for stored sessions and passive live CANsub.2 research. "
+            "Read-only offline flow: list_sessions → get_session → analyze_session → "
             "list_session_nodes → lookup_pgn/lookup_spn → decode_session → "
-            "inspect_transport → get_asset/list_asset_nodes → build_session_dbc_preview."
+            "inspect_transport → build_session_dbc_preview. "
+            "Live passive experiment flow: get_cansub_device_status → "
+            "get_cansub_channel_status → start_live_capture → mark_experiment_event → "
+            "stop_live_capture → compare_experiment_windows → analyze_session. "
+            "No CAN transmission tools are available."
         ),
     )
 
-    @server.tool(description=TOOL_BINDINGS[0].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[0].description)
     def list_sessions(limit: int | None = None) -> dict[str, Any]:
         return _invoke(handlers.handle_list_sessions, limit=limit)
 
-    @server.tool(description=TOOL_BINDINGS[1].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[1].description)
     def get_session(session_id: str) -> dict[str, Any]:
         return _invoke(handlers.handle_get_session, session_id=session_id)
 
-    @server.tool(description=TOOL_BINDINGS[2].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[2].description)
     def analyze_session(
         session_id: str,
         pgn: int | None = None,
@@ -163,7 +236,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=TOOL_BINDINGS[3].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[3].description)
     def decode_session(
         session_id: str,
         pgn: int | None = None,
@@ -180,7 +253,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=TOOL_BINDINGS[4].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[4].description)
     def inspect_transport(
         session_id: str,
         pgn: int | None = None,
@@ -197,7 +270,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=TOOL_BINDINGS[5].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[5].description)
     def list_session_nodes(
         session_id: str,
         source_address: int | None = None,
@@ -210,27 +283,27 @@ def create_server() -> MCPServer:
             manufacturer_code=manufacturer_code,
         )
 
-    @server.tool(description=TOOL_BINDINGS[6].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[6].description)
     def list_assets(limit: int | None = None) -> dict[str, Any]:
         return _invoke(handlers.handle_list_assets, limit=limit)
 
-    @server.tool(description=TOOL_BINDINGS[7].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[7].description)
     def get_asset(asset_key: str) -> dict[str, Any]:
         return _invoke(handlers.handle_get_asset, asset_key=asset_key)
 
-    @server.tool(description=TOOL_BINDINGS[8].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[8].description)
     def list_asset_nodes(asset_key: str) -> dict[str, Any]:
         return _invoke(handlers.handle_list_asset_nodes, asset_key=asset_key)
 
-    @server.tool(description=TOOL_BINDINGS[9].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[9].description)
     def lookup_pgn(pgn: int) -> dict[str, Any]:
         return _invoke(handlers.handle_lookup_pgn, pgn=pgn)
 
-    @server.tool(description=TOOL_BINDINGS[10].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[10].description)
     def lookup_spn(spn: int) -> dict[str, Any]:
         return _invoke(handlers.handle_lookup_spn, spn=spn)
 
-    @server.tool(description=TOOL_BINDINGS[11].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[11].description)
     def build_session_dbc_preview(
         session_id: str,
         asset_key: str,
@@ -243,6 +316,104 @@ def create_server() -> MCPServer:
             asset_key=asset_key,
             source_addresses=source_addresses,
             preview_lines=preview_lines,
+        )
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[0].description)
+    def get_cansub_device_status(
+        host: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            live_handlers.handle_get_cansub_device_status,
+            host=host,
+            timeout=timeout,
+        )
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[1].description)
+    def get_cansub_channel_status(
+        channel: int,
+        host: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            live_handlers.handle_get_cansub_channel_status,
+            channel=channel,
+            host=host,
+            timeout=timeout,
+        )
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[2].description)
+    def start_live_capture(
+        channel: int,
+        session_name: str | None = None,
+        asset_keys: list[str] | None = None,
+        notes: str | None = None,
+        host: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            live_handlers.handle_start_live_capture,
+            channel=channel,
+            session_name=session_name,
+            asset_keys=asset_keys,
+            notes=notes,
+            host=host,
+            timeout=timeout,
+        )
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[3].description)
+    def stop_live_capture(session_id: str) -> dict[str, Any]:
+        return _invoke(live_handlers.handle_stop_live_capture, session_id=session_id)
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[4].description)
+    def observe_live_traffic(
+        channel: int,
+        duration_seconds: float | None = None,
+        pgn: int | None = None,
+        source_address: int | None = None,
+        can_id: int | None = None,
+        limit: int | None = None,
+        host: str | None = None,
+        timeout: float | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            live_handlers.handle_observe_live_traffic,
+            channel=channel,
+            duration_seconds=duration_seconds,
+            pgn=pgn,
+            source_address=source_address,
+            can_id=can_id,
+            limit=limit,
+            host=host,
+            timeout=timeout,
+        )
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[5].description)
+    def mark_experiment_event(
+        session_id: str,
+        label: str,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            live_handlers.handle_mark_experiment_event,
+            session_id=session_id,
+            label=label,
+            notes=notes,
+        )
+
+    @server.tool(description=LIVE_TOOL_BINDINGS[6].description)
+    def compare_experiment_windows(
+        session_id: str,
+        baseline_event: str,
+        action_event: str,
+        window_seconds: float | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            live_handlers.handle_compare_experiment_windows,
+            session_id=session_id,
+            baseline_event=baseline_event,
+            action_event=action_event,
+            window_seconds=window_seconds,
         )
 
     return server

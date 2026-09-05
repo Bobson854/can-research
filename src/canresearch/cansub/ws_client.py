@@ -88,6 +88,7 @@ async def receive_frames(
     verify_tls: bool = False,
     on_frame: Callable[[CansubFrame], None] | None = None,
     connect: ConnectFn | None = None,
+    stop_check: Callable[[], bool] | None = None,
 ) -> CansubRxResult:
     """Connect to the CANsub WebSocket and receive frames for a duration."""
     if duration <= 0:
@@ -118,6 +119,9 @@ async def receive_frames(
             close_timeout=2.0,
         ) as ws:
             while True:
+                if stop_check is not None and stop_check():
+                    exit_reason = "stopped"
+                    break
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     break
@@ -185,6 +189,7 @@ def receive_frames_sync(
     verify_tls: bool = False,
     on_frame: Callable[[CansubFrame], None] | None = None,
     connect: ConnectFn | None = None,
+    stop_check: Callable[[], bool] | None = None,
 ) -> CansubRxResult:
     """Synchronous wrapper around receive_frames()."""
     return asyncio.run(
@@ -197,6 +202,7 @@ def receive_frames_sync(
             verify_tls=verify_tls,
             on_frame=on_frame,
             connect=connect,
+            stop_check=stop_check,
         )
     )
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -305,6 +305,20 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_j1939_node_obs_node ON j1939_node_observations(node_id);
         CREATE INDEX IF NOT EXISTS idx_asset_j1939_nodes_asset ON asset_j1939_nodes(asset_id);
     """,
+    6: """
+        CREATE TABLE IF NOT EXISTS session_events (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            timestamp_us INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_session_events_session ON session_events(session_id);
+        CREATE INDEX IF NOT EXISTS idx_session_events_label
+            ON session_events(session_id, label);
+    """,
 }
 
 
@@ -344,6 +358,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v4(conn)
         elif version == 5:
             _migrate_v5(conn)
+        elif version == 6:
+            _migrate_v6(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -390,6 +406,13 @@ def _migrate_v5(conn: sqlite3.Connection) -> None:
     if _table_exists(conn, "j1939_nodes"):
         return
     conn.executescript(MIGRATIONS[5])
+
+
+def _migrate_v6(conn: sqlite3.Connection) -> None:
+    """Add session experiment event markers."""
+    if _table_exists(conn, "session_events"):
+        return
+    conn.executescript(MIGRATIONS[6])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:
