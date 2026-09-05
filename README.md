@@ -1,6 +1,19 @@
 # can-research
 
-Windows-first, CLI-first CAN research tool focused on **CSS Electronics CANsub.2** hardware, **J1939/ISOBUS** reference handling, capture/session analysis, machine-specific DBC generation, and an **MCP server** for AI-assisted interrogation (ChatGPT, Claude, etc.).
+Windows-first, CLI-first CAN research tool focused on **CSS Electronics CANsub.2**
+hardware, **J1939/ISOBUS** reference handling, capture/session analysis,
+machine-specific DBC generation, an **MCP server** for deterministic AI access, and a
+**CAN Signal Research Skill** for AI-guided proprietary signal discovery.
+
+The project operates in **three layers**:
+
+1. **Deterministic CAN Research core** — parsing, capture, reference lookup, candidate evidence, DBC generation
+2. **CAN Research MCP interface** — stable 32-tool substrate (passive live + offline analysis)
+3. **CAN Signal Research Skill** — generative workflow orchestration above MCP (ChatGPT/Codex)
+
+Basic J1939/ISOBUS decoding from the reference catalogue is **not** the differentiator.
+The value is making **asset-specific proprietary signal discovery** substantially easier
+than repeatedly writing one-off Python scripts.
 
 ## Current status
 
@@ -33,14 +46,19 @@ The following milestones are **complete** on the development desk unit (Device I
 | Streamable HTTP MCP transport (`/mcp` on port 8765) | Done |
 | Multi-instance backend configuration (`instance_key`, `display_name`) | Done |
 | MCP instance identification (`get_instance_info`) | Done |
+| Office ChatGPT MCP connector (live, 32 tools) | Done |
+| CAN Signal Research Skill installed in ChatGPT (Office) | Done |
+| First passive AI-guided proprietary signal trial (Office bench) | Done |
 
-**MCP software is ready for connector deployment.** The ChatGPT connector and OpenAI
-tunnel have **not** been installed or verified yet.
+**Office installation validated:** The CAN Research MCP connector is live on the Office
+Windows host (`instance_key = office`), exposes **32 tools**, and the
+**can-signal-research** Skill has completed an initial **passive** live-analysis trial
+on CANsub.2 channel 1 — no CAN TX, no MCP candidate confirmation. This is an **early
+bench validation**, not a finished autonomous reverse-engineering product.
 
-**Next operational milestone:** Deploy/configure the first CAN Research MCP tunnel
-+ ChatGPT connector per installation, then perform guided live reverse-engineering
-validation using the [AI-guided signal research](docs/AI_GUIDED_SIGNAL_RESEARCH.md)
-workflow and [can-signal-research Skill](skills/can-signal-research/SKILL.md).
+**Next milestone:** Asset-scoped guided research trial (register asset, known baseline,
+unknown remainder, passive-first inference, physical experiment only if needed, CLI
+confirm). See [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -64,7 +82,42 @@ No GUI in V1. No bundled SAE J1939 database.
 | Capture | Session metadata in SQLite; raw frames in JSONL under `{data_dir}/sessions/` |
 | Configuration | TOML at `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
 | MCP | 32 tools: stored/offline analysis, passive live CANsub research, signal research, instance identity |
+| AI Skill | `can-signal-research` — guided proprietary discovery via ChatGPT + MCP (portable across installations) |
 | Storage | SQLite for metadata, references, candidates, findings; frames outside SQLite |
+
+## AI-guided proprietary signal research
+
+The main differentiation is **not** basic J1939/ISOBUS decoding from the reference
+catalogue. The intended workflow is:
+
+```text
+connect
+  → identify / scope asset
+  → apply reference-backed knowledge
+  → apply existing confirmed asset knowledge
+  → build known baseline (<asset>_standard.dbc)
+  → inventory proprietary / unknown remainder
+  → generative AI forms hypotheses (passive evidence first)
+  → MCP gathers deterministic evidence
+  → passive inference when sufficient
+  → physical experiment only when ambiguity remains
+  → propose candidate
+  → explicit human confirmation (CLI)
+  → research DBC (<asset>_research.dbc)
+```
+
+On the **Office** bench, the **can-signal-research** Skill is installed in ChatGPT,
+invokes the working CAN Research MCP connector, and has completed a first **passive**
+live trial (15 s observation, proprietary PDU1-style traffic, useful field-structure
+inferences without operator hardware manipulation). Inferences remain **research
+hypotheses** until CLI confirmation — not reference facts or confirmed DBC entries.
+
+Full design contract: [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
+Skill scaffold: [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md).
+
+Safety boundaries unchanged: **passive / no CAN TX**, **32-tool MCP substrate**,
+**CLI-only candidate confirmation**, strict **asset scope**, separate
+**standard vs research DBC** files.
 
 ## Licensed / private data
 
@@ -230,7 +283,7 @@ Offline agent workflow:
 7. `get_asset` / `list_asset_nodes`
 8. `build_session_dbc_preview` / `preview_candidate_values` (analysis only)
 
-Live experiment workflow:
+Live experiment workflow (when passive evidence is insufficient):
 
 1. `get_cansub_device_status` → `get_cansub_channel_status`
 2. `start_live_capture`
@@ -242,12 +295,15 @@ Live experiment workflow:
 8. `compare_experiment_windows`
 9. `rank_signal_candidates` / `analyze_can_id_activity` / … as needed
 
+Prefer **passive observation first** (`observe_live_traffic`) and contextual inference
+before requesting physical actions — see [AI-guided signal research](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
+
 `observe_live_traffic` provides bounded aggregated traffic (default 3s, max 15s;
 max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in_use`).
 
-Connector deployment guides (not yet executed):
+Connector deployment guides:
 
-- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md)
+- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) — Office connector validated end-to-end
 - [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md)
 
 ### Signal research (candidate evidence only)
@@ -337,7 +393,7 @@ scripts/              MCP HTTP verification helper
 | [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit connection notes, bench lessons, verified commands |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
 | [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope and success criteria |
-| [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance ChatGPT connector checklist (tunnel not yet deployed) |
+| [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance ChatGPT connector (Office validated) |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Multi-laptop deployment model and configuration |
 | [docs/strict_dbc_compatibility_reference.md](docs/strict_dbc_compatibility_reference.md) | Strict DBC / webCAN compatibility target |
 

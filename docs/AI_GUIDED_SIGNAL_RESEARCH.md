@@ -31,10 +31,13 @@ The generative agent should:
 1. Understand the research intent.
 2. Establish asset and session scope.
 3. Account for existing reference and confirmed asset knowledge first.
-4. Design a **minimal, discriminating** physical experiment plan.
-5. Invoke MCP tools to capture deterministic evidence.
-6. Interpret evidence, rank candidates, and propose next steps.
-7. Stop at **human confirmation** before any signal becomes durable knowledge.
+4. Extract **passive and contextual evidence** from live or captured traffic.
+5. Form ranked hypotheses; request a **physical experiment only when ambiguity remains material**.
+6. Invoke MCP tools to capture deterministic evidence.
+7. Interpret evidence, refine hypotheses, and propose candidates.
+8. Stop at **human confirmation** before any signal becomes durable knowledge.
+
+**Design rule:** *Passive inference first. Physical experiment second.*
 
 ---
 
@@ -69,7 +72,7 @@ The generative agent should:
 ```
 
 **Principle:** *Deterministic software measures facts; generative AI decides what
-useful experiment to perform next.*
+useful evidence to gather next — preferring passive analysis before physical experiments.*
 
 | Layer | Responsibility | Must not |
 |-------|----------------|----------|
@@ -95,14 +98,38 @@ CONNECT
   → BUILD KNOWN BASELINE
   → INVENTORY UNKNOWN REMAINDER
   → USER REQUESTS DATAPOINT
-  → AI DESIGNS EXPERIMENT
-  → MCP CAPTURE / EVENT / ANALYSIS
-  → AI INTERPRETS EVIDENCE
-  → NEXT EXPERIMENT IF REQUIRED
+  → PASSIVE / CONTEXTUAL INFERENCE (MCP observation + reasoning)
+  → RANKED HYPOTHESES
+  → ENOUGH CONFIDENCE?
+        yes → PROPOSE CANDIDATE
+        no  → DESIGN SMALLEST DISCRIMINATING EXPERIMENT
+  → MCP CAPTURE / EVENT / ANALYSIS (if experiment needed)
+  → AI INTERPRETS EVIDENCE / REFINES HYPOTHESIS
   → PROPOSE CANDIDATE
   → HUMAN CONFIRMATION
   → RESEARCH DBC
 ```
+
+Physical experiments are a **discriminating fallback**, not the default first step.
+This matters especially on bench setups, stationary machinery, partially assembled
+machines, unsafe/inconvenient-to-operate equipment, and passive historical captures.
+
+### Passive evidence (before requesting operator action)
+
+Exploit all available passive evidence first:
+
+- Update rate and frame timing
+- Byte/bit activity and field-width candidates
+- Endian and signedness alternatives
+- Common engineering scales (e.g. 0.01, 1e-7)
+- Plausible physical ranges
+- Static vs dynamic behaviour across samples
+- Relationships between fields within a frame
+- Relationships between related CAN IDs
+- Known asset context
+- Approximate location or state hints from the operator
+
+Only request a physical experiment when it is expected to **materially reduce ambiguity**.
 
 ### Stage notes
 
@@ -115,8 +142,9 @@ CONNECT
 | APPLY CONFIRMED KNOWLEDGE | `list_research_candidates`, `preview_research_dbc`, asset DBC on disk | Exclude confirmed `(can_id, start_bit, …)` from search |
 | BUILD KNOWN BASELINE | `build_session_dbc_preview` → `<asset>_standard.dbc` concept | Explain what is already explained |
 | INVENTORY UNKNOWN | `analyze_session`, `rank_signal_candidates`, proprietary PGN/ID lists | Prioritize unknown remainder |
-| USER REQUEST | — | Classify intent; translate to experiment plan |
-| EXPERIMENT | `mark_experiment_event`, `compare_experiment_windows`, capture | One-variable changes; event labels |
+| USER REQUEST | — | Classify intent; passive inference before experiment plan |
+| PASSIVE INFERENCE | `observe_live_traffic`, payload inspection, contextual hints | Rank hypotheses; avoid unnecessary operator actions |
+| EXPERIMENT (if needed) | `mark_experiment_event`, `compare_experiment_windows`, capture | Smallest discriminating test only |
 | INTERPRET | `analyze_repeated_action`, `correlate_candidate_field`, `preview_candidate_values` | Rank hypotheses; never overclaim |
 | PROPOSE | CLI `research candidate add` guidance (MCP read-only for candidates) | Structured candidate proposal |
 | CONFIRM | **CLI only:** `research candidate review/confirm/reject` | Operator accepts/rejects |
@@ -172,7 +200,8 @@ The agent may blend classes (e.g. boolean PTO + monotonic hydraulic pressure) bu
 
 ### General rules
 
-- Change **one physical variable at a time** where practical.
+- **Passive inference first** — exploit observation and context before moving machinery.
+- Change **one physical variable at a time** where practical (when an experiment is needed).
 - **Repeat** cheap experiments (centre → left → centre) to test repeatability.
 - Prefer tests that **discriminate competing hypotheses** over broad data collection.
 - If two candidates remain, design the **next experiment specifically to separate them**.
@@ -221,9 +250,9 @@ The Skill uses qualitative confidence — not a hidden numeric score presented a
 | **high confidence** | Strong discrimination vs alternatives | Independence from unrelated actions; physical plausibility |
 | **confirmed** | Accepted into research DBC | **Explicit human CLI confirmation only** |
 
-### Evidence types (deterministic)
+### Evidence types (deterministic and passive)
 
-- Repeatability across repeated experiment cycles
+- Repeatability across repeated experiment cycles (when experiments are run)
 - Baseline stability when the physical quantity is unchanged
 - Direction / sign behaviour under opposing actions
 - Monotonicity where expected
@@ -233,6 +262,7 @@ The Skill uses qualitative confidence — not a hidden numeric score presented a
 - Timing relationship to related frames
 - Independence from unrelated operator actions
 - Known contextual anchors (e.g. approximate location for coordinate decoding)
+- **Passive-only:** update rate, static payloads, cross-field structure, geographic plausibility
 
 The Skill and agent must **never** disguise inference as reference-backed fact. Label
 reference decode, confirmed DBC, and candidate inference distinctly in operator-facing text.
@@ -273,10 +303,11 @@ signedness, observed behaviour) — not raw hex walls unless the operator asks.
 1. **Known-first:** `get_instance_info` if needed; identify asset. Check reference decode
    and `<asset>_research.dbc` / confirmed candidates for existing steering-related signals.
 2. If unknown, **observe** proprietary traffic (`observe_live_traffic` or capture while idle).
-3. **Classify** as centred analogue.
-4. **Instruct** operator: wheels centred → full left → centred → full right → centred.
-   Mark events at each stable state.
-5. **Capture** session; `compare_experiment_windows` between baseline and extremes.
+3. Attempt **passive inference** on stable traffic before asking the operator to move the wheel.
+4. **Classify** as centred analogue; if passive evidence is insufficient, **instruct**
+   operator: wheels centred → full left → centred → full right → centred. Mark events at
+   each stable state.
+5. **Capture** session (if experiment needed); `compare_experiment_windows` between baseline and extremes.
 6. **Analyze** with `rank_signal_candidates`, `analyze_repeated_action`,
    `correlate_candidate_field`, `preview_candidate_values` as needed.
 7. **Prefer** continuous signed fields with repeatable centre and opposing direction response.
@@ -371,3 +402,113 @@ deterministic measurement is genuinely missing and repeatedly needed.
 **Human-only today:** candidate create/review/confirm/reject, research DBC file write.
 
 See [README.md](../README.md) for the full tool list and CLI equivalents.
+
+---
+
+## First live bench validation
+
+Early successful trial on the **Office** installation (September 2026). This validates
+the **architecture direction** — not a finished autonomous reverse-engineering product.
+
+### Environment
+
+| Item | Value |
+|------|-------|
+| Installation | CAN Research - Office (`instance_key = office`) |
+| Host OS | Windows |
+| CANsub.2 | Channel 1 (Ethernet bench) |
+| ChatGPT | `can-signal-research` Skill installed and available |
+| MCP | CAN Research connector live; **32 tools** exposed |
+| Mode | Passive observation only |
+| CAN TX | None |
+| Candidate confirmation | Not via MCP (CLI boundary preserved) |
+
+### Initial live observation
+
+| Metric | Result |
+|--------|--------|
+| Duration | 15 seconds |
+| Frames | 171 |
+| Unique CAN IDs | 5 |
+| Traffic type | Proprietary PDU1-style |
+| Reference catalogue | No matching entries for observed proprietary PGNs |
+
+**Observed CAN IDs:**
+
+- `0x18667017`
+- `0x18667117`
+- `0x18667217`
+- `0x18667317`
+- `0x18173201`
+
+**Scope note:** The Office database had **no registered assets** during this trial, so
+the full asset-scoped baseline / standard+research DBC workflow was **not** exercised.
+
+### Important result
+
+The Skill and model made **useful passive inferences** from traffic and operator context
+**without** requiring hardware manipulation. This supports the **passive inference first**
+design rule.
+
+All findings below are **hypotheses** — high-confidence research inferences, **not yet
+confirmed** candidates or DBC definitions.
+
+### Passive inference example 1: GPS coordinates (hypothesis)
+
+**CAN ID:** `0x18667017`
+
+Observed 8-byte payloads were **consistent with** this **hypothesis**:
+
+| Field | Hypothesis |
+|-------|------------|
+| Bytes 0–3 | Signed little-endian 32-bit latitude |
+| Bytes 4–7 | Signed little-endian 32-bit longitude |
+| Factor | 1e-7 degrees |
+| Offset | 0 |
+
+Example decodes were **geographically plausible** around Murray Bridge when the operator
+supplied approximate regional context.
+
+**Important distinctions:**
+
+- Inference from payload structure + geographic context — **not** a lookup from the local
+  standard reference catalogue
+- Confidence assessed as **high** for the field layout and scale hypothesis
+- Still **research knowledge** until explicit CLI candidate confirmation
+
+### Passive inference example 2: GNSS companion frame (hypothesis)
+
+**CAN ID:** `0x18667117`
+
+Example payloads observed:
+
+```text
+10004957BE0F0705
+32004857AE100705
+31003955AE100705
+```
+
+**Best current passive hypothesis** (not confirmed):
+
+| Bytes | Likely role | Confidence |
+|-------|-------------|------------|
+| 0–1 | Ground speed, little-endian uint16, factor ~0.01 m/s | **High** |
+| 2–3 | Heading, little-endian uint16, factor ~0.01 degrees | **High** |
+| 4–5 | Altitude or related GNSS analogue | **Medium** |
+| 6 | Satellite count or GNSS quality | **Medium** |
+| 7 | Fix / status enum | **Medium** |
+
+These are **plausible** interpretations from passive samples and cross-frame context —
+not confirmed signal definitions.
+
+---
+
+## Lessons from the first trial
+
+- **MCP already exposes enough capability** for useful generative reasoning on proprietary traffic.
+- The main current value is **orchestration and interpretation**, not adding more MCP tools.
+- **Passive contextual inference** can identify useful proprietary field structure without operator action.
+- **Physical experiments should be a discriminating fallback**, not the default first step.
+- **Asset registration and scoping** remain important before the full known-baseline / DBC workflow can be validated end-to-end.
+- **Concise operator interaction** remains a key design goal — the trial succeeded partly because the operator was not asked to move machinery unnecessarily.
+- Inferred results must stay labelled as **hypothesis / likely / high confidence** until CLI confirmation; never as reference-backed fact or confirmed DBC content.

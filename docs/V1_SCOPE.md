@@ -32,15 +32,38 @@
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
 - [x] Windows-first CLI with `uv` workflow
+- [x] **Office ChatGPT MCP connector** — live, 32 tools, end-to-end validated
+- [x] **CAN Signal Research Skill** — installed in ChatGPT on Office (`can-signal-research`)
+- [x] **First passive AI-guided proprietary signal trial** — Office bench, CANsub channel 1
+  (15 s / 171 frames / 5 proprietary IDs; passive inferences without hardware manipulation;
+  asset-scoped DBC workflow not yet exercised — see [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md))
 
 Verified desk baseline: firmware **02.04.00**, API **04.00**. USB host
 `7413f810-usb.local`; Ethernet bench used `192.168.50.39` during testing (not a
 permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 
-**MCP connector deployment** (OpenAI tunnel + ChatGPT app) is the next operational
-milestone — software is ready; connector not yet installed. Guided proprietary signal
-trials should follow [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) and the
-[can-signal-research Skill](../skills/can-signal-research/SKILL.md).
+This is an **early bench validation** of the AI-guided direction — not a finished
+autonomous reverse-engineering product.
+
+## Next milestone: asset-scoped guided research trial
+
+Move from a generic bench stream toward the **full intended workflow**:
+
+1. Register / define an asset on the Office installation
+2. Associate a capture session with that asset
+3. Apply reference-backed standard knowledge (`<asset>_standard.dbc` path)
+4. Apply confirmed research knowledge (`<asset>_research.dbc` / candidates)
+5. Identify unknown proprietary remainder
+6. Use the **can-signal-research** Skill for **passive-first** inference
+7. Request a controlled physical experiment **only if** ambiguity remains material
+8. Propose a research candidate (CLI add after agent proposal)
+9. Confirm via existing CLI workflow (`research candidate review/confirm`)
+
+The first passive trial had **no registered assets** in the Office database, so steps
+1–5 and the standard/research DBC baseline were not validated live yet.
+
+Design reference: [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md),
+[skills/can-signal-research/SKILL.md](../skills/can-signal-research/SKILL.md).
 
 ## In scope (remaining V1)
 

@@ -43,8 +43,14 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 - **32 tools total:** 19 read-only, 7 live (passive), 6 signal research
 
 ```text
-AI agent
-  ↓ MCP tool call
+Human operator (scope, physical actions, safety, CLI confirmation)
+  ↓
+Generative model (hypothesis, planning, interpretation — passive-first)
+  ↓
+CAN Signal Research Skill (skills/can-signal-research/) — operational orchestration layer
+  ↓ installed in ChatGPT; portable across Office / laptop / future installations
+MCP tool call (32-tool substrate — same schemas everywhere)
+  ↓
 thin MCP handlers (handlers.py, live_handlers.py, signal_research_handlers.py)
   ↓
 CAN Research core / cansub
@@ -59,6 +65,17 @@ CAN Research core / cansub
   └─ research candidates (persisted review workflow; CLI confirm/reject)
   └─ research DBC generation (<asset>_research.dbc from confirmed candidates only)
 ```
+
+The **Skill is not documentation-only** — it is installed in ChatGPT on the Office
+host, invokes the CAN Research MCP connector, and has completed a first passive
+proprietary-traffic trial (see [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md)).
+Installation-specific identity (`instance_key`, connector URL, CANsub host) lives in
+**MCP/backend configuration**, not in Skill logic. The same Skill is intended to be
+portable across installations.
+
+**Generative reasoning should prefer passive evidence extraction** (live observation,
+payload structure, contextual hints) **before requesting user-driven physical
+experiments.** Core/MCP measure facts; Skill/model plan and interpret; human confirms.
 
 Read-only MCP tools: `get_instance_info`, `list_sessions`, `get_session`, `analyze_session`,
 `decode_session`, `inspect_transport`, `list_session_nodes`, `list_assets`,
@@ -81,10 +98,12 @@ Persisted research candidates (introduced schema v7, current DB **schema v8**) f
 eligible for `<asset_key>_research.dbc`. MCP candidate tools are read-only;
 confirmation is CLI-only (human approval boundary).
 
-**AI-guided proprietary research** (generative experiment planning + Skill orchestration)
-is documented in [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md). The Skill
-scaffold lives at `skills/can-signal-research/`. The generative layer plans experiments;
-MCP/core measures facts.
+**AI-guided proprietary research** (generative planning + Skill orchestration) is
+documented in [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md). The
+**can-signal-research** Skill at `skills/can-signal-research/` is an operational
+orchestration layer — installed in ChatGPT on Office, validated against the live MCP
+connector. The generative layer prefers **passive inference first**; MCP/core measure
+deterministic facts; human CLI confirmation remains the research-DBC boundary.
 
 Repeated-action consistency remains the strongest primitive for narrowing field candidates.
 
