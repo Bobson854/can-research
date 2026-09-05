@@ -1,0 +1,17 @@
+# Workshop laptop deployment example.
+# Copy sections into data/config.toml on the workshop machine.
+#
+# Suggested tunnel profile: can-research-workshop
+# Suggested ChatGPT app:      CAN Research - Workshop
+
+[instance]
+instance_key = "workshop"
+display_name = "CAN Research - Workshop"
+
+[paths]
+data_dir = "data"
+
+[cansub]
+host = "your-workshop-cansub-usb.local"
+timeout = 5.0
+verify_tls = false

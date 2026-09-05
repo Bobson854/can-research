@@ -518,4 +518,6 @@ def initialize(db_path: Path) -> sqlite3.Connection:
 
 def default_db_path() -> Path:
     """Default location for the local metadata and reference database."""
-    return Path("data") / "references" / "canresearch.db"
+    from canresearch.config import resolve_data_dir
+
+    return resolve_data_dir() / "references" / "canresearch.db"

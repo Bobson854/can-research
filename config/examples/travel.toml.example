@@ -1,0 +1,17 @@
+# Travel laptop deployment example.
+# Copy sections into data/config.toml on the travel machine.
+#
+# Suggested tunnel profile: can-research-travel
+# Suggested ChatGPT app:      CAN Research - Travel
+
+[instance]
+instance_key = "travel"
+display_name = "CAN Research - Travel"
+
+[paths]
+data_dir = "data"
+
+[cansub]
+host = "your-travel-cansub-usb.local"
+timeout = 5.0
+verify_tls = false

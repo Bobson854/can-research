@@ -65,5 +65,5 @@ permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 - Additional adapter backends
 - Parquet frame store with DuckDB analysis
 - DBC diff and merge tooling
-- HTTP/SSE MCP transport
+- [x] Streamable HTTP MCP transport (`mcp serve --transport streamable-http` → `/mcp` on port 8765)
 - Optional cloud backup (user-controlled)

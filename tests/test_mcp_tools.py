@@ -46,6 +46,7 @@ from canresearch.storage.database import initialize
 
 EXPECTED_TOOLS = frozenset(
     {
+        "get_instance_info",
         "list_sessions",
         "get_session",
         "analyze_session",

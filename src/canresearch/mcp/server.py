@@ -34,6 +34,14 @@ def _invoke(handler: Callable[..., dict[str, Any]], **kwargs: Any) -> dict[str, 
 
 READ_ONLY_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
     _ToolBinding(
+        name="get_instance_info",
+        description=(
+            "Return this CAN Research installation identity and MCP capability summary. "
+            "Use when multiple connectors/backends exist to confirm which backend is active."
+        ),
+        handler=handlers.handle_get_instance_info,
+    ),
+    _ToolBinding(
         name="list_sessions",
         description=(
             "List stored CAN capture sessions (metadata only). "
@@ -311,6 +319,7 @@ def create_server() -> MCPServer:
         "can-research",
         instructions=(
             "CAN Research tools for stored sessions and passive live CANsub.2 research. "
+            "Use get_instance_info when multiple backends/connectors may be active. "
             "Read-only offline flow: list_sessions → get_session → analyze_session → "
             "list_session_nodes → lookup_pgn/lookup_spn → decode_session → "
             "inspect_transport → build_session_dbc_preview. "
@@ -328,14 +337,18 @@ def create_server() -> MCPServer:
     )
 
     @server.tool(description=READ_ONLY_TOOL_BINDINGS[0].description)
+    def get_instance_info() -> dict[str, Any]:
+        return _invoke(handlers.handle_get_instance_info)
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[1].description)
     def list_sessions(limit: int | None = None) -> dict[str, Any]:
         return _invoke(handlers.handle_list_sessions, limit=limit)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[1].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[2].description)
     def get_session(session_id: str) -> dict[str, Any]:
         return _invoke(handlers.handle_get_session, session_id=session_id)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[2].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[3].description)
     def analyze_session(
         session_id: str,
         pgn: int | None = None,
@@ -350,7 +363,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[3].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[4].description)
     def decode_session(
         session_id: str,
         pgn: int | None = None,
@@ -367,7 +380,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[4].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[5].description)
     def inspect_transport(
         session_id: str,
         pgn: int | None = None,
@@ -384,7 +397,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[5].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[6].description)
     def list_session_nodes(
         session_id: str,
         source_address: int | None = None,
@@ -397,27 +410,27 @@ def create_server() -> MCPServer:
             manufacturer_code=manufacturer_code,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[6].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[7].description)
     def list_assets(limit: int | None = None) -> dict[str, Any]:
         return _invoke(handlers.handle_list_assets, limit=limit)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[7].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[8].description)
     def get_asset(asset_key: str) -> dict[str, Any]:
         return _invoke(handlers.handle_get_asset, asset_key=asset_key)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[8].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[9].description)
     def list_asset_nodes(asset_key: str) -> dict[str, Any]:
         return _invoke(handlers.handle_list_asset_nodes, asset_key=asset_key)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[9].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[10].description)
     def lookup_pgn(pgn: int) -> dict[str, Any]:
         return _invoke(handlers.handle_lookup_pgn, pgn=pgn)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[10].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[11].description)
     def lookup_spn(spn: int) -> dict[str, Any]:
         return _invoke(handlers.handle_lookup_spn, spn=spn)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[11].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[12].description)
     def build_session_dbc_preview(
         session_id: str,
         asset_key: str,
@@ -432,7 +445,7 @@ def create_server() -> MCPServer:
             preview_lines=preview_lines,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[12].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[13].description)
     def list_research_candidates(
         asset_key: str | None = None,
         status: str | None = None,
@@ -447,14 +460,14 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[13].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[14].description)
     def get_research_candidate(candidate_id: str) -> dict[str, Any]:
         return _invoke(
             research_candidate_handlers.handle_get_research_candidate,
             candidate_id=candidate_id,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[14].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[15].description)
     def list_candidate_evidence(
         candidate_id: str,
         limit: int | None = None,
@@ -465,7 +478,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[15].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[16].description)
     def preview_research_dbc(
         asset_key: str,
         preview_lines: int | None = None,
@@ -478,7 +491,7 @@ def create_server() -> MCPServer:
             include_protocol_fields=include_protocol_fields,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[16].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[17].description)
     def list_session_events(
         session_id: str,
         limit: int | None = None,
@@ -489,7 +502,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[17].description)
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[18].description)
     def preview_candidate_values(
         session_id: str,
         can_id: int,
@@ -713,7 +726,28 @@ def create_server() -> MCPServer:
     return server
 
 
-def serve(host: str = "127.0.0.1", port: int = 8765) -> None:
-    """Start the MCP server (stdio transport for desktop MCP clients)."""
-    _ = host, port
-    create_server().run(transport="stdio")
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    *,
+    transport: str = "stdio",
+    path: str = "/mcp",
+) -> None:
+    """Start the MCP server.
+
+    ``stdio`` is for desktop MCP clients. ``streamable-http`` exposes the same
+    tool registry at ``http://<host>:<port><path>`` for tunnel-backed connectors.
+    """
+    server = create_server()
+    if transport == "stdio":
+        server.run(transport="stdio")
+        return
+    if transport == "streamable-http":
+        server.run(
+            transport="streamable-http",
+            host=host,
+            port=port,
+            streamable_http_path=path,
+        )
+        return
+    raise ValueError(f"Unsupported MCP transport: {transport}")

@@ -10,6 +10,8 @@ from canresearch.config import (
     AppConfig,
     CansubConfig,
     ConfigError,
+    InstanceConfig,
+    PathsConfig,
     load_config,
     resolve_cansub_host,
     resolve_cansub_settings,
@@ -21,6 +23,9 @@ from canresearch.config import (
 def test_default_no_config(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     config = load_config(path)
+    assert config.instance.instance_key == "local"
+    assert config.instance.display_name == "CAN Research (local)"
+    assert config.paths.data_dir == "data"
     assert config.cansub.host is None
     assert config.cansub.timeout == 5.0
     assert config.cansub.verify_tls is False
@@ -70,7 +75,11 @@ def test_malformed_config(tmp_path: Path) -> None:
 def test_save_round_trip(tmp_path: Path) -> None:
     path = tmp_path / "config.toml"
     save_config(
-        AppConfig(cansub=CansubConfig(host="example.local", timeout=7.5, verify_tls=True)),
+        AppConfig(
+            instance=InstanceConfig(),
+            paths=PathsConfig(),
+            cansub=CansubConfig(host="example.local", timeout=7.5, verify_tls=True),
+        ),
         path,
     )
     config = load_config(path)

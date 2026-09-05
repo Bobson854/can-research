@@ -122,12 +122,13 @@ uv run canresearch research dbc <asset-key> [--output path]
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch reference import-j1939 ...
 uv run canresearch mcp serve
+uv run canresearch mcp serve --transport streamable-http   # ChatGPT / OpenAI tunnel
 uv run canresearch mcp tools
 ```
 
 ### MCP (read-only + live passive research)
 
-The MCP server exposes **18 read-only** tools for stored sessions, reference lookups,
+The MCP server exposes **19 read-only** tools (including `get_instance_info`) for stored sessions, reference lookups,
 transport inspection, J1939 node identity, research candidates, and in-memory DBC preview. It also exposes
 **7 live CANsub.2 research tools** for passive observation, controlled capture,
 experiment markers, and baseline/action window comparison.
@@ -162,6 +163,9 @@ max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in
 Responses are bounded (default limits on decode rows, observed traffic, DBC preview
 lines, observation duration, and comparison windows).
 
+ChatGPT connector setup: [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) (streamable-http +
+OpenAI tunnel profile per instance). Multi-laptop deployment: [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md).
+
 ### Signal research (candidate evidence only)
 
 After capture and experiment marking, use deterministic research primitives to rank
@@ -176,7 +180,7 @@ Research workflow:
 5. `analyze_repeated_action` (3–5 deliberate repetitions strongly preferred)
 6. `correlate_candidate_field` with a reference series (SPN decode, CSV, operator values)
 
-MCP adds 6 read-only signal research tools (**31 MCP tools total**). Terminology uses *candidate*,
+MCP adds 6 read-only signal research tools (**32 MCP tools total**). Terminology uses *candidate*,
 *evidence*, *consistency*, and *correlation* for on-demand analysis.
 
 **Candidate ≠ confirmed.** Persisted candidates require explicit CLI review and confirmation

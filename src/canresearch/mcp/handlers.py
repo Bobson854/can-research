@@ -795,3 +795,40 @@ def handle_preview_candidate_values(
         raise McpToolError("session_not_found", str(exc)) from exc
     except ResearchCandidateError as exc:
         raise McpToolError(exc.code, exc.message) from exc
+
+
+def handle_get_instance_info() -> dict[str, Any]:
+    """Return configured installation identity and MCP capability summary."""
+    import platform
+
+    from canresearch import __version__
+    from canresearch.config import load_config
+    from canresearch.mcp.server import (
+        LIVE_TOOL_NAMES,
+        READ_ONLY_TOOL_NAMES,
+        SIGNAL_RESEARCH_TOOL_NAMES,
+        list_tool_names,
+    )
+    from canresearch.storage.database import SCHEMA_VERSION
+
+    config = load_config()
+    cansub_configured = config.cansub.host is not None
+    return {
+        "instance_key": config.instance.instance_key,
+        "display_name": config.instance.display_name,
+        "version": __version__,
+        "schema_version": SCHEMA_VERSION,
+        "mcp_tool_count": len(list_tool_names()),
+        "capabilities": {
+            "read_only_tools": len(READ_ONLY_TOOL_NAMES),
+            "live_tools": len(LIVE_TOOL_NAMES),
+            "signal_research_tools": len(SIGNAL_RESEARCH_TOOL_NAMES),
+            "can_tx": False,
+            "candidate_confirmation": False,
+        },
+        "platform": platform.system(),
+        "cansub": {
+            "host_configured": cansub_configured,
+            "connection_mode": "configured_host" if cansub_configured else "not_set",
+        },
+    }

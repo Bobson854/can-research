@@ -36,7 +36,7 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
   repeated-action consistency, counter/checksum detection, reference correlation
 - Thin adapter over `core/` and `cansub/` — delegates to existing service APIs
 - **No CAN transmission** tools; **no automatic DBC mutation**; **no MCP confirmation**
-- Stdio transport in V1 (desktop MCP clients); SSE/HTTP reserved for later
+- Stdio for desktop MCP clients; streamable-http at `127.0.0.1:8765/mcp` for tunnel/ChatGPT
 
 ```text
 AI agent
@@ -314,5 +314,5 @@ flowchart LR
 
 1. **Raw frame format** — JSON Lines for V1 (`JsonlCaptureStore`); Parquet deferred
 2. **CANsub API** — stdlib HTTP + `websockets`; accepts any `MAJOR.MINOR` version from device
-3. **MCP transport** — stdio for V1; network transport when needed for remote clients
+3. **MCP transport** — stdio for desktop clients; streamable-http at `http://127.0.0.1:8765/mcp` for tunnel/ChatGPT (see [MCP_CONNECTION.md](MCP_CONNECTION.md))
 4. **Reference import sources** — J1939/ISOBUS PDF importers implemented; DBC import scaffold remains

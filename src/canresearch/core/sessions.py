@@ -109,7 +109,9 @@ class NullCaptureStore(CaptureStore):
 
 def default_sessions_dir() -> Path:
     """Directory for file-backed capture session stores."""
-    return Path("data") / "sessions"
+    from canresearch.config import resolve_data_dir
+
+    return resolve_data_dir() / "sessions"
 
 
 def session_frames_path(session_id: str) -> Path:

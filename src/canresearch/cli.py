@@ -232,17 +232,53 @@ def config_group() -> None:
 @config_group.command("show")
 def config_show() -> None:
     """Show current configuration."""
-    from canresearch.config import default_config_path, load_config
+    from canresearch.config import default_config_path, load_config, resolve_data_dir
 
     path = default_config_path()
     config = load_config(path)
     click.echo(f"Config file: {path}")
     if not path.exists():
         click.echo("Status:      not created (using defaults)")
+    click.echo("[instance]")
+    click.echo(f"instance_key = {config.instance.instance_key}")
+    click.echo(f'display_name = {config.instance.display_name}')
+    click.echo("[paths]")
+    click.echo(f"data_dir = {config.paths.data_dir}")
+    click.echo(f"resolved_data_dir = {resolve_data_dir(path)}")
     click.echo("[cansub]")
     click.echo(f"host = {config.cansub.host or '(not set)'}")
     click.echo(f"timeout = {config.cansub.timeout:g}")
     click.echo(f"verify_tls = {'true' if config.cansub.verify_tls else 'false'}")
+
+
+@config_group.command("set-instance")
+@click.option("--key", "instance_key", required=True, help="Stable installation key.")
+@click.option("--name", "display_name", required=True, help="Human-readable display name.")
+def config_set_instance(instance_key: str, display_name: str) -> None:
+    """Save CAN Research installation identity (instance_key, display_name)."""
+    from canresearch.config import ConfigError, default_config_path, update_instance_config
+
+    try:
+        update_instance_config(instance_key=instance_key, display_name=display_name)
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"Saved instance_key: {instance_key.strip()}")
+    click.echo(f"Saved display_name: {display_name.strip()}")
+    click.echo(f"Config file: {default_config_path()}")
+
+
+@config_group.command("set-data-dir")
+@click.argument("data_dir")
+def config_set_data_dir(data_dir: str) -> None:
+    """Save the local data directory for database and capture storage."""
+    from canresearch.config import ConfigError, default_config_path, update_instance_config
+
+    try:
+        update_instance_config(data_dir=data_dir)
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"Saved data_dir: {data_dir.strip()}")
+    click.echo(f"Config file: {default_config_path()}")
 
 
 @config_group.command("set-host")
@@ -2095,9 +2131,28 @@ def mcp_tools() -> None:
 @mcp_group.command("serve")
 @click.option("--host", default="127.0.0.1", help="Bind address for MCP server.")
 @click.option("--port", default=8765, type=int, help="Bind port for MCP server.")
-def mcp_serve(host: str, port: int) -> None:
-    """Start the MCP server (stdio transport)."""
+@click.option(
+    "--transport",
+    type=click.Choice(["stdio", "streamable-http"], case_sensitive=False),
+    default="stdio",
+    show_default=True,
+    help="MCP transport (streamable-http for OpenAI tunnel / ChatGPT connector).",
+)
+@click.option(
+    "--path",
+    default="/mcp",
+    show_default=True,
+    help="HTTP path for streamable-http transport.",
+)
+def mcp_serve(host: str, port: int, transport: str, path: str) -> None:
+    """Start the MCP server."""
     from canresearch.mcp.server import serve
 
-    click.echo(f"Starting MCP server on {host}:{port} (stdio transport) ...")
-    serve(host=host, port=port)
+    if transport == "streamable-http":
+        click.echo(
+            f"Starting MCP server at http://{host}:{port}{path} "
+            f"(streamable-http transport) ..."
+        )
+    else:
+        click.echo("Starting MCP server (stdio transport) ...")
+    serve(host=host, port=port, transport=transport, path=path)

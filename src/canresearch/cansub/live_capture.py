@@ -45,7 +45,11 @@ class ActiveCapture:
 
 
 class LiveCaptureRegistry:
-    """Track in-process live capture sessions (one active capture per channel)."""
+    """Track in-process live capture sessions (one active capture per channel).
+
+    State is scoped to the running CAN Research process/installation only. It is
+    not shared across separate laptops, connectors, or backend instances.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -254,6 +258,7 @@ _default_registry = LiveCaptureRegistry()
 
 
 def get_live_capture_registry() -> LiveCaptureRegistry:
+    """Return the process-local live capture registry for this installation."""
     return _default_registry
 
 

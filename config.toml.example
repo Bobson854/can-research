@@ -3,10 +3,26 @@
 #
 #   copy config.toml.example data\config.toml
 #
-# data/ is gitignored — do not commit machine-specific hosts.
+# data/ is gitignored — do not commit machine-specific settings.
+#
+# Deployment examples for multi-instance setups:
+#   config/examples/workshop.toml.example
+#   config/examples/travel.toml.example
+
+[instance]
+# Stable installation identity (not derived from hostname).
+# Use letters, digits, underscores, and hyphens only.
+instance_key = "local"
+display_name = "CAN Research (local)"
+
+[paths]
+# Root directory for SQLite database and JSONL capture storage.
+# Relative paths resolve from the current working directory.
+data_dir = "data"
 
 [cansub]
-# USB mDNS hostname (preferred) or direct IP address.
+# USB mDNS hostname (preferred) or direct IP address for the CANsub.2
+# attached to THIS laptop. The device may change; instance identity does not.
 host = "your-device-id-usb.local"
 timeout = 5.0
 verify_tls = false
