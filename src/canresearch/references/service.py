@@ -498,6 +498,22 @@ class ReferenceService:
             (ddi,),
         ).fetchall()
 
+    def pgn_decode_mappings(self, pgn: int, origin: str) -> list[sqlite3.Row]:
+        """Return PGN-SPN mapping rows with SPN decode metadata for one origin."""
+        return self.conn.execute(
+            """
+            SELECT m.start_byte, m.start_bit, m.bit_length, m.byte_order, m.raw_position_text,
+                   m.spn, sp.name AS spn_name, sp.resolution, sp.offset, sp.unit,
+                   sp.data_type, sp.data_length_bits, p.origin, p.source_id, p.payload_length
+            FROM reference_pgn_spns m
+            JOIN reference_pgns p ON p.id = m.pgn_id
+            JOIN reference_spns sp ON sp.source_id = m.source_id AND sp.spn = m.spn
+            WHERE p.pgn = ? AND p.origin = ?
+            ORDER BY m.position_order, m.id
+            """,
+            (pgn, origin),
+        ).fetchall()
+
     def pgn_spn_mappings(self, pgn: int, source_id: int | None = None) -> list[sqlite3.Row]:
         if source_id is not None:
             return self.conn.execute(

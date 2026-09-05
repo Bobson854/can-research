@@ -477,6 +477,81 @@ def _print_session_analysis(summary) -> None:
                 click.echo(f"{'':>6}  {'':>4}  {'':>4}  {'':>6}  {'':>8}  {'also:':<18}  {extra}")
 
 
+@session_group.command("decode")
+@click.argument("session_id")
+@click.option("--pgn", type=int, default=None, help="Decode only this PGN.")
+@click.option("--spn", type=int, default=None, help="Decode only this SPN.")
+@click.option("--limit", type=int, default=None, help="Stop after this many decoded signals.")
+def session_decode(
+    session_id: str,
+    pgn: int | None,
+    spn: int | None,
+    limit: int | None,
+) -> None:
+    """Decode SPN values for known standard J1939 PGNs in a saved session."""
+    from canresearch.core.session_decode import decode_session
+
+    try:
+        summary = decode_session(
+            session_id,
+            pgn_filter=pgn,
+            spn_filter=spn,
+            limit=limit,
+        )
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    _print_session_decode(summary)
+
+
+def _print_session_decode(summary) -> None:
+    click.echo(f"Session:              {summary.session_id}")
+    if summary.session_name:
+        click.echo(f"Name:                 {summary.session_name}")
+    click.echo(f"Frames:               {summary.total_frames}")
+    click.echo(f"J1939 frames:         {summary.j1939_frames}")
+    click.echo(f"Known PGN frames:     {summary.known_pgn_frames}")
+    click.echo(f"Unknown PGN frames:   {summary.unknown_pgn_frames}")
+    click.echo(f"Decoded signals:      {summary.decoded_signal_count}")
+    click.echo(f"Warnings:             {summary.warning_count}")
+
+    if summary.warnings:
+        click.echo("")
+        click.echo("Warnings")
+        for warning in summary.warnings[:20]:
+            target = ""
+            if warning.pgn is not None:
+                target = f" PGN {warning.pgn}"
+            if warning.spn is not None:
+                target += f" SPN {warning.spn}"
+            click.echo(f"  [{warning.category}]{target}: {warning.message}")
+        if len(summary.warnings) > 20:
+            click.echo(f"  ... and {len(summary.warnings) - 20} more warnings")
+
+    if not summary.decoded_signals:
+        click.echo("Decoded values:       (none)")
+        return
+
+    click.echo("")
+    click.echo("Decoded signals")
+    header = (
+        f"{'Timestamp':>16}  {'PGN':>6}  {'SA':>4}  {'SPN':>5}  "
+        f"{'Name':<20}  {'Raw':>8}  {'Value':>12}  Unit"
+    )
+    click.echo(header)
+    for item in summary.decoded_signals:
+        sa_text = f"0x{item.source_address:02X}"
+        name = (item.spn_name or "-")[:20]
+        value_text = f"{item.engineering_value:g}" if item.engineering_value is not None else "-"
+        unit = item.unit or "-"
+        click.echo(
+            f"{item.timestamp_us:>16}  {item.pgn:>6}  {sa_text:>4}  {item.spn:>5}  "
+            f"{name:<20}  {item.raw_value:>8}  {value_text:>12}  {unit}"
+        )
+
+
 @session_group.command("summary")
 @click.argument("session_id")
 def session_summary(session_id: str) -> None:

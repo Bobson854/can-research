@@ -76,11 +76,23 @@ saved session (frames.jsonl)
   -> classification: j1939_base_2001 / j1939_addition / isobus_addition / unknown
 ```
 
+## SPN decode flow (implemented)
+
+```text
+saved session (frames.jsonl)
+  -> known j1939_base_2001 / j1939_addition PGN only
+  -> reference PGN-SPN mappings + SPN scaling metadata
+  -> bit extraction (core/spn_bits) + scaling (core/spn_scaling)
+  -> engineering values (on demand via session decode)
+```
+
+Unknown/proprietary PGNs and ISOBUS DDI interpretation are skipped. Transport
+protocol reassembly is not implemented.
+
 ## Planned next processing (not yet implemented)
 
 ```text
-classified session
-  -> SPN value decode (scaling, offsets)
+decoded/classified session
   -> base machine DBC generation (strict DBC compatibility reference)
 ```
 

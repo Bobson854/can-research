@@ -18,9 +18,10 @@ The following milestones are **complete** on the development desk unit (Device I
 | Persistent capture sessions (JSONL + SQLite) | Done |
 | Real CAN bus capture (EDGE101 bench) | Done |
 | Offline J1939 session classification | Done |
+| Offline J1939 SPN value decode (known PGNs) | Done |
 
-**Next major milestone:** SPN-level decode and base machine DBC generation from
-classified sessions (following the repo strict DBC compatibility reference).
+**Next major milestone:** base machine DBC generation from classified/decoded
+sessions (following the repo strict DBC compatibility reference).
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -75,6 +76,7 @@ canresearch capture start --channel <n>
 canresearch session list
 canresearch session summary <session-id>
 canresearch session analyze <session-id>
+canresearch session decode <session-id>
 canresearch reference import-j1939 ...
 canresearch mcp serve
 ```

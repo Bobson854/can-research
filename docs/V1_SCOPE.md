@@ -10,6 +10,7 @@
 - [x] JSONL `CaptureStore` for raw frames (`data/sessions/`)
 - [x] Real CAN bus capture — EDGE101 two-node bench (session `9622f81f1e67`, 116 frames)
 - [x] Offline J1939 session classification (`session analyze`)
+- [x] Offline J1939 SPN value decode for known standard PGNs (`session decode`)
 - [x] J1939 29-bit identifier parsing
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
@@ -21,8 +22,8 @@ permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 
 ## In scope (remaining V1)
 
-- [ ] SPN value decode from classified sessions
-- [ ] Build base machine/tractor DBC from capture session observations
+- [ ] Base machine/tractor DBC from capture session observations
+- [ ] Transport-protocol frame reassembly before decode
 - [ ] Session summary enhancements (rates, transport notes)
 - [ ] Basic correlation analysis and findings storage
 - [ ] MCP server exposing sessions, references, and DBC tools
