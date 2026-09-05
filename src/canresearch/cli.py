@@ -440,6 +440,20 @@ def _print_session_analysis(summary) -> None:
     click.echo(f"Known PGNs:           {summary.known_pgn_count}")
     click.echo(f"Unknown PGNs:         {summary.unknown_pgn_count}")
 
+    if summary.transport_tp_cm_frames or summary.transport_tp_dt_frames:
+        click.echo("")
+        click.echo("Transport protocol")
+        click.echo(f"TP.CM frames:         {summary.transport_tp_cm_frames}")
+        click.echo(f"TP.DT frames:         {summary.transport_tp_dt_frames}")
+        click.echo(f"Transfers started:    {summary.transport_transfers_started}")
+        click.echo(f"Transfers completed:  {summary.transport_transfers_completed}")
+        if summary.transport_transfers_incomplete:
+            click.echo(f"Transfers incomplete: {summary.transport_transfers_incomplete}")
+        if summary.transport_transfers_aborted:
+            click.echo(f"Transfers aborted:    {summary.transport_transfers_aborted}")
+        if summary.transport_warning_count:
+            click.echo(f"Transport warnings:   {summary.transport_warning_count}")
+
     if not summary.observed:
         click.echo("Observed traffic:     (none)")
         return
@@ -606,6 +620,75 @@ def session_dbc(
         raise SystemExit(str(exc)) from exc
 
     _print_session_dbc(summary, output_path)
+
+
+@session_group.command("tp")
+@click.argument("session_id")
+@click.option("--pgn", type=int, default=None, help="Filter completed transported PGN.")
+@click.option(
+    "--source-address",
+    "source_address",
+    type=lambda value: int(value, 0),
+    default=None,
+    help="Filter by source address.",
+)
+@click.option(
+    "--show-payload",
+    is_flag=True,
+    help="Print hex payload for completed transported messages.",
+)
+def session_tp(
+    session_id: str,
+    pgn: int | None,
+    source_address: int | None,
+    show_payload: bool,
+) -> None:
+    """Reassemble J1939 transport-protocol traffic from a capture session."""
+    from canresearch.core.j1939_tp import reassemble_session_transport
+
+    try:
+        result = reassemble_session_transport(session_id)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Session:              {session_id}")
+    click.echo(f"TP.CM frames:         {result.stats.tp_cm_frames}")
+    click.echo(f"TP.DT frames:         {result.stats.tp_dt_frames}")
+    click.echo(f"Transfers started:    {result.stats.transfers_started}")
+    click.echo(f"Transfers completed:  {result.stats.transfers_completed}")
+    click.echo(f"Transfers incomplete: {result.stats.transfers_incomplete}")
+    click.echo(f"Transfers aborted:    {result.stats.transfers_aborted}")
+
+    completed = result.completed_messages
+    if pgn is not None:
+        completed = [msg for msg in completed if msg.transported_pgn == pgn]
+    if source_address is not None:
+        completed = [msg for msg in completed if msg.source_address == source_address]
+
+    if completed:
+        click.echo("")
+        click.echo("Completed transported PGNs:")
+        for message in completed:
+            da = message.destination_address
+            da_text = f"{da:02X}" if da is not None else "FF"
+            mode = message.transport_mode.value if message.transport_mode else "-"
+            click.echo(
+                f"  PGN {message.transported_pgn:<6}  SA {message.source_address:02X} "
+                f"-> DA {da_text}  bytes {message.payload_length}  {mode}"
+            )
+            if show_payload:
+                click.echo(f"    payload: {message.payload.hex()}")
+
+    if result.warnings:
+        warning_counts: dict[str, int] = {}
+        for warning in result.warnings:
+            warning_counts[warning.category] = warning_counts.get(warning.category, 0) + 1
+        click.echo("")
+        click.echo("Warnings:")
+        for category, count in sorted(warning_counts.items()):
+            click.echo(f"  {category}: {count}")
 
 
 def _print_session_dbc(summary, output_path) -> None:

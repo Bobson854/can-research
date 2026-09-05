@@ -147,10 +147,45 @@ Generated:
 
 Proprietary/research DBC generation remains a future milestone.
 
+## Transport-protocol reassembly (implemented)
+
+```text
+JSONL frames
+  -> J1939 parse
+  -> single-frame traffic -------------------+
+  -> TP.CM / TP.DT                           |
+       -> BAM or RTS/CTS reassembly          |
+       -> LogicalJ1939Message (is_transport)  |
+                                             v
+                              decode / analysis (on demand)
+```
+
+Supported modes: **BAM** (broadcast) and **RTS/CTS** (connection-managed).
+
+Session key: `(mode, source_address, destination_address, transported_pgn)`.
+
+Policies:
+- Strict in-order TP.DT sequence validation (no reorder buffer in V1)
+- Duplicate identical TP.DT ignored; conflicting duplicate invalidates transfer
+- Stale transfers timeout after **1.25 s** of frame timestamp gap (J1939 TP default)
+- End-of-session unfinished transfers → `incomplete_transport` warning
+- RTS/CTS without EOM but all TP.DT packets present → completed with `missing_eom_ack`
+
+Raw frame statistics in `session analyze` are unchanged. Transport metrics
+(TP.CM/TP.DT counts, transfers started/completed/incomplete) are additive.
+
+`session decode` skips TP.CM/TP.DT as application data and decodes completed
+transport-reassembled payloads using reference mappings (including payloads
+longer than 8 bytes where mappings exist).
+
+**DBC limitation:** standard DBC export remains single-frame oriented. Multi-packet
+transported payloads are not exported as `BO_` messages (`transported_pgn_not_dbc_exportable`).
+Use `session tp` to inspect reassembled payloads.
+
 ## Planned next processing (not yet implemented)
 
 ```text
-transport reassembly + J1939 NAME asset mapping + MCP tooling + proprietary signal research
+J1939 NAME asset mapping + MCP tooling + proprietary signal research
 ```
 
 ## Full V1 target (includes future work)

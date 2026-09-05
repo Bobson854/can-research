@@ -14,6 +14,7 @@
 - [x] Base machine DBC from reference-backed sessions (`session dbc`)
 - [x] Asset registry and session asset associations (`asset`, `session asset`)
 - [x] Asset-specific DBC provenance and filename convention
+- [x] J1939 transport-protocol reassembly (`session tp`)
 - [x] J1939 29-bit identifier parsing
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
@@ -25,7 +26,6 @@ permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 
 ## In scope (remaining V1)
 
-- [ ] Transport-protocol frame reassembly before decode
 - [ ] J1939 NAME / address-claim → asset identity mapping (`asset_nodes`)
 - [ ] MCP server exposing sessions, references, and DBC tools
 - [ ] CANsub.2 device discovery (USB + Ethernet scan)

@@ -22,8 +22,9 @@ The following milestones are **complete** on the development desk unit (Device I
 | Base machine DBC from reference-backed sessions | Done |
 | Asset registry and session asset associations | Done |
 | Asset-specific DBC provenance | Done |
+| J1939 transport-protocol reassembly (BAM / RTS-CTS) | Done |
 
-**Next major milestone:** transport-protocol reassembly, J1939 NAME → asset mapping,
+**Next major milestone:** J1939 NAME → asset mapping,
 MCP session/DBC tools, and proprietary signal research workflows.
 
 Connection details, bench lessons, and tested commands:
@@ -81,6 +82,7 @@ canresearch session list
 canresearch session summary <session-id>
 canresearch session analyze <session-id>
 canresearch session decode <session-id>
+canresearch session tp <session-id>
 canresearch asset add --key <key> --type tractor --name "..."
 canresearch asset list
 canresearch asset show <asset-key>

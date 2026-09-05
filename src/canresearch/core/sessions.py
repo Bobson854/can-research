@@ -117,6 +117,13 @@ def session_frames_path(session_id: str) -> Path:
     return default_sessions_dir() / session_id / "frames.jsonl"
 
 
+def resolve_session_frames_path(record: SessionRecord) -> Path:
+    """Resolve the frame store path for a session record."""
+    if record.frame_store_path:
+        return Path(record.frame_store_path)
+    return session_frames_path(record.id)
+
+
 def _parse_datetime(value: str | None) -> datetime | None:
     if value is None:
         return None

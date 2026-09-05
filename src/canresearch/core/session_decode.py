@@ -7,14 +7,15 @@ from pathlib import Path
 
 from canresearch.core.analysis import _categorize_frame, _resolve_frames_path, classify_pgn
 from canresearch.core.j1939 import parse_j1939_id
+from canresearch.core.j1939_logical_messages import LogicalJ1939Message
 from canresearch.core.j1939_mappings import MappingSpec, load_pgn_mapping_specs
+from canresearch.core.j1939_tp import TRANSPORT_PGNS, reassemble_j1939_transport
 from canresearch.core.jsonl_capture_store import iter_frames_from_path
 from canresearch.core.sessions import get_session
 from canresearch.core.spn_bits import extract_raw_value
 from canresearch.references.service import ReferenceService
 from canresearch.storage.database import default_db_path, initialize
 
-TRANSPORT_PGNS: frozenset[int] = frozenset({59392, 60160, 60415, 60416})
 J1939_ORIGINS: frozenset[str] = frozenset({"j1939_base_2001", "j1939_addition"})
 
 
@@ -54,6 +55,7 @@ class SessionDecodeSummary:
     skipped_non_j1939: int
     decoded_signals: tuple[DecodedSignal, ...] = field(default_factory=tuple)
     warnings: tuple[DecodeWarning, ...] = field(default_factory=tuple)
+    transport_messages_decoded: int = 0
 
     @property
     def decoded_signal_count(self) -> int:
@@ -132,11 +134,14 @@ class SessionDecoder:
         known_pgn_frames = 0
         unknown_pgn_frames = 0
         skipped_non_j1939 = 0
+        transport_messages_decoded = 0
         decoded: list[DecodedSignal] = []
         warnings: list[DecodeWarning] = []
         mapping_cache: dict[tuple[int, str], tuple[MappingSpec, ...] | None] = {}
+        frames = list(iter_frames_from_path(frames_path))
+        transport_result = reassemble_j1939_transport(frames)
 
-        for frame in iter_frames_from_path(frames_path):
+        for frame in frames:
             total_frames += 1
             category = _categorize_frame(frame)
             if category != "j1939":
@@ -253,7 +258,7 @@ class SessionDecoder:
                 used_ranges.add(range_key)
 
                 if limit is not None and len(decoded) >= limit:
-                    return SessionDecodeSummary(
+                    return self._build_summary(
                         session_id=session_id,
                         session_name=session_name,
                         total_frames=total_frames,
@@ -261,10 +266,53 @@ class SessionDecoder:
                         known_pgn_frames=known_pgn_frames,
                         unknown_pgn_frames=unknown_pgn_frames,
                         skipped_non_j1939=skipped_non_j1939,
-                        decoded_signals=tuple(decoded),
-                        warnings=tuple(warnings),
+                        decoded=decoded,
+                        warnings=warnings,
+                        transport_messages_decoded=transport_messages_decoded,
                     )
 
+        for message in transport_result.completed_messages:
+            transport_messages_decoded += 1
+            decoded_count = self._decode_logical_message(
+                message,
+                service=service,
+                mapping_cache=mapping_cache,
+                decoded=decoded,
+                warnings=warnings,
+                pgn_filter=pgn_filter,
+                spn_filter=spn_filter,
+            )
+            _ = decoded_count
+            if limit is not None and len(decoded) >= limit:
+                break
+
+        return self._build_summary(
+            session_id=session_id,
+            session_name=session_name,
+            total_frames=total_frames,
+            j1939_frames=j1939_frames,
+            known_pgn_frames=known_pgn_frames,
+            unknown_pgn_frames=unknown_pgn_frames,
+            skipped_non_j1939=skipped_non_j1939,
+            decoded=decoded,
+            warnings=warnings,
+            transport_messages_decoded=transport_messages_decoded,
+        )
+
+    def _build_summary(
+        self,
+        *,
+        session_id: str,
+        session_name: str | None,
+        total_frames: int,
+        j1939_frames: int,
+        known_pgn_frames: int,
+        unknown_pgn_frames: int,
+        skipped_non_j1939: int,
+        decoded: list[DecodedSignal],
+        warnings: list[DecodeWarning],
+        transport_messages_decoded: int,
+    ) -> SessionDecodeSummary:
         return SessionDecodeSummary(
             session_id=session_id,
             session_name=session_name,
@@ -275,4 +323,93 @@ class SessionDecoder:
             skipped_non_j1939=skipped_non_j1939,
             decoded_signals=tuple(decoded),
             warnings=tuple(warnings),
+            transport_messages_decoded=transport_messages_decoded,
         )
+
+    def _decode_logical_message(
+        self,
+        message: LogicalJ1939Message,
+        *,
+        service: ReferenceService,
+        mapping_cache: dict[tuple[int, str], tuple[MappingSpec, ...] | None],
+        decoded: list[DecodedSignal],
+        warnings: list[DecodeWarning],
+        pgn_filter: int | None,
+        spn_filter: int | None,
+    ) -> int:
+        app_pgn = message.application_pgn
+        if pgn_filter is not None and app_pgn != pgn_filter:
+            return 0
+
+        classification, _, _ = classify_pgn(app_pgn, service)
+        if classification == "unknown" or classification not in J1939_ORIGINS:
+            return 0
+
+        cache_key = (app_pgn, classification)
+        if cache_key not in mapping_cache:
+            specs, spec_warnings = load_pgn_mapping_specs(service, app_pgn, classification)
+            for warning in spec_warnings:
+                warnings.append(
+                    DecodeWarning(
+                        category=warning.category,
+                        message=warning.message,
+                        pgn=warning.pgn,
+                        spn=warning.spn,
+                    )
+                )
+            mapping_cache[cache_key] = specs or None
+
+        specs = mapping_cache[cache_key]
+        if not specs:
+            return 0
+
+        payload = message.payload
+        used_ranges: set[tuple[int, int | None, int]] = set()
+        count = 0
+        for spec in specs:
+            if spn_filter is not None and spec.spn != spn_filter:
+                continue
+            range_key = (spec.start_byte, spec.start_bit, spec.bit_length)
+            if range_key in used_ranges:
+                continue
+            try:
+                raw_value = extract_raw_value(
+                    payload,
+                    start_byte=spec.start_byte,
+                    start_bit=spec.start_bit,
+                    bit_length=spec.bit_length,
+                    byte_order=spec.byte_order,
+                    signed=spec.signed,
+                )
+            except ValueError as exc:
+                warnings.append(
+                    DecodeWarning(
+                        category="extract_failed",
+                        message=str(exc),
+                        pgn=app_pgn,
+                        spn=spec.spn,
+                        timestamp_us=message.timestamp_us,
+                    )
+                )
+                continue
+
+            engineering_value = raw_value * spec.factor + spec.offset
+            decoded.append(
+                DecodedSignal(
+                    timestamp_us=message.timestamp_us,
+                    can_id=message.cm_can_id or 0,
+                    pgn=app_pgn,
+                    source_address=message.source_address,
+                    destination_address=message.destination_address,
+                    spn=spec.spn,
+                    spn_name=spec.spn_name,
+                    raw_value=raw_value,
+                    engineering_value=engineering_value,
+                    unit=spec.unit,
+                    origin=spec.origin,
+                    status="ok",
+                )
+            )
+            used_ranges.add(range_key)
+            count += 1
+        return count

@@ -8,8 +8,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from canresearch.core.j1939 import J1939Identifier, parse_j1939_id
+from canresearch.core.j1939_logical_messages import categorize_j1939_frame
+from canresearch.core.j1939_tp import reassemble_j1939_transport
 from canresearch.core.jsonl_capture_store import iter_frames_from_path
-from canresearch.core.sessions import CanFrame, SessionRecord, SessionStatus, get_session
+from canresearch.core.sessions import (
+    CanFrame,
+    SessionRecord,
+    SessionStatus,
+    get_session,
+    resolve_session_frames_path,
+)
 from canresearch.references.service import ReferenceService
 from canresearch.storage.database import default_db_path, initialize
 
@@ -52,6 +60,18 @@ class ObservedTraffic:
 
 
 @dataclass(frozen=True, slots=True)
+class TransportedPgnSummary:
+    """One completed transport-reassembled application PGN."""
+
+    transported_pgn: int
+    source_address: int
+    destination_address: int
+    payload_length: int
+    transport_mode: str
+    packet_count: int
+
+
+@dataclass(frozen=True, slots=True)
 class SessionAnalysisSummary:
     """Result of offline analysis for one capture session."""
 
@@ -64,6 +84,14 @@ class SessionAnalysisSummary:
     malformed_frames: int
     duration_s: float | None
     observed: tuple[ObservedTraffic, ...] = field(default_factory=tuple)
+    transport_tp_cm_frames: int = 0
+    transport_tp_dt_frames: int = 0
+    transport_transfers_started: int = 0
+    transport_transfers_completed: int = 0
+    transport_transfers_incomplete: int = 0
+    transport_transfers_aborted: int = 0
+    completed_transport_pgns: tuple[TransportedPgnSummary, ...] = field(default_factory=tuple)
+    transport_warning_count: int = 0
 
     @property
     def unique_pgns(self) -> int:
@@ -128,25 +156,11 @@ def _timestamp_to_iso(timestamp_us: int) -> str:
 
 
 def _resolve_frames_path(record: SessionRecord) -> Path:
-    if record.frame_store_path:
-        return Path(record.frame_store_path)
-    from canresearch.core.sessions import session_frames_path
-
-    return session_frames_path(record.id)
+    return resolve_session_frames_path(record)
 
 
 def _categorize_frame(frame: CanFrame) -> str:
-    if frame.is_error_frame:
-        return "error"
-    if frame.can_id is None:
-        return "malformed"
-    if frame.rtr:
-        return "non_j1939"
-    if not frame.is_extended:
-        return "non_j1939"
-    if frame.can_id < 0 or frame.can_id > MAX_29BIT_CAN_ID:
-        return "malformed"
-    return "j1939"
+    return categorize_j1939_frame(frame)
 
 
 def _aggregate_key(parsed: J1939Identifier) -> tuple[int, int, int | None]:
@@ -227,6 +241,19 @@ class SessionAnalyzer:
         finally:
             conn.close()
 
+        transport = reassemble_j1939_transport(iter_frames_from_path(frames_path))
+        completed_transport = tuple(
+            TransportedPgnSummary(
+                transported_pgn=message.transported_pgn or message.pgn,
+                source_address=message.source_address,
+                destination_address=message.destination_address or 0xFF,
+                payload_length=message.payload_length or len(message.payload),
+                transport_mode=message.transport_mode.value if message.transport_mode else "",
+                packet_count=message.packet_count or 0,
+            )
+            for message in transport.completed_messages
+        )
+
         return SessionAnalysisSummary(
             session_id=session_id,
             session_name=record.name,
@@ -237,6 +264,14 @@ class SessionAnalyzer:
             malformed_frames=malformed_frames,
             duration_s=duration_s,
             observed=tuple(observed),
+            transport_tp_cm_frames=transport.stats.tp_cm_frames,
+            transport_tp_dt_frames=transport.stats.tp_dt_frames,
+            transport_transfers_started=transport.stats.transfers_started,
+            transport_transfers_completed=transport.stats.transfers_completed,
+            transport_transfers_incomplete=transport.stats.transfers_incomplete,
+            transport_transfers_aborted=transport.stats.transfers_aborted,
+            completed_transport_pgns=completed_transport,
+            transport_warning_count=len(transport.warnings),
         )
 
     def _build_observed(
