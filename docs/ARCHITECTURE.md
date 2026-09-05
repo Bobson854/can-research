@@ -37,6 +37,8 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 ### `storage/` — persistence
 
 - SQLite for reference PGNs/SPNs, machines, sessions, observed PGNs, findings, DBC revisions
+- **assets** — persistent device metadata (`asset_key`, type, manufacturer, model, …)
+- **session_assets** — many-to-many link between sessions and assets with an explicit role
 - Schema versioning via numbered migrations in `database.py`
 - Default path: `data/references/canresearch.db` (gitignored)
 
@@ -89,28 +91,66 @@ saved session (frames.jsonl)
 Unknown/proprietary PGNs and ISOBUS DDI interpretation are skipped. Transport
 protocol reassembly is not implemented.
 
+## Asset identity model (implemented)
+
+A single capture session may contain traffic from multiple physical assets (tractor,
+implement, controller/gateway, accessory). Assets are registered independently and
+linked to sessions through `session_assets` with an explicit role.
+
+```text
+Asset registry (assets)
+  -> session association (session_assets: role = tractor | implement | controller | other)
+  -> observed traffic (frames.jsonl + session analyze)
+  -> asset-specific DBC generation (session dbc --asset <key>)
+```
+
+Core rule: **a session can contain multiple assets; a generated DBC belongs to one asset.**
+
+Tractor and implement DBCs remain separate files so they can be loaded together,
+evolve independently, and carry clean provenance. The legacy `machines` table and
+`sessions.machine_id` column remain for backward compatibility but are not the primary
+multi-asset model.
+
+Future direction: attach discovered J1939 NAME / source-address identities to assets
+via a planned `asset_nodes` table (`asset_id`, `j1939_name`, `source_address`,
+`session_id`). Automatic NAME → asset assignment is not implemented yet.
+
 ## DBC generation flow (implemented)
 
 ```text
 JSONL session
+  -> asset must be linked to session
+  -> optional --source-address filter (manual ECU/traffic selection)
   -> observed address-qualified J1939 traffic (PGN + SA + DA)
   -> reference-backed PGN/SPN mappings (j1939_base_2001 / j1939_addition only)
   -> mapping quality + overlap validation
-  -> DBC model (core/dbc_model)
-  -> strict DBC writer (core/dbc_writer)
-  -> machine.dbc
+  -> DBC model + provenance metadata (core/dbc_model)
+  -> strict DBC writer with CM_ provenance comments (core/dbc_writer)
+  -> <asset_key>_standard.dbc
 ```
 
 Generated DBCs include only reference-backed signals actually observed in the
-session. Extended 29-bit CAN IDs use Vector-style `0x80000000` encoding in `BO_`
+selected traffic subset. Extended 29-bit CAN IDs use Vector-style `0x80000000` encoding in `BO_`
 lines. Output follows [strict_dbc_compatibility_reference.md](strict_dbc_compatibility_reference.md).
+
+Example (one session, two assets):
+
+```text
+Session abc123:
+  jd_6155r_01      role tractor
+  weedit_quadro_01 role implement
+
+Generated:
+  jd_6155r_01_standard.dbc      (--source-address 0x00 when filtering manually)
+  weedit_quadro_01_standard.dbc (--source-address 0x80 when filtering manually)
+```
 
 Proprietary/research DBC generation remains a future milestone.
 
 ## Planned next processing (not yet implemented)
 
 ```text
-transport reassembly + MCP tooling + proprietary signal research
+transport reassembly + J1939 NAME asset mapping + MCP tooling + proprietary signal research
 ```
 
 ## Full V1 target (includes future work)

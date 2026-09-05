@@ -554,22 +554,53 @@ def _print_session_decode(summary) -> None:
 
 @session_group.command("dbc")
 @click.argument("session_id")
-@click.option("--output", "-o", required=True, type=click.Path(), help="Output DBC path.")
+@click.option(
+    "--asset",
+    "asset_key",
+    required=True,
+    help="Target asset key (must be linked to the session).",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    type=click.Path(),
+    help="Output DBC path (default: <asset_key>_standard.dbc).",
+)
 @click.option("--pgn", type=int, default=None, help="Include only this PGN.")
-def session_dbc(session_id: str, output: str, pgn: int | None) -> None:
-    """Generate a reference-backed machine DBC from a capture session."""
+@click.option(
+    "--source-address",
+    "source_addresses",
+    multiple=True,
+    type=lambda value: int(value, 0),
+    help="Include only traffic from this J1939 source address (repeatable).",
+)
+def session_dbc(
+    session_id: str,
+    asset_key: str,
+    output: str | None,
+    pgn: int | None,
+    source_addresses: tuple[int, ...],
+) -> None:
+    """Generate a reference-backed asset DBC from a capture session."""
     from pathlib import Path
 
+    from canresearch.core.assets import default_dbc_filename
     from canresearch.core.dbc import build_session_dbc
 
-    output_path = Path(output)
+    output_path = Path(output) if output else Path(default_dbc_filename(asset_key))
+    sa_filter = source_addresses if source_addresses else None
     try:
         summary = build_session_dbc(
             session_id,
             output_path,
+            asset_key=asset_key,
             pgn_filter=pgn,
+            source_addresses=sa_filter,
         )
     except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     except FileNotFoundError as exc:
         raise SystemExit(str(exc)) from exc
@@ -581,6 +612,11 @@ def _print_session_dbc(summary, output_path) -> None:
     click.echo(f"Session:                 {summary.session_id}")
     if summary.session_name:
         click.echo(f"Name:                    {summary.session_name}")
+    click.echo(f"Asset:                   {summary.asset_key}")
+    click.echo(f"DBC type:                {summary.dbc_type}")
+    if summary.source_addresses:
+        sa_text = ", ".join(f"0x{sa:02X}" for sa in summary.source_addresses)
+        click.echo(f"Source addresses:        {sa_text}")
     click.echo(f"Frames examined:         {summary.frames_examined}")
     click.echo(f"Observed J1939 PGNs:     {summary.observed_j1939_pgns}")
     click.echo(f"Reference-backed PGNs:   {summary.reference_backed_pgns}")
@@ -629,6 +665,170 @@ def session_summary(session_id: str) -> None:
         click.echo(f"Store:       {summary['frame_store_path']}")
     if summary.get("notes"):
         click.echo(f"Notes:       {summary['notes']}")
+
+
+@session_group.group("asset")
+def session_asset_group() -> None:
+    """Manage assets linked to a capture session."""
+
+
+@session_asset_group.command("add")
+@click.argument("session_id")
+@click.argument("asset_key")
+@click.option(
+    "--role",
+    required=True,
+    type=click.Choice(["tractor", "implement", "controller", "other"]),
+    help="Asset role within this session.",
+)
+def session_asset_add(session_id: str, asset_key: str, role: str) -> None:
+    """Link an asset to a capture session."""
+    from canresearch.core.assets import link_session_asset
+
+    try:
+        record = link_session_asset(session_id, asset_key, role=role)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Linked {record.asset_key} to session {session_id} as {record.role}")
+
+
+@session_asset_group.command("list")
+@click.argument("session_id")
+def session_asset_list(session_id: str) -> None:
+    """List assets linked to a capture session."""
+    from canresearch.core.assets import list_session_assets
+
+    try:
+        records = list_session_assets(session_id)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    if not records:
+        click.echo(f"No assets linked to session {session_id}.")
+        return
+
+    click.echo(f"Assets for session {session_id}")
+    for record in records:
+        click.echo(
+            f"{record.asset_key:<24}  {record.role:<11}  {record.display_name}"
+        )
+
+
+@session_asset_group.command("remove")
+@click.argument("session_id")
+@click.argument("asset_key")
+def session_asset_remove(session_id: str, asset_key: str) -> None:
+    """Remove an asset link from a capture session."""
+    from canresearch.core.assets import unlink_session_asset
+
+    try:
+        unlink_session_asset(session_id, asset_key)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Removed {asset_key} from session {session_id}")
+
+
+@main.group("asset")
+def asset_group() -> None:
+    """Manage physical assets (tractor, implement, controller, etc.)."""
+
+
+@asset_group.command("add")
+@click.option("--key", "asset_key", required=True, help="Stable asset key (lowercase).")
+@click.option(
+    "--type",
+    "asset_type",
+    required=True,
+    type=click.Choice(["tractor", "implement", "controller", "other"]),
+    help="Asset type.",
+)
+@click.option("--name", "display_name", required=True, help="Human-friendly display name.")
+@click.option("--manufacturer", default=None, help="Manufacturer name.")
+@click.option("--model", default=None, help="Model name or number.")
+@click.option("--serial", "serial_number", default=None, help="Serial number.")
+@click.option("--notes", default=None, help="Free-form notes.")
+def asset_add(
+    asset_key: str,
+    asset_type: str,
+    display_name: str,
+    manufacturer: str | None,
+    model: str | None,
+    serial_number: str | None,
+    notes: str | None,
+) -> None:
+    """Register a new asset."""
+    from canresearch.core.assets import add_asset
+
+    try:
+        record = add_asset(
+            asset_key=asset_key,
+            asset_type=asset_type,
+            display_name=display_name,
+            manufacturer=manufacturer,
+            model=model,
+            serial_number=serial_number,
+            notes=notes,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Asset:       {record.asset_key}")
+    click.echo(f"Type:        {record.asset_type}")
+    click.echo(f"Name:        {record.display_name}")
+    if record.manufacturer:
+        click.echo(f"Manufacturer:{record.manufacturer}")
+    if record.model:
+        click.echo(f"Model:       {record.model}")
+    if record.serial_number:
+        click.echo(f"Serial:      {record.serial_number}")
+
+
+@asset_group.command("list")
+@click.option("--limit", default=100, show_default=True, help="Maximum assets to show.")
+def asset_list(limit: int) -> None:
+    """List registered assets."""
+    from canresearch.core.assets import list_assets
+
+    records = list_assets(limit=limit)
+    if not records:
+        click.echo("No assets registered.")
+        return
+
+    click.echo("Assets")
+    for record in records:
+        click.echo(
+            f"{record.asset_key:<24}  {record.asset_type:<11}  {record.display_name}"
+        )
+
+
+@asset_group.command("show")
+@click.argument("asset_key")
+def asset_show(asset_key: str) -> None:
+    """Show details for one asset."""
+    from canresearch.core.assets import get_asset_by_key
+
+    try:
+        record = get_asset_by_key(asset_key)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"Key:         {record.asset_key}")
+    click.echo(f"Type:        {record.asset_type}")
+    click.echo(f"Name:        {record.display_name}")
+    if record.manufacturer:
+        click.echo(f"Manufacturer:{record.manufacturer}")
+    if record.model:
+        click.echo(f"Model:       {record.model}")
+    if record.serial_number:
+        click.echo(f"Serial:      {record.serial_number}")
+    if record.notes:
+        click.echo(f"Notes:       {record.notes}")
+    click.echo(f"Created:     {record.created_at.isoformat()}")
+    click.echo(f"Updated:     {record.updated_at.isoformat()}")
 
 
 @main.group("dbc")

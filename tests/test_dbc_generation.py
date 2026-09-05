@@ -10,6 +10,7 @@ import pytest
 from click.testing import CliRunner
 
 from canresearch.cli import main
+from canresearch.core.assets import add_asset, link_session_asset
 from canresearch.core.dbc_generation import generate_session_dbc
 from canresearch.core.dbc_position import decode_intel_dbc_signal
 from canresearch.core.dbc_writer import render_dbc
@@ -130,8 +131,19 @@ def dbc_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("canresearch.core.dbc_generation.default_db_path", lambda: db_path)
     monkeypatch.setattr("canresearch.core.analysis.default_db_path", lambda: db_path)
     monkeypatch.setattr("canresearch.core.sessions.default_db_path", lambda: db_path)
+    monkeypatch.setattr("canresearch.core.assets.default_db_path", lambda: db_path)
     initialize(db_path)
     return {"db_path": db_path, "root": tmp_path}
+
+
+def _register_test_asset(db_path: Path, session_id: str, asset_key: str = "test_asset") -> None:
+    add_asset(
+        asset_key=asset_key,
+        asset_type="controller",
+        display_name="Test Asset",
+        db_path=db_path,
+    )
+    link_session_asset(session_id, asset_key, role="controller", db_path=db_path)
 
 
 def test_generate_eec1_message_and_decode_equivalence(dbc_env) -> None:
@@ -145,8 +157,13 @@ def test_generate_eec1_message_and_decode_equivalence(dbc_env) -> None:
         [_frame_line(can_id=can_id, data=payload)],
     )
     _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    _register_test_asset(dbc_env["db_path"], session_id)
 
-    summary = generate_session_dbc(session_id, db_path=dbc_env["db_path"])
+    summary = generate_session_dbc(
+        session_id,
+        asset_key="test_asset",
+        db_path=dbc_env["db_path"],
+    )
     assert summary.messages_generated == 1
     assert summary.signals_generated == 1
 
@@ -185,8 +202,13 @@ def test_unknown_pgn_not_generated(dbc_env) -> None:
         [_frame_line(can_id=0x18FDE800, data="0000000000000000")],
     )
     _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    _register_test_asset(dbc_env["db_path"], session_id)
 
-    summary = generate_session_dbc(session_id, db_path=dbc_env["db_path"])
+    summary = generate_session_dbc(
+        session_id,
+        asset_key="test_asset",
+        db_path=dbc_env["db_path"],
+    )
     assert summary.messages_generated == 0
     assert summary.signals_generated == 0
 
@@ -197,12 +219,20 @@ def test_edge101_proprietary_session_generates_nothing(dbc_env) -> None:
     lines = [_frame_line(can_id=can_id, data="0000000000000000") for can_id in ids]
     frames_path = _write_session(dbc_env["root"], session_id, lines)
     _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=len(ids))
+    _register_test_asset(dbc_env["db_path"], session_id, asset_key="edge101_bench_01")
 
-    summary = generate_session_dbc(session_id, db_path=dbc_env["db_path"])
+    summary = generate_session_dbc(
+        session_id,
+        asset_key="edge101_bench_01",
+        db_path=dbc_env["db_path"],
+    )
     assert summary.observed_j1939_pgns == 2
     assert summary.reference_backed_pgns == 0
     assert summary.messages_generated == 0
     assert summary.signals_generated == 0
+    assert summary.asset_key == "edge101_bench_01"
+    assert summary.provenance is not None
+    assert summary.provenance.dbc_type == "reference_standard"
 
 
 def test_deterministic_output(dbc_env) -> None:
@@ -214,10 +244,24 @@ def test_deterministic_output(dbc_env) -> None:
         [_frame_line(can_id=0x0CF00400, data="000000401f000000")],
     )
     _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    _register_test_asset(dbc_env["db_path"], session_id)
 
-    first = render_dbc(generate_session_dbc(session_id, db_path=dbc_env["db_path"]).database)
-    second = render_dbc(generate_session_dbc(session_id, db_path=dbc_env["db_path"]).database)
+    first = render_dbc(
+        generate_session_dbc(
+            session_id,
+            asset_key="test_asset",
+            db_path=dbc_env["db_path"],
+        ).database
+    )
+    second = render_dbc(
+        generate_session_dbc(
+            session_id,
+            asset_key="test_asset",
+            db_path=dbc_env["db_path"],
+        ).database
+    )
     assert first == second
+    assert 'CM_ "Asset: test_asset"' in first
 
 
 def test_signal_overlap_skips_second_mapping(dbc_env) -> None:
@@ -267,8 +311,13 @@ def test_signal_overlap_skips_second_mapping(dbc_env) -> None:
         [_frame_line(can_id=can_id, data="0000000000000000")],
     )
     _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    _register_test_asset(dbc_env["db_path"], session_id)
 
-    summary = generate_session_dbc(session_id, db_path=dbc_env["db_path"])
+    summary = generate_session_dbc(
+        session_id,
+        asset_key="test_asset",
+        db_path=dbc_env["db_path"],
+    )
     assert summary.messages_generated == 1
     assert summary.signals_generated == 1
     assert summary.signals_skipped == 1
@@ -284,16 +333,140 @@ def test_cli_session_dbc(dbc_env, monkeypatch: pytest.MonkeyPatch) -> None:
         [_frame_line(can_id=0x0CF00400, data="000000401f000000")],
     )
     _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    _register_test_asset(dbc_env["db_path"], session_id)
     output = dbc_env["root"] / "machine.dbc"
 
     monkeypatch.setattr(
         "canresearch.core.dbc_generation.default_db_path",
         lambda: dbc_env["db_path"],
     )
+    monkeypatch.setattr(
+        "canresearch.core.assets.default_db_path",
+        lambda: dbc_env["db_path"],
+    )
 
     runner = CliRunner()
-    result = runner.invoke(main, ["session", "dbc", session_id, "--output", str(output)])
+    result = runner.invoke(
+        main,
+        ["session", "dbc", session_id, "--asset", "test_asset", "--output", str(output)],
+    )
     assert result.exit_code == 0, result.output
     assert output.exists()
+    assert "Asset:                   test_asset" in result.output
     assert "DBC messages generated:" in result.output
     assert "EngineSpeed" in output.read_text(encoding="ascii")
+    assert 'CM_ "Asset: test_asset"' in output.read_text(encoding="ascii")
+
+
+def test_dbc_requires_linked_asset(dbc_env) -> None:
+    _insert_eec1_catalogue(dbc_env["db_path"])
+    session_id = "nolink"
+    frames_path = _write_session(
+        dbc_env["root"],
+        session_id,
+        [_frame_line(can_id=0x0CF00400, data="000000401f000000")],
+    )
+    _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    add_asset(
+        asset_key="orphan_asset",
+        asset_type="tractor",
+        display_name="Unlinked Tractor",
+        db_path=dbc_env["db_path"],
+    )
+
+    with pytest.raises(ValueError, match="not linked"):
+        generate_session_dbc(
+            session_id,
+            asset_key="orphan_asset",
+            db_path=dbc_env["db_path"],
+        )
+
+
+def test_source_address_filter(dbc_env) -> None:
+    _insert_eec1_catalogue(dbc_env["db_path"])
+    session_id = "safilter"
+    frames_path = _write_session(
+        dbc_env["root"],
+        session_id,
+        [
+            _frame_line(can_id=0x0CF00400, data="000000401f000000"),
+            _frame_line(can_id=0x0CF00480, data="000000401f000000"),
+        ],
+    )
+    _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=2)
+    add_asset(
+        asset_key="jd_6155r_01",
+        asset_type="tractor",
+        display_name="Tractor",
+        db_path=dbc_env["db_path"],
+    )
+    add_asset(
+        asset_key="weedit_quadro_01",
+        asset_type="implement",
+        display_name="Implement",
+        db_path=dbc_env["db_path"],
+    )
+    link_session_asset(session_id, "jd_6155r_01", role="tractor", db_path=dbc_env["db_path"])
+    link_session_asset(session_id, "weedit_quadro_01", role="implement", db_path=dbc_env["db_path"])
+
+    tractor = generate_session_dbc(
+        session_id,
+        asset_key="jd_6155r_01",
+        source_addresses=(0x00,),
+        db_path=dbc_env["db_path"],
+    )
+    implement = generate_session_dbc(
+        session_id,
+        asset_key="weedit_quadro_01",
+        source_addresses=(0x80,),
+        db_path=dbc_env["db_path"],
+    )
+    assert tractor.messages_generated == 1
+    assert implement.messages_generated == 1
+    assert tractor.database.messages[0].source_address == 0x00
+    assert implement.database.messages[0].source_address == 0x80
+    assert tractor.provenance.source_addresses == (0x00,)
+    assert implement.provenance.source_addresses == (0x80,)
+
+    with pytest.raises(ValueError, match="not observed"):
+        generate_session_dbc(
+            session_id,
+            asset_key="jd_6155r_01",
+            source_addresses=(0x99,),
+            db_path=dbc_env["db_path"],
+        )
+
+
+def test_default_output_filename(dbc_env, monkeypatch: pytest.MonkeyPatch) -> None:
+    _insert_eec1_catalogue(dbc_env["db_path"])
+    session_id = "defaultname"
+    frames_path = _write_session(
+        dbc_env["root"],
+        session_id,
+        [_frame_line(can_id=0x0CF00400, data="000000401f000000")],
+    )
+    _create_completed_session(dbc_env["db_path"], frames_path, session_id, frame_count=1)
+    add_asset(
+        asset_key="jd_6155r_01",
+        asset_type="tractor",
+        display_name="Tractor",
+        db_path=dbc_env["db_path"],
+    )
+    link_session_asset(session_id, "jd_6155r_01", role="tractor", db_path=dbc_env["db_path"])
+
+    monkeypatch.setattr(
+        "canresearch.core.dbc_generation.default_db_path",
+        lambda: dbc_env["db_path"],
+    )
+    monkeypatch.setattr(
+        "canresearch.core.assets.default_db_path",
+        lambda: dbc_env["db_path"],
+    )
+    monkeypatch.chdir(dbc_env["root"])
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["session", "dbc", session_id, "--asset", "jd_6155r_01"])
+    assert result.exit_code == 0, result.output
+    output = dbc_env["root"] / "jd_6155r_01_standard.dbc"
+    assert output.exists()
+    assert "Written:" in result.output

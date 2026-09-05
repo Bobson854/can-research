@@ -57,6 +57,12 @@ def render_dbc(database: DbcDatabase) -> str:
         "",
     ]
 
+    for comment in database.comments:
+        escaped = comment.replace('"', "'")
+        lines.append(f'CM_ "{escaped}"')
+    if database.comments:
+        lines.append("")
+
     for message in database.messages:
         lines.append(
             f"BO_ {message.dbc_frame_id} {message.name}: {message.dlc} {message.transmitter}"

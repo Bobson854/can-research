@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
+from canresearch import __version__
 from canresearch.core.analysis import analyze_session
+from canresearch.core.assets import require_session_asset_link
 from canresearch.core.dbc_identifiers import sanitize_dbc_identifier, unique_signal_identifier
-from canresearch.core.dbc_model import DbcDatabase, DbcMessage, DbcSignal
+from canresearch.core.dbc_model import DbcDatabase, DbcMessage, DbcProvenance, DbcSignal
 from canresearch.core.dbc_position import (
     encode_dbc_extended_id,
     j1939_position_to_dbc_start_bit,
@@ -22,6 +25,7 @@ from canresearch.storage.database import default_db_path, initialize
 
 DEFAULT_DLC = 8
 DEFAULT_NODE = "Vector__XXX"
+DBC_TYPE_REFERENCE_STANDARD = "reference_standard"
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +41,10 @@ class GenerationWarning:
 class SessionDbcSummary:
     session_id: str
     session_name: str | None
+    asset_key: str
+    asset_id: str
+    dbc_type: str
+    source_addresses: tuple[int, ...]
     frames_examined: int
     observed_j1939_pgns: int
     reference_backed_pgns: int
@@ -45,6 +53,7 @@ class SessionDbcSummary:
     signals_skipped: int
     warnings: tuple[GenerationWarning, ...] = field(default_factory=tuple)
     database: DbcDatabase = field(default_factory=lambda: DbcDatabase(version="", nodes=()))
+    provenance: DbcProvenance | None = None
 
     @property
     def warning_counts(self) -> dict[str, int]:
@@ -54,12 +63,28 @@ class SessionDbcSummary:
 def generate_session_dbc(
     session_id: str,
     *,
+    asset_key: str,
     db_path: Path | None = None,
     pgn_filter: int | None = None,
+    source_addresses: tuple[int, ...] | None = None,
 ) -> SessionDbcSummary:
-    """Build a DBC database from observed reference-backed J1939 traffic."""
+    """Build an asset-specific DBC from observed reference-backed J1939 traffic."""
     path = db_path or default_db_path()
+    asset = require_session_asset_link(session_id, asset_key, db_path=path)
     analysis = analyze_session(session_id, db_path=path, persist=False)
+
+    observed_sas = {item.source_address for item in analysis.observed}
+    if source_addresses:
+        missing = sorted(set(source_addresses) - observed_sas)
+        if missing:
+            formatted = ", ".join(f"0x{sa:02X}" for sa in missing)
+            msg = (
+                f"Source address filter not observed in session {session_id}: {formatted}"
+            )
+            raise ValueError(msg)
+        sa_filter = set(source_addresses)
+    else:
+        sa_filter = None
 
     conn = initialize(path)
     try:
@@ -67,9 +92,12 @@ def generate_session_dbc(
         return _build_database(
             session_id=session_id,
             session_name=analysis.session_name,
+            asset_key=asset.asset_key,
+            asset_id=asset.id,
             analysis=analysis,
             service=service,
             pgn_filter=pgn_filter,
+            source_address_filter=sa_filter,
         )
     finally:
         conn.close()
@@ -79,9 +107,12 @@ def _build_database(
     *,
     session_id: str,
     session_name: str | None,
+    asset_key: str,
+    asset_id: str,
     analysis,
     service: ReferenceService,
     pgn_filter: int | None,
+    source_address_filter: set[int] | None,
 ) -> SessionDbcSummary:
     observed_pgns = {item.pgn for item in analysis.observed}
     warnings: list[GenerationWarning] = []
@@ -89,12 +120,17 @@ def _build_database(
     signals_generated = 0
     signals_skipped = 0
     reference_pgns: set[int] = set()
+    reference_origins: set[str] = set()
 
     eligible = [
         item
         for item in analysis.observed
         if item.classification in J1939_ORIGINS
         and (pgn_filter is None or item.pgn == pgn_filter)
+        and (
+            source_address_filter is None
+            or item.source_address in source_address_filter
+        )
     ]
     reference_pgns = {item.pgn for item in eligible}
 
@@ -129,6 +165,8 @@ def _build_database(
         if not dbc_signals:
             continue
 
+        reference_origins.add(item.classification)
+
         messages.append(
             DbcMessage(
                 name=message_name,
@@ -146,15 +184,39 @@ def _build_database(
             )
         )
 
+    generated_at = datetime.now(tz=UTC).isoformat()
+    applied_sas = (
+        tuple(sorted(source_address_filter))
+        if source_address_filter is not None
+        else tuple(sorted({item.source_address for item in eligible}))
+    )
+    provenance = DbcProvenance(
+        asset_key=asset_key,
+        asset_id=asset_id,
+        session_id=session_id,
+        dbc_type=DBC_TYPE_REFERENCE_STANDARD,
+        reference_origins=tuple(sorted(reference_origins)),
+        generator_version=__version__,
+        generated_at=generated_at,
+        source_addresses=applied_sas,
+    )
+    comments = _provenance_comments(provenance)
+
     database = DbcDatabase(
         version="",
         nodes=(DEFAULT_NODE,),
         messages=tuple(sorted(messages, key=lambda msg: msg.dbc_frame_id)),
+        provenance=provenance,
+        comments=comments,
     )
 
     return SessionDbcSummary(
         session_id=session_id,
         session_name=session_name,
+        asset_key=asset_key,
+        asset_id=asset_id,
+        dbc_type=DBC_TYPE_REFERENCE_STANDARD,
+        source_addresses=applied_sas,
         frames_examined=analysis.total_frames,
         observed_j1939_pgns=len(observed_pgns),
         reference_backed_pgns=len(reference_pgns),
@@ -163,6 +225,7 @@ def _build_database(
         signals_skipped=signals_skipped,
         warnings=tuple(warnings),
         database=database,
+        provenance=provenance,
     )
 
 
@@ -173,6 +236,20 @@ def _from_mapping_warning(warning: MappingWarning, *, can_id: int) -> Generation
         pgn=warning.pgn,
         spn=warning.spn,
         can_id=can_id,
+    )
+
+
+def _provenance_comments(provenance: DbcProvenance) -> tuple[str, ...]:
+    sa_text = ", ".join(f"0x{sa:02X}" for sa in provenance.source_addresses) or "all"
+    origins = ", ".join(provenance.reference_origins) or "none"
+    return (
+        "Generated by CAN Research",
+        f"Asset: {provenance.asset_key}",
+        f"Session: {provenance.session_id}",
+        f"DBC type: {provenance.dbc_type}",
+        f"Source addresses: {sa_text}",
+        f"Reference origins: {origins}",
+        f"Generator: can-research {provenance.generator_version}",
     )
 
 

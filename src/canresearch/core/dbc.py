@@ -17,10 +17,18 @@ def build_session_dbc(
     session_id: str,
     output: Path,
     *,
+    asset_key: str,
     db_path: Path | None = None,
     pgn_filter: int | None = None,
+    source_addresses: tuple[int, ...] | None = None,
 ) -> SessionDbcSummary:
-    """Build and write a reference-backed machine DBC from a capture session."""
-    summary = generate_session_dbc(session_id, db_path=db_path, pgn_filter=pgn_filter)
+    """Build and write an asset-specific reference-backed DBC from a capture session."""
+    summary = generate_session_dbc(
+        session_id,
+        asset_key=asset_key,
+        db_path=db_path,
+        pgn_filter=pgn_filter,
+        source_addresses=source_addresses,
+    )
     write_dbc(summary.database, output)
     return summary

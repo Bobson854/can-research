@@ -20,9 +20,11 @@ The following milestones are **complete** on the development desk unit (Device I
 | Offline J1939 session classification | Done |
 | Offline J1939 SPN value decode (known PGNs) | Done |
 | Base machine DBC from reference-backed sessions | Done |
+| Asset registry and session asset associations | Done |
+| Asset-specific DBC provenance | Done |
 
-**Next major milestone:** transport-protocol reassembly, MCP session/DBC tools,
-and proprietary signal research workflows.
+**Next major milestone:** transport-protocol reassembly, J1939 NAME → asset mapping,
+MCP session/DBC tools, and proprietary signal research workflows.
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -41,7 +43,8 @@ No GUI in V1. No bundled SAE J1939 database.
 |------|-------------|
 | Hardware | CANsub.2 via USB (configured hostname) or Ethernet |
 | Protocol | J1939/ISOBUS 29-bit identifier parsing and reference catalogue |
-| DBC | Import reference DBCs; generate machine-specific DBC from sessions |
+| DBC | Import reference DBCs; generate asset-specific DBC from sessions |
+| Assets | Registry of tractor/implement/controller devices with session links |
 | Capture | Session metadata in SQLite; raw frames in JSONL under `data/sessions/` |
 | MCP | Tools for sessions, references, and DBC operations |
 | Storage | SQLite for metadata, references, findings, DBC revisions |
@@ -78,7 +81,12 @@ canresearch session list
 canresearch session summary <session-id>
 canresearch session analyze <session-id>
 canresearch session decode <session-id>
-canresearch session dbc <session-id> --output <path>
+canresearch asset add --key <key> --type tractor --name "..."
+canresearch asset list
+canresearch asset show <asset-key>
+canresearch session asset add <session-id> <asset-key> --role tractor
+canresearch session asset list <session-id>
+canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 canresearch reference import-j1939 ...
 canresearch mcp serve
 ```

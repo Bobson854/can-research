@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -237,6 +237,32 @@ MIGRATIONS: dict[int, str] = {
         ALTER TABLE sessions ADD COLUMN host TEXT;
         ALTER TABLE sessions ADD COLUMN channel INTEGER;
     """,
+    4: """
+        CREATE TABLE IF NOT EXISTS assets (
+            id TEXT PRIMARY KEY,
+            asset_key TEXT NOT NULL UNIQUE,
+            asset_type TEXT NOT NULL,
+            manufacturer TEXT,
+            model TEXT,
+            display_name TEXT NOT NULL,
+            serial_number TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS session_assets (
+            session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            asset_id TEXT NOT NULL REFERENCES assets(id),
+            role TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (session_id, asset_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_assets_key ON assets(asset_key);
+        CREATE INDEX IF NOT EXISTS idx_session_assets_session ON session_assets(session_id);
+        CREATE INDEX IF NOT EXISTS idx_session_assets_asset ON session_assets(asset_id);
+    """,
 }
 
 
@@ -272,6 +298,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v2(conn)
         elif version == 3:
             _migrate_v3(conn)
+        elif version == 4:
+            _migrate_v4(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -304,6 +332,13 @@ def _migrate_v3(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE sessions ADD COLUMN host TEXT")
     if "channel" not in columns:
         conn.execute("ALTER TABLE sessions ADD COLUMN channel INTEGER")
+
+
+def _migrate_v4(conn: sqlite3.Connection) -> None:
+    """Add asset registry and session-asset associations."""
+    if _table_exists(conn, "assets"):
+        return
+    conn.executescript(MIGRATIONS[4])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:
