@@ -10,6 +10,7 @@ dependencies = [
     "click>=8.1",
     "mcp>=1.0",
     "pdfplumber>=0.11.10",
+    "websockets>=14.0",
 ]
 
 [project.optional-dependencies]

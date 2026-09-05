@@ -14,7 +14,8 @@ def test_cli_help() -> None:
 
 def test_cli_device_list() -> None:
     runner = CliRunner()
-    result = runner.invoke(main, ["device", "list"])
+    with runner.isolated_filesystem():
+        result = runner.invoke(main, ["device", "list"])
     assert result.exit_code == 0
     assert "CANsub.2" in result.output
 

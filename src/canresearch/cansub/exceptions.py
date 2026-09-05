@@ -21,3 +21,11 @@ class CansubApiError(CansubError):
 
 class CansubIdentificationError(CansubError):
     """Host responded but did not identify as a CANsub.2 device."""
+
+
+class CansubWebSocketError(CansubError):
+    """CANsub.2 WebSocket connection or protocol error."""
+
+
+class CansubFrameError(CansubError):
+    """CANsub.2 WebSocket frame could not be parsed."""

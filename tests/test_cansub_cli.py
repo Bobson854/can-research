@@ -131,3 +131,73 @@ def test_device_list_connection_error(monkeypatch) -> None:
     result = runner.invoke(main, ["device", "list", "--host", "192.0.2.3"])
     assert result.exit_code == 1
     assert "timeout" in result.output
+
+
+def test_device_rx_uses_config_host(tmp_path: Path, monkeypatch) -> None:
+    from canresearch.cansub.ws_client import CansubRxResult
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text('[cansub]\nhost = "configured.local"\n', encoding="utf-8")
+    seen: dict[str, str] = {}
+
+    def fake_rx(host: str, channel: int, **kwargs):
+        _ = channel, kwargs
+        seen["host"] = host
+        return CansubRxResult(
+            host=host,
+            channel=1,
+            connected=True,
+            duration_s=1.0,
+            frame_count=0,
+            exit_reason="duration elapsed",
+        )
+
+    monkeypatch.setattr("canresearch.cansub.ws_client.receive_frames_sync", fake_rx)
+    monkeypatch.setattr("canresearch.config.default_config_path", lambda: config_path)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["device", "rx", "1", "--duration", "1"])
+    assert result.exit_code == 0
+    assert seen["host"] == "configured.local"
+    assert "Frames:     0" in result.output
+
+
+def test_device_rx_cli_host_override(tmp_path: Path, monkeypatch) -> None:
+    from canresearch.cansub.ws_client import CansubRxResult
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text('[cansub]\nhost = "configured.local"\n', encoding="utf-8")
+    seen: dict[str, str] = {}
+
+    def fake_rx(host: str, channel: int, **kwargs):
+        _ = channel, kwargs
+        seen["host"] = host
+        return CansubRxResult(
+            host=host,
+            channel=1,
+            connected=True,
+            duration_s=1.0,
+            frame_count=0,
+            exit_reason="duration elapsed",
+        )
+
+    monkeypatch.setattr("canresearch.cansub.ws_client.receive_frames_sync", fake_rx)
+    monkeypatch.setattr("canresearch.config.default_config_path", lambda: config_path)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["device", "rx", "1", "--host", "override.local"])
+    assert result.exit_code == 0
+    assert seen["host"] == "override.local"
+
+
+def test_device_rx_keyboard_interrupt(monkeypatch) -> None:
+    def fake_rx(*args, **kwargs):
+        _ = args, kwargs
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("canresearch.cansub.ws_client.receive_frames_sync", fake_rx)
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["device", "rx", "1", "--host", "192.0.2.1"])
+    assert result.exit_code == 0
+    assert "Interrupted" in result.output

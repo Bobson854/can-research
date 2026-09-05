@@ -15,22 +15,30 @@ from canresearch.cansub.exceptions import (
     CansubApiError,
     CansubConnectionError,
     CansubError,
+    CansubFrameError,
     CansubIdentificationError,
+    CansubWebSocketError,
 )
+from canresearch.cansub.ws_client import receive_frames_sync
+from canresearch.cansub.ws_protocol import CansubFrame
 
 __all__ = [
     "CansubChannelStatus",
     "CansubClient",
     "CansubDevice",
     "CansubDeviceInfo",
+    "CansubFrame",
     "CansubApiError",
     "CansubConnectionError",
     "CansubError",
+    "CansubFrameError",
     "CansubIdentificationError",
+    "CansubWebSocketError",
     "connect",
     "disconnect",
     "get_channel_info",
     "probe_host",
+    "receive_frames_sync",
 ]
 
 

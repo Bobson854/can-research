@@ -56,6 +56,7 @@ Precedence:
 | `GET /api/can` | Channel list |
 | `GET /api/can/{channel}` | Channel status |
 | `GET /api/can/{channel}/phy` | Channel PHY timing (read-only) |
+| `WS /api/can/{channel}/ws` | Live CAN RX (binary HDLC-framed messages) |
 
 TLS: the device presents a hostname-based certificate. Direct IP or `.local`
 access typically requires `verify_tls = false` in config until the CSS root

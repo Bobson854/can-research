@@ -137,6 +137,93 @@ def _print_channel_info(host: str, channel: int, timeout: float, verify_tls: boo
             click.echo(f"Timing data: {info.phy['timing_data']}")
 
 
+@device_group.command("rx")
+@click.argument("channel", type=int)
+@click.option("--host", default=None, help="CANsub.2 host/IP (overrides config).")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout for channel validation.")
+@click.option(
+    "--duration",
+    default=5.0,
+    type=float,
+    show_default=True,
+    help="Seconds to wait for frames before exiting.",
+)
+@click.option("--max-frames", default=None, type=int, help="Stop after receiving this many frames.")
+def device_rx(
+    channel: int,
+    host: str | None,
+    timeout: float | None,
+    duration: float,
+    max_frames: int | None,
+) -> None:
+    """Receive CAN frames from a channel via WebSocket (read-only)."""
+    resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    _run_device_rx(
+        resolved_host,
+        channel,
+        duration=duration,
+        max_frames=max_frames,
+        timeout=resolved_timeout,
+        verify_tls=verify_tls,
+    )
+
+
+def _run_device_rx(
+    host: str,
+    channel: int,
+    *,
+    duration: float,
+    max_frames: int | None,
+    timeout: float,
+    verify_tls: bool,
+) -> None:
+    from canresearch.cansub.exceptions import CansubWebSocketError
+    from canresearch.cansub.ws_client import receive_frames_sync
+
+    click.echo("CANsub.2 RX")
+    click.echo(f"Host:       {host}")
+    click.echo(f"Channel:    {channel}")
+    click.echo(f"Duration:   {duration:g} s")
+
+    def on_frame(frame) -> None:
+        if frame.is_error_frame:
+            click.echo(f"ERR  {frame.error_type}  ts={frame.timestamp_us}")
+            return
+        id_text = f"0x{frame.can_id:X}" if frame.can_id is not None else "?"
+        data_text = frame.data.hex(" ") if frame.data else ""
+        flags = []
+        if frame.extended:
+            flags.append("ext")
+        if frame.fd:
+            flags.append("fd")
+        if frame.rtr:
+            flags.append("rtr")
+        if frame.tx_ack:
+            flags.append("tx-ack")
+        flag_text = f" ({', '.join(flags)})" if flags else ""
+        click.echo(f"RX   {id_text}{flag_text}  dlc={frame.dlc}  {data_text}")
+
+    try:
+        result = receive_frames_sync(
+            host,
+            channel,
+            duration=duration,
+            max_frames=max_frames,
+            timeout=timeout,
+            verify_tls=verify_tls,
+            on_frame=on_frame,
+        )
+    except KeyboardInterrupt:
+        click.echo("Interrupted")
+        raise SystemExit(0) from None
+    except CansubWebSocketError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo("Status:     connected")
+    click.echo(f"Frames:     {result.frame_count}")
+    click.echo(f"Result:     {result.exit_reason}")
+
+
 @main.group("config")
 def config_group() -> None:
     """Manage local can-research configuration."""
