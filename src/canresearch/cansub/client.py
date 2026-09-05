@@ -94,9 +94,9 @@ class CansubClient:
         context.verify_mode = ssl.CERT_NONE
         return context
 
-    def _request(self, path: str) -> tuple[int, bytes]:
+    def _request(self, path: str, *, method: str = "GET") -> tuple[int, bytes]:
         url = f"{self._base_url()}{path}"
-        request = urllib.request.Request(url, method="GET")
+        request = urllib.request.Request(url, method=method)
         try:
             with self._urlopen(
                 request, timeout=self.timeout, context=self._ssl_context()
@@ -104,11 +104,14 @@ class CansubClient:
                 status = getattr(response, "status", 200)
                 body = response.read()
         except urllib.error.HTTPError as exc:
-            if exc.code == 404:
+            if exc.code == 404 and method == "GET":
                 raise CansubApiError(
                     f"CANsub.2 resource not found: {path}",
                     status_code=404,
                 ) from exc
+            if exc.code == 404:
+                body = exc.read()
+                return exc.code, body
             raise CansubApiError(
                 f"CANsub.2 API request failed ({exc.code}) for {path}",
                 status_code=exc.code,
@@ -213,6 +216,22 @@ class CansubClient:
                 f"Unexpected CANsub.2 channel {channel} PHY response: expected object"
             )
         return payload
+
+    def abort_websocket_connection(self, channel: int) -> bool:
+        """DELETE /api/can/{channel}/ws — abort the active WebSocket client, if any.
+
+        CANsub.2 allows only one WebSocket client per channel. Aborting releases a
+        stale or competing connection so a new read-only RX session can connect.
+        """
+        status, _body = self._request(f"/api/can/{channel}/ws", method="DELETE")
+        if status == 200:
+            return True
+        if status == 404:
+            return False
+        raise CansubApiError(
+            f"CANsub.2 WebSocket abort failed with status {status} for channel {channel}",
+            status_code=status,
+        )
 
     def get_channel_info(self, channel: int, *, include_phy: bool = True) -> CansubChannelStatus:
         """Return read-only channel status (and optional PHY configuration)."""

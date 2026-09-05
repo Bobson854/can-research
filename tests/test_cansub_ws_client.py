@@ -52,6 +52,10 @@ def _mock_channels(monkeypatch: pytest.MonkeyPatch, channels: list[int] | None =
         return channels
 
     monkeypatch.setattr("canresearch.cansub.ws_client.CansubClient.list_channels", fake_list)
+    monkeypatch.setattr(
+        "canresearch.cansub.ws_client.CansubClient.abort_websocket_connection",
+        lambda self, channel: False,
+    )
 
 
 def _run(coro):
@@ -206,15 +210,59 @@ def test_unexpected_socket_close(monkeypatch: pytest.MonkeyPatch) -> None:
     class ConnectionClosed(Exception):
         pass
 
-    with pytest.raises(CansubWebSocketError, match="closed unexpectedly|failed"):
+    with pytest.raises(CansubWebSocketError, match="in use by another client"):
         _run(
             receive_frames(
                 "example.test",
                 1,
                 duration=1.0,
                 connect=_fake_connect([ConnectionClosed("connection closed")]),
+                release_slot=False,
             )
         )
+
+
+def test_connection_closed_after_frames_is_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_channels(monkeypatch)
+    from websockets.exceptions import ConnectionClosedOK
+    from websockets.frames import Close
+
+    result = _run(
+        receive_frames(
+            "example.test",
+            1,
+            duration=5.0,
+            connect=_fake_connect(
+                [SINGLE_FRAME, ConnectionClosedOK(Close(1000, ""), None)]
+            ),
+            release_slot=False,
+        )
+    )
+    assert result.frame_count == 1
+    assert result.exit_reason == "connection closed"
+
+
+def test_release_slot_called_before_connect(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_channels(monkeypatch)
+    calls: list[int] = []
+
+    def fake_abort(self, channel: int) -> bool:
+        calls.append(channel)
+        return True
+
+    monkeypatch.setattr(
+        "canresearch.cansub.ws_client.CansubClient.abort_websocket_connection",
+        fake_abort,
+    )
+    _run(
+        receive_frames(
+            "example.test",
+            2,
+            duration=0.2,
+            connect=_fake_connect([]),
+        )
+    )
+    assert calls == [2]
 
 
 def test_websocket_url() -> None:

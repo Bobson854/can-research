@@ -248,6 +248,8 @@ def observe_live_traffic(
         lowered = str(exc).lower()
         if "not found" in lowered:
             raise LiveResearchError("channel_not_found", str(exc)) from exc
+        if "in use by another client" in lowered:
+            raise LiveResearchError("channel_rx_in_use", str(exc)) from exc
         if "timeout" in lowered or "timed out" in lowered:
             raise LiveResearchError("observation_timeout", str(exc)) from exc
         if "unable to connect" in lowered or "resolve" in lowered:

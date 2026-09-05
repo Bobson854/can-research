@@ -142,3 +142,26 @@ def test_probe_invalid_channel_list() -> None:
     )
     with pytest.raises(CansubIdentificationError, match="channel list"):
         client.probe()
+
+
+def test_abort_websocket_connection_active() -> None:
+    calls: list[str] = []
+
+    def urlopen(request: Any, timeout: float = 5.0, context: Any = None) -> _FakeResponse:
+        _ = timeout, context
+        calls.append(request.method)
+        assert request.method == "DELETE"
+        return _FakeResponse(200, b"")
+
+    client = CansubClient("example.test", urlopen=urlopen)
+    assert client.abort_websocket_connection(1) is True
+    assert calls == ["DELETE"]
+
+
+def test_abort_websocket_connection_idle() -> None:
+    def urlopen(request: Any, timeout: float = 5.0, context: Any = None) -> _FakeResponse:
+        _ = timeout, context
+        raise HTTPError(request.full_url, 404, "not found", hdrs=None, fp=io.BytesIO(b""))
+
+    client = CansubClient("example.test", urlopen=urlopen)
+    assert client.abort_websocket_connection(1) is False

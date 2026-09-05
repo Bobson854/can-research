@@ -213,6 +213,25 @@ def test_observe_live_traffic_channel_rx_in_use() -> None:
     assert exc.value.code == "channel_rx_in_use"
 
 
+def test_observe_live_traffic_websocket_slot_in_use(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from canresearch.cansub.exceptions import CansubWebSocketError
+
+    def fake_receive(*args, **kwargs):
+        _ = args, kwargs
+        raise CansubWebSocketError(
+            "CAN channel 1 WebSocket on example.test is in use by another client "
+            "(CANsub.2 allows one WebSocket per channel). Close webCAN or other listeners "
+            "and retry."
+        )
+
+    monkeypatch.setattr("canresearch.core.live_research.receive_frames_sync", fake_receive)
+    with pytest.raises(LiveResearchError) as exc:
+        observe_live_traffic("example.test", 1)
+    assert exc.value.code == "channel_rx_in_use"
+
+
 def test_observe_respects_row_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     from canresearch.cansub.ws_client import CansubRxResult
     from canresearch.cansub.ws_protocol import CansubFrame
