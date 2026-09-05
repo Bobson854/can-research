@@ -2,187 +2,536 @@
 
 ## Purpose
 
-Use this when exposing a self-hosted MCP server to ChatGPT through an OpenAI
-tunnel-backed app. It is deliberately project-agnostic; replace the names and
-URLs in angle brackets.
+Use this guide to expose a local CAN Research MCP server to ChatGPT through the
+OpenAI Secure MCP tunnel client.
 
-This guide is based on the BLE Research setup. The important lesson is that
-there are **three independent states** that must all agree:
+This sequence was verified end-to-end on the **Office Windows workstation on
+2026-09-05** using:
 
-1. The local MCP server exposes the tools.
-2. The tunnel is healthy and points at that server.
-3. The ChatGPT app has refreshed its published tool schema and is enabled in
-   the current chat/workspace.
+- CAN Research MCP: `http://127.0.0.1:8765/mcp`
+- OpenAI `tunnel-client` **v0.0.14**
+- Tunnel name/profile: `can-research-office`
+- ChatGPT plugin/connector: `can-research-office`
+- Expected CAN Research tool count: **32**
 
-Solving only one of those states does not make the tools usable.
+The most important operational rule is that three independent states must all
+agree:
 
-## Before creating the connector
+1. **Local MCP server** is healthy and exposes the expected tools.
+2. **OpenAI tunnel client** is healthy and points at that local MCP server.
+3. **ChatGPT plugin/connector** has discovered the current schema and is enabled.
 
-- Make the MCP server reachable **from the machine running the tunnel**.
-- Give the server a stable local endpoint, normally `http://127.0.0.1:<port>/mcp`.
-- Keep the MCP service read-only until the connection has been proven.
-- Decide which tools should be exposed. Tool names and descriptions are the
-  user-facing contract; avoid experimental or duplicate names.
-- Do not put API keys, database credentials, or Omada/Home Assistant tokens in
-  tool results or tool descriptions.
+Do not troubleshoot these out of order.
 
-For the BLE Research service the known-good local endpoint was:
+---
+
+## Known-good Office deployment
+
+| Item | Verified value |
+|---|---|
+| Instance key | `office` |
+| Display name | `CAN Research - Office` |
+| CAN Research MCP URL | `http://127.0.0.1:8765/mcp` |
+| MCP transport | `streamable-http` |
+| MCP tool count | **32** |
+| Read-only tools | 19 |
+| Passive live CANsub tools | 7 |
+| Signal research tools | 6 |
+| Tunnel name | `can-research-office` |
+| Tunnel client version | `0.0.14` |
+| Tunnel client profile | `can-research-office` |
+| Tunnel health/admin listener | `127.0.0.1:8081` |
+| Verification date | `2026-09-05` |
+
+The Office machine already had SABnzbd listening on `127.0.0.1:8080`, so the
+OpenAI tunnel health listener was moved to `8081`.
+
+---
+
+# Installation sequence
+
+## 1. Configure and prove CAN Research first
+
+From the CAN Research repository root:
+
+```powershell
+uv run canresearch config show
+```
+
+For the Office installation the expected identity is:
 
 ```text
-http://127.0.0.1:8000/mcp
+instance_key = office
+display_name = CAN Research - Office
 ```
 
-## 1. Prove the local server first
+Start the HTTP MCP server:
 
-Do this on the host that runs the service and tunnel.
-
-```bash
-curl -i http://127.0.0.1:<port>/mcp
+```powershell
+uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
 ```
 
-An MCP endpoint may reject a plain `GET`; that alone is not a failure. What
-matters is that it is listening and that the tunnel/client can initialise an
-MCP session against it. Also confirm the application service is healthy:
+Leave this terminal running.
 
-```bash
-docker compose ps
-docker compose logs --tail=100 <service-name>
+In another terminal, verify the MCP protocol and tool inventory:
+
+```powershell
+uv run python scripts/mcp_verify_http.py
 ```
 
-If you have an application-level tool listing or tests, run them now. Record the
-expected count and exact names. For BLE Research, the final expected count was
-**21**: 12 BLE tools, 5 Omada tools, and 4 passive Wi-Fi tools.
+Expected result:
 
-Do not create or reinstall the ChatGPT app yet if the local service cannot see
-the expected tool set.
-
-## 2. Start the OpenAI tunnel
-
-Use the existing tunnel profile, with the local MCP endpoint as its target.
-For the BLE project this was managed by `/opt/openai-tunnel-client`, profile
-`ble-research`, targeting `http://127.0.0.1:8000/mcp`.
-
-The exact client command may vary by client version, but verify these facts:
-
-- The client process remains running after startup.
-- Its readiness/status output says it is connected.
-- It reports the expected endpoint and does not show repeated reconnect or
-  authentication errors.
-- The app has a stable tunnel URL; do not repeatedly create replacement apps
-  while diagnosing a stale tool list.
-
-Capture a short status/log extract if anything is wrong:
-
-```bash
-ps aux | rg 'openai|tunnel'
-<tunnel-client-command> status
+```text
+url: http://127.0.0.1:8765/mcp
+tool_count: 32
+read_only: 19
+live: 7
+signal_research: 6
+match: True
 ```
 
-## 3. Create or configure the ChatGPT app once
+A plain HTTP request to `/mcp` may return `400` or `406`. That can still indicate
+that the endpoint is alive; the protocol-aware verification script is the
+authoritative check.
 
-In ChatGPT Work, create a connector/app using the tunnel URL supplied by the
-client. For an internal, read-only research service, use the simplest allowed
-authentication mode that matches the tunnel setup (the BLE Research connector
-was configured as **no auth** at the app layer).
+Do not continue to tunnel setup until the local tool count is correct.
 
-Then:
+---
 
-1. Save the app.
-2. Confirm its tool list/count in the app configuration.
-3. Enable or publish it for the intended workspace/personal use.
-4. Start a fresh chat and explicitly enable/select the app for that chat.
+## 2. Download the correct OpenAI tunnel client
 
-Treat the app configuration as a schema cache. A healthy tunnel does **not**
-guarantee the ChatGPT UI has the current tool list.
+Open the OpenAI Platform Tunnels page:
 
-## 4. Verify in the chat that will use it
+```text
+https://platform.openai.com/settings/organization/tunnels
+```
 
-Ask a small, unambiguous question first:
+Use **Download tunnel-client**.
 
-> How many `<project name>` tools can you see? List their names.
+For Windows x64, download the normal Windows AMD64 client archive, for example:
 
-Then run one safe, small query, for example a 60-minute summary with a small
-limit. Do not begin with a large raw-observation query.
+```text
+tunnel-client-v0.0.14-windows-amd64.zip
+```
 
-Success criteria:
+Do **not** use the archive named like:
 
-- The tool count and names match the local server’s expected list.
-- A live tool call returns current data.
-- A new chat can see the same tool set after the app is selected.
+```text
+tunnel-client-runtime-cloudflared-v0.0.14-windows-amd64.zip
+```
 
-For BLE Research, `ble_proxy_summary(minutes=60, limit=20)` was a good smoke
-test because it is compact, read-only, and clearly time-sensitive.
+That runtime bundle contains `tunnel-client-runtime-cloudflared.exe` and
+`cloudflared.exe`, but not the main `tunnel-client.exe` CLI used by this guide.
 
-## When tools are missing or stale
+After extraction, confirm:
 
-Work through this order. Do not jump straight to reinstalling the app.
+```powershell
+.\tunnel-client.exe --version
+.\tunnel-client.exe help quickstart
+```
 
-| Check | What to do | Interpretation |
+Known-good version output began with:
+
+```text
+0.0.14
+```
+
+---
+
+## 3. Create the OpenAI tunnel
+
+On the Platform **Tunnels** page, click **Create tunnel**.
+
+Use a per-machine name. Office example:
+
+```text
+can-research-office
+```
+
+After creation, copy the generated tunnel ID. It has the form:
+
+```text
+tunnel_...
+```
+
+Do not create duplicate tunnels while troubleshooting. Reuse the existing tunnel
+for that workstation.
+
+---
+
+## 4. Create the runtime API key
+
+Open:
+
+```text
+https://platform.openai.com/settings/organization/api-keys
+```
+
+Create a new secret key.
+
+Recommended name:
+
+```text
+can-research-office
+```
+
+Important UI detail: the **Project** field must be selected before the **Create
+secret key** button becomes active. On the Office setup this was:
+
+```text
+Default project
+```
+
+Use restricted permissions sufficient for tunnel runtime use. The tunnel client
+quickstart describes the runtime principal as needing Tunnel **Read + Use**.
+
+Do not use an OpenAI admin key for the long-lived tunnel daemon.
+
+Copy the runtime key when it is shown. Never commit it to Git.
+
+---
+
+## 5. Persist the runtime API key on Windows
+
+The tunnel ID is stored in the tunnel profile, so it does not need to be entered
+on every run.
+
+Persist the runtime API key for the Windows user:
+
+```powershell
+setx CONTROL_PLANE_API_KEY "sk-REPLACE_WITH_THE_REAL_RUNTIME_KEY"
+```
+
+Then **close PowerShell and open a new PowerShell window**. `setx` does not alter
+the already-running shell.
+
+Verify only that the variable is present:
+
+```powershell
+$env:CONTROL_PLANE_API_KEY
+```
+
+Do not paste the key into support chats or documentation.
+
+If a placeholder was accidentally saved literally, simply run `setx` again with
+the correct real key and open another new PowerShell window.
+
+---
+
+## 6. Create the local tunnel-client profile
+
+Open PowerShell in the folder containing `tunnel-client.exe`, or use its full
+path.
+
+For Office:
+
+```powershell
+$env:CONTROL_PLANE_TUNNEL_ID="tunnel_REPLACE_WITH_REAL_ID"
+
+.\tunnel-client.exe init `
+  --sample sample_mcp_remote_no_auth `
+  --profile can-research-office `
+  --tunnel-id $env:CONTROL_PLANE_TUNNEL_ID `
+  --mcp-server-url http://127.0.0.1:8765/mcp
+```
+
+The profile is stored under the Windows user config directory, for example:
+
+```text
+C:\Users\Office\.config\tunnel-client\can-research-office.yaml
+```
+
+The tunnel ID is persisted in this profile.
+
+---
+
+## 7. Run `doctor` before starting the tunnel
+
+Run:
+
+```powershell
+.\tunnel-client.exe doctor --profile can-research-office --explain
+```
+
+On the Office workstation, this initially failed because port `8080` was already
+in use:
+
+```text
+CHECK health_listener FAIL listen tcp 127.0.0.1:8080
+```
+
+Find the owner of a conflicting port with:
+
+```powershell
+netstat -ano | findstr :8080
+tasklist /FI "PID eq <PID>"
+```
+
+On the verified Office setup, the process was `SABnzbd.exe`, so it was left
+alone and the tunnel health listener was moved to `8081`.
+
+Known-good doctor command:
+
+```powershell
+.\tunnel-client.exe doctor --profile can-research-office --explain --health.listen-addr 127.0.0.1:8081
+```
+
+Expected final line:
+
+```text
+RESULT ok
+```
+
+Expected MCP checks include:
+
+```text
+CHECK mcp_target           PASS http://127.0.0.1:8765/mcp
+CHECK mcp_server_reachable PASS
+CHECK health_listener      PASS will bind http://127.0.0.1:8081
+CHECK ui                   PASS http://127.0.0.1:8081/ui
+```
+
+`codex_plugin SKIP` is optional and is not a failure for the ChatGPT connector.
+
+---
+
+## 8. Start the tunnel
+
+With the CAN Research MCP server still running, start the tunnel:
+
+```powershell
+.\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+Leave this terminal running.
+
+The tunnel client must remain running for ChatGPT connector discovery and every
+subsequent MCP call.
+
+At this point the active process chain is:
+
+```text
+ChatGPT
+  -> OpenAI tunnel
+  -> tunnel-client.exe
+  -> http://127.0.0.1:8765/mcp
+  -> CAN Research MCP server
+```
+
+---
+
+## 9. Create/discover the ChatGPT plugin/connector
+
+Do this only while both of these are running:
+
+1. CAN Research MCP server on `127.0.0.1:8765`
+2. `tunnel-client.exe run ...`
+
+In ChatGPT, use the workspace/plugin management UI to create or discover the
+connector backed by the existing OpenAI tunnel.
+
+Select:
+
+```text
+can-research-office
+```
+
+The plugin page should populate an **Actions** section from the MCP tool schema.
+Seeing tool definitions such as `analyze_can_id_activity` confirms schema
+discovery is occurring.
+
+Do not edit the MCP service, tunnel, API key, or tunnel profile while the ChatGPT
+UI is already successfully showing the tool actions.
+
+---
+
+## 10. End-to-end verification in ChatGPT
+
+Use **Try in chat** or start a fresh chat with the connector enabled.
+
+First ask:
+
+> How many CAN Research tools can you see? List their names.
+
+Expected:
+
+```text
+32 tools
+19 read-only/offline
+7 live CANsub
+6 proprietary signal-research
+```
+
+Then verify backend identity:
+
+> Call `get_instance_info`.
+
+Expected Office result:
+
+```text
+instance_key: office
+display_name: CAN Research - Office
+```
+
+Then verify stored-session access:
+
+> Call `list_sessions` with `limit=5`.
+
+If a CANsub.2 is available on the network, verify the passive hardware path:
+
+> Call `get_cansub_device_status`.
+
+The Office connector passed the 32-tool discovery test on **2026-09-05**.
+
+---
+
+# Normal startup after installation
+
+The one-time setup steps above should not be repeated every day.
+
+For a workstation that is already configured:
+
+### Terminal 1 — CAN Research MCP
+
+From the CAN Research repository root:
+
+```powershell
+uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+```
+
+### Terminal 2 — OpenAI tunnel
+
+From the tunnel-client folder, or using a full executable path:
+
+```powershell
+.\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+Then use the existing ChatGPT plugin. Do not recreate the tunnel or API key.
+
+A later improvement may move the tunnel client to a managed runtime/service so
+these two processes can start automatically. Until that is deliberately set up,
+foreground terminals are the known-good method.
+
+---
+
+# Troubleshooting order
+
+Always work from the inside out.
+
+| Layer | Check | Meaning |
 |---|---|---|
-| Local tool list | Confirm the service has the new tool registered and its tests/import succeed. | If missing here, this is an application deployment issue. |
-| Tunnel health | Check profile/process/readiness and its target URL. | If unhealthy, fix the tunnel/service path first. |
-| App tool count | Open the existing app configuration and compare its tool count to the local expected count. | A mismatch means stale schema, not a chat checkbox problem. |
-| Refresh | Restart/refresh the existing tunnel profile after the server change, then allow the app schema to update. | This is the normal recovery after adding tools. |
-| New chat smoke test | Start a genuinely new chat, enable the app, and ask for the count/names. | Confirms the conversational tool binding. |
+| 1. CAN Research | `uv run python scripts/mcp_verify_http.py` | Must report 32 tools and `match: True` |
+| 2. Tunnel profile | `tunnel-client doctor --profile ... --explain` | Must end with `RESULT ok` |
+| 3. Tunnel runtime | `tunnel-client run --profile ...` | Must stay running without repeated auth/reconnect errors |
+| 4. ChatGPT plugin | Actions/tool list visible | Confirms schema discovery |
+| 5. Fresh chat | Ask for tool count | Must report 32 |
+| 6. Identity | `get_instance_info` | Must match the machine instance |
+| 7. CANsub | `get_cansub_device_status` | Optional passive hardware verification |
 
-Only delete and recreate the app after the first four checks have failed and you
-have verified the tunnel is serving the correct schema. Recreating it too early
-can create multiple similar connectors and makes the diagnosis harder.
+Do not delete and recreate the ChatGPT plugin first. A stale or missing tool list
+can originate at any earlier layer.
 
-## Common pitfalls from the BLE setup
+---
 
-### "The app is connected, but the new tools are not visible"
+# Common failures seen during the Office installation
 
-Most likely cause: ChatGPT has retained the earlier app schema. Confirm the
-local count, refresh/restart the **existing** tunnel profile, then re-check the
-app count and test in a fresh chat. Do not assume enabling extra checkboxes
-refreshes the schema.
+## `tunnel-client.exe` is not found
 
-### "A different chat can see a different tool count"
-
-The connector may be enabled in one workspace/chat but not another, or the
-conversation was started before the schema refresh. Use a fresh chat for the
-authoritative smoke test.
-
-### "The tunnel exists, but calls fail"
-
-Check the local target from the tunnel host, Docker service health, and tunnel
-logs before editing any app settings. The tunnel URL is only a route; it cannot
-repair an unhealthy service behind it.
-
-### "We have added tools but do not know whether deployment succeeded"
-
-Keep an explicit expected-count check in the release notes. For example:
+If PowerShell shows:
 
 ```text
-Expected after deployment: 21 tools
-BLE: 12 | Omada: 5 | Wi-Fi: 4
+The term '.\tunnel-client.exe' is not recognized
 ```
 
-That turns a vague UI problem into a binary comparison at each layer.
+then either:
 
-## Minimal release checklist
+- the wrong archive was downloaded; or
+- PowerShell is not currently in the extracted tunnel-client folder.
 
-- [ ] New MCP tools are registered in the server and covered by tests.
-- [ ] The application/service has been deployed and is healthy.
-- [ ] Local expected count and names have been recorded.
-- [ ] Tunnel profile is healthy and targets the correct local `/mcp` URL.
-- [ ] Existing ChatGPT app shows the expected tool count.
-- [ ] App is enabled/published for the intended scope.
-- [ ] Fresh-chat tool-name check passes.
-- [ ] One small read-only live query passes.
-- [ ] No duplicate old connectors remain enabled.
+Change directory first, for example:
 
-## Recommended operational pattern
+```powershell
+cd K:\Downloads\tunnel-client-v0.0.14-windows-amd64
+```
 
-For each new project, make a small `MCP_CONNECTION.md` beside the service with:
+or use the executable's full path.
 
-- service name and local MCP URL;
-- tunnel profile name and how it is started/status-checked;
-- expected tool count, grouped by function;
-- one compact smoke-test tool and arguments;
-- authentication model; and
-- the date/version of the last successful fresh-chat verification.
+## Wrong download: runtime-cloudflared bundle
 
-That file makes future changes routine, and it prevents a tool-cache issue from
-being mistaken for a code or credential failure.
+The runtime-cloudflared ZIP is not the main Windows tunnel-client CLI package.
+Download the normal `tunnel-client-v...-windows-amd64.zip` package.
+
+## API key Create button stays disabled
+
+Select a **Project** in the secret-key dialog. The Office setup used `Default
+project`.
+
+## `doctor` fails on port 8080
+
+Find the owner with `netstat` and `tasklist`. Do not kill unrelated software
+without identifying it first. Choose another tunnel health port instead.
+
+## MCP target returns HTTP 406
+
+This was accepted by `tunnel-client doctor` as reachable for the streamable HTTP
+MCP endpoint. Judge health from `doctor` and the MCP verification script rather
+than a plain browser/GET request.
+
+## ChatGPT shows tool actions
+
+That is a positive result. Once the Actions list is populated, stop changing the
+lower layers and perform the fresh-chat tool-count test.
+
+---
+
+# Per-instance naming convention
+
+Each machine is a self-contained installation. There is no central CAN Research
+backend.
+
+Recommended names:
+
+```text
+instance_key:             <machine-key>
+display_name:             CAN Research - <Machine Name>
+OpenAI tunnel:            can-research-<machine-key>
+tunnel-client profile:    can-research-<machine-key>
+ChatGPT plugin/connector: CAN Research - <Machine Name>
+MCP URL:                  http://127.0.0.1:8765/mcp
+```
+
+Different computers may all reuse port `8765` because each machine has its own
+localhost.
+
+---
+
+# Security and safety
+
+- Never commit `CONTROL_PLANE_API_KEY` or the generated secret value.
+- Never paste a live API key into documentation or support messages.
+- Use a runtime key for the long-lived tunnel client, not an admin key.
+- Keep CAN Research MCP passive: there are no CAN TX tools.
+- Candidate confirmation remains CLI-only and human-controlled.
+- Keep SAE/ISO licensed reference material local and ignored by Git.
+
+---
+
+# Verification checklist
+
+- [x] Office instance configured as `office`
+- [x] CANsub.2 reachable from CAN Research
+- [x] Local HTTP MCP verified at `127.0.0.1:8765/mcp`
+- [x] 32 tools verified locally
+- [x] Correct Windows tunnel-client v0.0.14 installed
+- [x] OpenAI tunnel `can-research-office` created
+- [x] Runtime API key created and persisted for the Windows user
+- [x] `can-research-office` tunnel-client profile created
+- [x] Port 8080 conflict identified as SABnzbd and left untouched
+- [x] Tunnel health moved to `127.0.0.1:8081`
+- [x] `tunnel-client doctor` returned `RESULT ok`
+- [x] Tunnel started successfully
+- [x] ChatGPT plugin discovered the MCP Actions schema
+- [x] Fresh-chat tool count returned **32**
+- [ ] `get_instance_info` rechecked in ChatGPT after final documentation update
+- [ ] `get_cansub_device_status` rechecked in ChatGPT with hardware available
