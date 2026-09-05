@@ -552,6 +552,52 @@ def _print_session_decode(summary) -> None:
         )
 
 
+@session_group.command("dbc")
+@click.argument("session_id")
+@click.option("--output", "-o", required=True, type=click.Path(), help="Output DBC path.")
+@click.option("--pgn", type=int, default=None, help="Include only this PGN.")
+def session_dbc(session_id: str, output: str, pgn: int | None) -> None:
+    """Generate a reference-backed machine DBC from a capture session."""
+    from pathlib import Path
+
+    from canresearch.core.dbc import build_session_dbc
+
+    output_path = Path(output)
+    try:
+        summary = build_session_dbc(
+            session_id,
+            output_path,
+            pgn_filter=pgn,
+        )
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    _print_session_dbc(summary, output_path)
+
+
+def _print_session_dbc(summary, output_path) -> None:
+    click.echo(f"Session:                 {summary.session_id}")
+    if summary.session_name:
+        click.echo(f"Name:                    {summary.session_name}")
+    click.echo(f"Frames examined:         {summary.frames_examined}")
+    click.echo(f"Observed J1939 PGNs:     {summary.observed_j1939_pgns}")
+    click.echo(f"Reference-backed PGNs:   {summary.reference_backed_pgns}")
+    click.echo(f"DBC messages generated:  {summary.messages_generated}")
+    click.echo(f"DBC signals generated:   {summary.signals_generated}")
+    click.echo(f"Signals skipped:         {summary.signals_skipped}")
+
+    if summary.warning_counts:
+        click.echo("Warnings:")
+        for category, count in sorted(summary.warning_counts.items()):
+            click.echo(f"  {category}: {count}")
+
+    if summary.messages_generated == 0:
+        click.echo("No reference-backed messages were generated for this session.")
+    click.echo(f"Written:                 {output_path}")
+
+
 @session_group.command("summary")
 @click.argument("session_id")
 def session_summary(session_id: str) -> None:

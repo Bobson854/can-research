@@ -89,15 +89,29 @@ saved session (frames.jsonl)
 Unknown/proprietary PGNs and ISOBUS DDI interpretation are skipped. Transport
 protocol reassembly is not implemented.
 
+## DBC generation flow (implemented)
+
+```text
+JSONL session
+  -> observed address-qualified J1939 traffic (PGN + SA + DA)
+  -> reference-backed PGN/SPN mappings (j1939_base_2001 / j1939_addition only)
+  -> mapping quality + overlap validation
+  -> DBC model (core/dbc_model)
+  -> strict DBC writer (core/dbc_writer)
+  -> machine.dbc
+```
+
+Generated DBCs include only reference-backed signals actually observed in the
+session. Extended 29-bit CAN IDs use Vector-style `0x80000000` encoding in `BO_`
+lines. Output follows [strict_dbc_compatibility_reference.md](strict_dbc_compatibility_reference.md).
+
+Proprietary/research DBC generation remains a future milestone.
+
 ## Planned next processing (not yet implemented)
 
 ```text
-decoded/classified session
-  -> base machine DBC generation (strict DBC compatibility reference)
+transport reassembly + MCP tooling + proprietary signal research
 ```
-
-Future generated DBCs must follow [strict_dbc_compatibility_reference.md](strict_dbc_compatibility_reference.md)
-for CSS webCAN-compatible conservative output.
 
 ## Full V1 target (includes future work)
 
