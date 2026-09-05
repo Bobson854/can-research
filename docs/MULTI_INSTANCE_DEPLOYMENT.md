@@ -30,6 +30,34 @@ Same CAN Research code + identical 32-tool MCP API
               +-- ChatGPT app "CAN Research - Travel"
 ```
 
+## Per machine vs portable (reboot and deployment)
+
+**Each machine needs its own** (not shared):
+
+| Item | Notes |
+|------|--------|
+| Local CAN Research config | `data/config.toml` — `instance_key`, `display_name`, `data_dir` |
+| CANsub hostname | `[cansub].host` for the device on that network |
+| OpenAI tunnel | One tunnel per workstation in OpenAI Platform |
+| Tunnel-client profile | e.g. `can-research-office`, `can-research-workshop` |
+| ChatGPT MCP connector | One connector per backend instance |
+| Local MCP + tunnel processes | **Stopped on reboot** — restart both after power cycle |
+
+**Portable / reusable across machines** (same repo, no Office identity baked in):
+
+| Item | Notes |
+|------|--------|
+| CAN Research repository and code | Same git tree |
+| MCP tool schema | 32 tools, identical names everywhere |
+| **can-signal-research** Skill package | Install in ChatGPT; confirm backend via `get_instance_info` |
+| Operating methodology | [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) |
+
+The Skill must **not** hard-code Office backend identity. After connect, call
+`get_instance_info` to confirm which installation is active.
+
+Normal startup after reboot (two processes only):
+[MCP_CONNECTOR_INSTALL_GUIDE.md — Normal startup after a reboot](MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot).
+
 ## Identity concepts (keep separate)
 
 | Concept | Meaning | Stable across CANsub swaps? |

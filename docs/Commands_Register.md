@@ -1,10 +1,24 @@
-To Restrt Server.
-In Terminal Window #1
+# Office startup command register
 
+**Quick cheat sheet only.** Canonical instructions, CMD vs PowerShell notes, and the
+“do not recreate” list live in
+[MCP_CONNECTOR_INSTALL_GUIDE.md — Normal startup after a reboot](MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot).
+
+After a Windows reboot, start these two processes (Office paths — substitute on other machines).
+
+## Terminal 1 — CAN Research MCP
+
+```powershell
 cd C:\dev\Can_Research\Can-Research_V1\can-research
 uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+```
 
-In Terminal Window #2
+## Terminal 2 — OpenAI tunnel
 
+Full path (works from any drive/shell):
+
+```powershell
 K:\Downloads\tunnel-client-v0.0.14-windows-amd64\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
 
+Then use the existing ChatGPT connector — no Skill reinstall required.

@@ -46,9 +46,88 @@ Do not troubleshoot these out of order.
 The Office machine already had SABnzbd listening on `127.0.0.1:8080`, so the
 OpenAI tunnel health listener was moved to `8081`.
 
+**Reboot recovery verified 2026-09-06:** After a Windows power cycle, only the local
+MCP server and `tunnel-client.exe` needed restarting. The ChatGPT connector,
+installed `can-signal-research` Skill, tunnel profile, and persisted runtime API
+key remained intact.
+
 ---
 
-# Installation sequence
+## Normal startup after a reboot
+
+Once a workstation has been configured **once**, do **not** repeat the installation
+sequence below. Start only these two processes, then use the existing ChatGPT connector.
+
+### Terminal 1 — CAN Research MCP
+
+From the repository root (**Office example path** — substitute on other machines):
+
+```powershell
+cd C:\dev\Can_Research\Can-Research_V1\can-research
+uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+```
+
+Leave it running.
+
+Optional local check (second terminal):
+
+```powershell
+uv run python scripts/mcp_verify_http.py
+```
+
+### Terminal 2 — OpenAI tunnel
+
+**Prefer the full executable path** — it works regardless of the current drive or shell
+working directory (**Office example**):
+
+```powershell
+K:\Downloads\tunnel-client-v0.0.14-windows-amd64\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+Leave it running.
+
+**Command Prompt** — if changing drive first, use `cd /d` (see [CMD vs PowerShell](#cmd-vs-powershell-drive-switching) below):
+
+```cmd
+cd /d K:\Downloads\tunnel-client-v0.0.14-windows-amd64
+tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+**PowerShell** — `cd` to another drive works without `/d`:
+
+```powershell
+cd K:\Downloads\tunnel-client-v0.0.14-windows-amd64
+.\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+Then use the existing ChatGPT connector. No connector recreation or Skill reinstall
+is required for normal startup.
+
+### Do NOT recreate (unless configuration was lost or deliberately changed)
+
+- OpenAI tunnel (control plane)
+- Runtime API key (`CONTROL_PLANE_API_KEY`)
+- Tunnel-client profile (`can-research-office` on Office)
+- ChatGPT MCP connector / plugin
+- Installed **can-signal-research** Skill
+
+Foreground terminals are the **currently verified** method. Do not add Windows
+Services, Scheduled Tasks, or other auto-start mechanisms until multi-machine
+installation is proven.
+
+### Portable vs Office-specific (quick reference)
+
+| Item | Office example | Portable convention |
+|------|----------------|---------------------|
+| Repository | `C:\dev\Can_Research\Can-Research_V1\can-research` | Your clone path |
+| MCP URL | `http://127.0.0.1:8765/mcp` | Same on every machine (localhost) |
+| Tunnel executable | `K:\Downloads\tunnel-client-v0.0.14-windows-amd64\tunnel-client.exe` | Your install path |
+| Tunnel profile | `can-research-office` | `can-research-<instance_key>` |
+| Health listener | `127.0.0.1:8081` | Choose a free port if `8080` is taken |
+
+---
+
+# One-time installation sequence
 
 ## 1. Configure and prove CAN Research first
 
@@ -381,37 +460,9 @@ If a CANsub.2 is available on the network, verify the passive hardware path:
 
 > Call `get_cansub_device_status`.
 
-The Office connector passed the 32-tool discovery test on **2026-09-05**.
-
----
-
-# Normal startup after installation
-
-The one-time setup steps above should not be repeated every day.
-
-For a workstation that is already configured:
-
-### Terminal 1 — CAN Research MCP
-
-From the CAN Research repository root:
-
-```powershell
-uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
-```
-
-### Terminal 2 — OpenAI tunnel
-
-From the tunnel-client folder, or using a full executable path:
-
-```powershell
-.\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
-```
-
-Then use the existing ChatGPT plugin. Do not recreate the tunnel or API key.
-
-A later improvement may move the tunnel client to a managed runtime/service so
-these two processes can start automatically. Until that is deliberately set up,
-foreground terminals are the known-good method.
+The Office connector passed the 32-tool discovery test on **2026-09-05**. After Windows
+reboot on **2026-09-06**, ChatGPT reconnected immediately once both local processes were
+restarted — see [Normal startup after a reboot](#normal-startup-after-a-reboot).
 
 ---
 
@@ -436,6 +487,43 @@ can originate at any earlier layer.
 
 # Common failures seen during the Office installation
 
+## CMD vs PowerShell drive switching
+
+**Observed failure in Command Prompt:**
+
+```text
+C:\dev\Can_Research\...>cd K:\Downloads\tunnel-client-v0.0.14-windows-amd64
+
+C:\dev\Can_Research\...>.\tunnel-client.exe run ...
+'.\tunnel-client.exe' is not recognized as an internal or external command
+```
+
+**Cause:** `cmd.exe` does **not** switch the active drive when you run `cd K:\path`.
+The prompt stays on `C:` while the directory context may not be what you expect.
+
+**Fix (Command Prompt)** — any of:
+
+```cmd
+cd /d K:\Downloads\tunnel-client-v0.0.14-windows-amd64
+tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+```cmd
+K:
+cd \Downloads\tunnel-client-v0.0.14-windows-amd64
+tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+Or invoke the **full executable path** (works from any drive):
+
+```cmd
+K:\Downloads\tunnel-client-v0.0.14-windows-amd64\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
+```
+
+**PowerShell** does not have this same drive-switch limitation for `cd K:\path`.
+This guide uses PowerShell in many examples; operators opening **Command Prompt**
+should use `/d`, an explicit drive letter, or the full path.
+
 ## `tunnel-client.exe` is not found
 
 If PowerShell shows:
@@ -447,15 +535,15 @@ The term '.\tunnel-client.exe' is not recognized
 then either:
 
 - the wrong archive was downloaded; or
-- PowerShell is not currently in the extracted tunnel-client folder.
+- the shell is not in the extracted tunnel-client folder **and** no full path was used.
 
-Change directory first, for example:
+Change directory first (PowerShell):
 
 ```powershell
 cd K:\Downloads\tunnel-client-v0.0.14-windows-amd64
 ```
 
-or use the executable's full path.
+Or use the executable's full path (recommended after reboot — see [Normal startup](#normal-startup-after-a-reboot)).
 
 ## Wrong download: runtime-cloudflared bundle
 
@@ -533,5 +621,5 @@ localhost.
 - [x] Tunnel started successfully
 - [x] ChatGPT plugin discovered the MCP Actions schema
 - [x] Fresh-chat tool count returned **32**
-- [ ] `get_instance_info` rechecked in ChatGPT after final documentation update
+- [x] `get_instance_info` rechecked in ChatGPT after Windows reboot (**2026-09-06**)
 - [ ] `get_cansub_device_status` rechecked in ChatGPT with hardware available

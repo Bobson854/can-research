@@ -232,6 +232,12 @@ uv run canresearch mcp tools
 uv run python scripts/mcp_verify_http.py
 ```
 
+**Already installed?** After a Windows reboot, restart only the **MCP server** and
+**tunnel client** — the ChatGPT connector and installed Skill persist. Do not repeat
+one-time setup unless configuration was lost.
+
+→ [Normal startup after a reboot](docs/MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot)
+
 ### MCP tool surface (32 total)
 
 | Group | Count | Purpose |
@@ -303,7 +309,8 @@ max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in
 
 Connector deployment guides:
 
-- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) — Office connector validated end-to-end
+- [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) — one-time install + **reboot startup** (canonical)
+- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) — per-instance checklist and verification state
 - [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md)
 
 ### Signal research (candidate evidence only)
@@ -393,6 +400,7 @@ scripts/              MCP HTTP verification helper
 | [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit connection notes, bench lessons, verified commands |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
 | [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope and success criteria |
+| [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) | One-time install + normal startup after reboot |
 | [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance ChatGPT connector (Office validated) |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Multi-laptop deployment model and configuration |
 | [docs/strict_dbc_compatibility_reference.md](docs/strict_dbc_compatibility_reference.md) | Strict DBC / webCAN compatibility target |

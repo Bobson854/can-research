@@ -3,11 +3,12 @@
 Per-instance operational guide for exposing a local CAN Research MCP server to ChatGPT
 via an OpenAI tunnel.
 
-**Office deployment is now verified end-to-end as of 2026-09-05.**
+**Office deployment verified end-to-end:** initial install **2026-09-05**; Windows
+reboot recovery **2026-09-06** (MCP + tunnel restart only — connector and Skill persisted).
 
 See also:
 
-- [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — exact verified Windows installation sequence and recovery guide
+- [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — **normal startup after reboot** (near top) and one-time install sequence
 - [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) — workshop/travel model
 
 ## Three independent states
@@ -37,6 +38,7 @@ These must **all** agree before tools work in ChatGPT:
 | Live (passive CANsub) | 7 |
 | Signal research | 6 |
 | Fresh-chat verification | **Passed 2026-09-05** |
+| Reboot recovery | **Passed 2026-09-06** — MCP + tunnel restart only |
 
 Port `8081` is used for the OpenAI tunnel health/admin listener because SABnzbd
 already owns `127.0.0.1:8080` on the Office workstation.
@@ -212,22 +214,20 @@ Passive live test, if CANsub.2 is available:
 
 > Call `get_cansub_device_status`.
 
-## Normal Office startup
+*(Not re-run during the 2026-09-06 reboot test — do not assume hardware path verified that day.)*
 
-### Terminal 1 — CAN Research MCP
+## Normal startup (already installed)
 
-```powershell
-uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
-```
+Do **not** repeat one-time installation. After reboot, start only:
 
-### Terminal 2 — OpenAI tunnel
+1. CAN Research MCP server
+2. OpenAI `tunnel-client.exe`
 
-```powershell
-.\tunnel-client.exe run --profile can-research-office --health.listen-addr 127.0.0.1:8081
-```
+Full commands, CMD vs PowerShell notes, and “do not recreate” list:
 
-Do not recreate the tunnel, API key, profile, or ChatGPT plugin during normal
-startup.
+[MCP_CONNECTOR_INSTALL_GUIDE.md — Normal startup after a reboot](MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot)
+
+The ChatGPT connector and installed **can-signal-research** Skill persist across reboot.
 
 ## Troubleshooting
 
@@ -257,5 +257,5 @@ Always troubleshoot from the inside out:
 - [x] Tunnel doctor passed using health listener `127.0.0.1:8081`
 - [x] ChatGPT plugin discovered the Actions schema
 - [x] Fresh-chat tool-name/count check passed with **32 tools**
-- [ ] Re-run `get_instance_info` after final docs update
+- [x] `get_instance_info` rechecked after Windows reboot (**2026-09-06**) — `office` / schema v8 / 32 tools
 - [ ] Re-run `get_cansub_device_status` when hardware is available
