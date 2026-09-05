@@ -58,6 +58,10 @@ EXPECTED_TOOLS = frozenset(
         "lookup_pgn",
         "lookup_spn",
         "build_session_dbc_preview",
+        "list_research_candidates",
+        "get_research_candidate",
+        "list_candidate_evidence",
+        "preview_research_dbc",
     }
 )
 

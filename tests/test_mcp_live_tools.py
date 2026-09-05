@@ -49,7 +49,7 @@ def test_all_live_tools_registered() -> None:
 
 
 def test_read_only_tools_unchanged() -> None:
-    assert len(READ_ONLY_TOOL_NAMES) == 12
+    assert len(READ_ONLY_TOOL_NAMES) == 16
     assert "list_sessions" in READ_ONLY_TOOL_NAMES
     assert "start_live_capture" not in READ_ONLY_TOOL_NAMES
 

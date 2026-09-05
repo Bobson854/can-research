@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -319,6 +319,73 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_session_events_label
             ON session_events(session_id, label);
     """,
+    7: """
+        CREATE TABLE IF NOT EXISTS research_candidates (
+            id TEXT PRIMARY KEY,
+            asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+            origin_session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
+            can_id INTEGER NOT NULL,
+            is_extended INTEGER NOT NULL DEFAULT 1,
+            pgn INTEGER,
+            source_address INTEGER,
+            destination_address INTEGER,
+            start_bit INTEGER NOT NULL,
+            bit_length INTEGER NOT NULL,
+            byte_order TEXT NOT NULL CHECK (byte_order IN ('intel', 'motorola')),
+            signedness TEXT NOT NULL CHECK (signedness IN ('signed', 'unsigned', 'unknown')),
+            classification TEXT NOT NULL DEFAULT 'unknown'
+                CHECK (classification IN ('signal', 'counter', 'checksum', 'reserved', 'unknown')),
+            status TEXT NOT NULL DEFAULT 'candidate'
+                CHECK (status IN ('candidate', 'reviewed', 'confirmed', 'rejected')),
+            suggested_name TEXT,
+            signal_name TEXT,
+            unit TEXT,
+            factor REAL,
+            offset REAL,
+            minimum REAL,
+            maximum REAL,
+            notes TEXT,
+            confirmed_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS research_candidate_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id TEXT NOT NULL REFERENCES research_candidates(id) ON DELETE CASCADE,
+            evidence_type TEXT NOT NULL CHECK (evidence_type IN (
+                'window_comparison',
+                'repeat_consistency',
+                'counter_detection',
+                'checksum_detection',
+                'reference_correlation',
+                'manual_note'
+            )),
+            evidence_json TEXT NOT NULL,
+            session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS research_candidate_status_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id TEXT NOT NULL REFERENCES research_candidates(id) ON DELETE CASCADE,
+            from_status TEXT NOT NULL,
+            to_status TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_research_candidates_asset
+            ON research_candidates(asset_id);
+        CREATE INDEX IF NOT EXISTS idx_research_candidates_status
+            ON research_candidates(asset_id, status);
+        CREATE INDEX IF NOT EXISTS idx_research_candidates_can_id
+            ON research_candidates(asset_id, can_id);
+        CREATE INDEX IF NOT EXISTS idx_research_candidate_evidence_candidate
+            ON research_candidate_evidence(candidate_id);
+        CREATE INDEX IF NOT EXISTS idx_research_candidate_status_history
+            ON research_candidate_status_history(candidate_id);
+    """,
 }
 
 
@@ -360,6 +427,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v5(conn)
         elif version == 6:
             _migrate_v6(conn)
+        elif version == 7:
+            _migrate_v7(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -413,6 +482,13 @@ def _migrate_v6(conn: sqlite3.Connection) -> None:
     if _table_exists(conn, "session_events"):
         return
     conn.executescript(MIGRATIONS[6])
+
+
+def _migrate_v7(conn: sqlite3.Connection) -> None:
+    """Add research candidate review workflow tables."""
+    if _table_exists(conn, "research_candidates"):
+        return
+    conn.executescript(MIGRATIONS[7])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:

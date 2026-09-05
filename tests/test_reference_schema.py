@@ -8,8 +8,8 @@ import pytest
 from canresearch.storage.database import SCHEMA_VERSION, get_schema_version, initialize
 
 
-def test_schema_version_is_v6() -> None:
-    assert SCHEMA_VERSION == 6
+def test_schema_version_is_v7() -> None:
+    assert SCHEMA_VERSION == 7
 
 
 def test_v2_tables_created(tmp_path: Path) -> None:
@@ -38,6 +38,9 @@ def test_v2_tables_created(tmp_path: Path) -> None:
         "findings",
         "dbc_revisions",
         "session_events",
+        "research_candidates",
+        "research_candidate_evidence",
+        "research_candidate_status_history",
     }
     assert expected <= tables
     conn.close()

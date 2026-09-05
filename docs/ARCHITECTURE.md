@@ -31,11 +31,11 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 ### `mcp/` — AI client interface
 
 - Exposes **read-only** tools for stored sessions, reference lookup, analysis, transport
-  inspection, J1939 nodes/assets, and in-memory DBC preview
+  inspection, J1939 nodes/assets, research candidates, and in-memory DBC preview
 - Exposes **signal research** tools: candidate ID ranking, byte/bit activity,
   repeated-action consistency, counter/checksum detection, reference correlation
 - Thin adapter over `core/` and `cansub/` — delegates to existing service APIs
-- **No CAN transmission** tools; **no automatic DBC mutation**
+- **No CAN transmission** tools; **no automatic DBC mutation**; **no MCP confirmation**
 - Stdio transport in V1 (desktop MCP clients); SSE/HTTP reserved for later
 
 ```text
@@ -51,13 +51,16 @@ CAN Research core / cansub
   ├─ sessions / analysis / decode
   ├─ J1939 TP / nodes / assets
   ├─ references
-  └─ DBC preview (in-memory only; no research DBC writes)
+  └─ DBC preview (in-memory only)
+  └─ research candidates (persisted review workflow; CLI confirm/reject)
+  └─ research DBC generation (<asset>_research.dbc from confirmed candidates only)
 ```
 
 Read-only MCP tools: `list_sessions`, `get_session`, `analyze_session`,
 `decode_session`, `inspect_transport`, `list_session_nodes`, `list_assets`,
 `get_asset`, `list_asset_nodes`, `lookup_pgn`, `lookup_spn`,
-`build_session_dbc_preview`.
+`build_session_dbc_preview`, `list_research_candidates`, `get_research_candidate`,
+`list_candidate_evidence`, `preview_research_dbc`.
 
 Live MCP tools (passive): `get_cansub_device_status`, `get_cansub_channel_status`,
 `start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
@@ -67,9 +70,11 @@ Signal research MCP tools (evidence only): `rank_signal_candidates`,
 `analyze_can_id_activity`, `analyze_repeated_action`, `detect_counters`,
 `detect_checksums`, `correlate_candidate_field`.
 
-**Candidate ≠ confirmed.** Research tools do not modify DBC files or persist inferred
-signals. Repeated-action consistency (`compare_repeated_actions`) is the strongest
-primitive for narrowing proprietary field candidates.
+**Candidate ≠ confirmed.** On-demand signal research tools do not modify DBC files.
+Persisted research candidates (schema v7) follow: `candidate → reviewed → confirmed`
+(or `rejected`). Only confirmed candidates are eligible for `<asset_key>_research.dbc`.
+MCP candidate tools are read-only; confirmation is CLI-only (human approval boundary).
+Repeated-action consistency remains the strongest primitive for narrowing field candidates.
 
 Concurrency: one active capture per channel.
 
@@ -80,6 +85,7 @@ Concurrency: one active capture per channel.
 - **session_assets** — many-to-many link between sessions and assets with an explicit role
 - **j1939_nodes** — global J1939 NAME identity (64-bit ECU/node identity)
 - **j1939_node_observations** — session-specific source-address claims per node
+- **research_candidates** / **research_candidate_evidence** / **research_candidate_status_history** — persisted review workflow (schema v7)
 - **asset_j1939_nodes** — persistent link between assets and J1939 NAME identities
 - Schema versioning via numbered migrations in `database.py`
 - Default path: `data/references/canresearch.db` (gitignored)
@@ -199,7 +205,19 @@ Generated (automatic SA resolution):
   weedit_quadro_01_standard.dbc
 ```
 
-Proprietary/research DBC generation remains a future milestone.
+Proprietary/research DBC generation (implemented):
+
+```text
+Confirmed research candidates (asset-owned, multi-session)
+  -> overlap validation vs other confirmed + reference-backed signals (best effort)
+  -> exclude counter/checksum/reserved unless --include-protocol-fields
+  -> deterministic DBC model (core/research_dbc + core/dbc_writer)
+  -> <asset_key>_research.dbc
+```
+
+Session provenance: `origin_session_id` on each candidate (nullable if session deleted).
+Additional session links can be recorded via evidence rows. Confirmed signals belong to
+the asset, not a single session.
 
 ## J1939 NAME / Address Claim (implemented)
 

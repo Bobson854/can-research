@@ -27,8 +27,10 @@ The following milestones are **complete** on the development desk unit (Device I
 | Read-only MCP session/research tools | Done |
 | Live CANsub.2 MCP research controls | Done |
 | Proprietary signal research primitives | Done |
+| Candidate review / confirmation workflow | Done |
+| Asset research DBC generation (`<asset>_research.dbc`) | Done |
 
-**Next major milestone:** Candidate review / confirmation + research DBC generation.
+**Next major milestone:** Guided live reverse-engineering workflow (orchestrate capture → compare → rank → present for human review; still stops before confirmation).
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -109,6 +111,14 @@ uv run canresearch session research id <session-id> <can-id> ...
 uv run canresearch session research counters <session-id> <can-id>
 uv run canresearch session research checksums <session-id> <can-id>
 uv run canresearch session research repeat <session-id> --baseline-events ... --action-events ...
+uv run canresearch research candidate add --asset <key> --session <id> --can-id 0x... --start-bit N --length N --byte-order intel
+uv run canresearch research candidate list [--asset <key>] [--status candidate|reviewed|confirmed|rejected]
+uv run canresearch research candidate show <candidate-id>
+uv run canresearch research candidate review <candidate-id>
+uv run canresearch research candidate confirm <candidate-id> --name ... --factor ... --offset ... --unsigned
+uv run canresearch research candidate reject <candidate-id> [--notes "..."]
+uv run canresearch research candidate evidence <candidate-id>
+uv run canresearch research dbc <asset-key> [--output path]
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch reference import-j1939 ...
 uv run canresearch mcp serve
@@ -117,8 +127,8 @@ uv run canresearch mcp tools
 
 ### MCP (read-only + live passive research)
 
-The MCP server exposes **12 read-only** tools for stored sessions, reference lookups,
-transport inspection, J1939 node identity, and in-memory DBC preview. It also exposes
+The MCP server exposes **16 read-only** tools for stored sessions, reference lookups,
+transport inspection, J1939 node identity, research candidates, and in-memory DBC preview. It also exposes
 **7 live CANsub.2 research tools** for passive observation, controlled capture,
 experiment markers, and baseline/action window comparison.
 
@@ -166,8 +176,29 @@ Research workflow:
 5. `analyze_repeated_action` (3–5 deliberate repetitions strongly preferred)
 6. `correlate_candidate_field` with a reference series (SPN decode, CSV, operator values)
 
-MCP adds 6 read-only signal research tools (25 total). Terminology uses *candidate*,
-*evidence*, *consistency*, and *correlation* — never *confirmed*.
+MCP adds 6 read-only signal research tools (**29 MCP tools total**). Terminology uses *candidate*,
+*evidence*, *consistency*, and *correlation* for on-demand analysis.
+
+**Candidate ≠ confirmed.** Persisted candidates require explicit CLI review and confirmation
+before inclusion in `<asset_key>_research.dbc`. MCP exposes read-only candidate listing and
+research DBC preview only — confirmation/rejection stays CLI-only (human approval boundary).
+
+### Candidate review → research DBC
+
+```text
+research evidence (session research / MCP signal tools)
+  ↓ explicit CLI: research candidate add
+candidate
+  ↓ research candidate review
+reviewed
+  ↓ research candidate confirm (--name, --factor, --offset, signedness)
+confirmed
+  ↓ research dbc <asset-key>
+<asset_key>_research.dbc
+```
+
+Load `<asset_key>_standard.dbc` (reference-backed J1939) and `<asset_key>_research.dbc`
+(confirmed proprietary signals) together. No combined DBC is generated.
 
 ### Agricultural workflow example
 

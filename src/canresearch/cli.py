@@ -1383,6 +1383,336 @@ def session_nodes(
             click.echo(f"  {warning.category}: {warning.message}")
 
 
+@main.group("research")
+def research_group() -> None:
+    """Research candidate review and asset research DBC generation."""
+
+
+@research_group.group("candidate")
+def research_candidate_group() -> None:
+    """Manage persisted research signal candidates."""
+
+
+def _print_candidate(candidate: object) -> None:
+    from canresearch.core.research_candidates import ResearchCandidateRecord, candidate_to_dict
+
+    assert isinstance(candidate, ResearchCandidateRecord)
+    data = candidate_to_dict(candidate)
+    click.echo(f"ID: {data['id']}")
+    click.echo(f"Asset: {data['asset_key']}")
+    click.echo(f"Status: {data['status']}")
+    click.echo(f"CAN ID: {data['can_id_hex']}")
+    click.echo(f"Field: start={data['start_bit']} len={data['bit_length']} {data['byte_order']}")
+    click.echo(f"Signedness: {data['signedness']}  Classification: {data['classification']}")
+    if data["signal_name"]:
+        click.echo(f"Signal name: {data['signal_name']}")
+    if data["factor"] is not None:
+        unit = data["unit"] or ""
+        click.echo(
+            f"Scale: factor={data['factor']} offset={data['offset']} unit={unit}"
+        )
+    if data["origin_session_id"]:
+        click.echo(f"Origin session: {data['origin_session_id']}")
+    if data["notes"]:
+        click.echo(f"Notes: {data['notes']}")
+
+
+@research_candidate_group.command("add")
+@click.option("--asset", "asset_key", required=True)
+@click.option("--session", "session_id", required=True)
+@click.option("--can-id", required=True)
+@click.option("--start-bit", required=True, type=int)
+@click.option("--length", "bit_length", required=True, type=int)
+@click.option(
+    "--byte-order",
+    type=click.Choice(["intel", "motorola"], case_sensitive=False),
+    required=True,
+)
+@click.option("--signed/--unsigned", default=None)
+@click.option("--name", "suggested_name", default=None)
+@click.option("--factor", type=float, default=None)
+@click.option("--offset", type=float, default=None)
+@click.option("--unit", default=None)
+@click.option("--notes", default=None)
+@click.option(
+    "--classification",
+    type=click.Choice(["signal", "counter", "checksum", "reserved", "unknown"]),
+    default="unknown",
+    show_default=True,
+)
+def research_candidate_add(
+    asset_key: str,
+    session_id: str,
+    can_id: str,
+    start_bit: int,
+    bit_length: int,
+    byte_order: str,
+    signed: bool | None,
+    suggested_name: str | None,
+    factor: float | None,
+    offset: float | None,
+    unit: str | None,
+    notes: str | None,
+    classification: str,
+) -> None:
+    """Create a persisted research candidate (does not confirm or write DBC)."""
+    from canresearch.core.research_candidates import (
+        ResearchCandidateError,
+        Signedness,
+        create_research_candidate,
+    )
+
+    signedness = (
+        Signedness.SIGNED.value
+        if signed is True
+        else Signedness.UNSIGNED.value
+        if signed is False
+        else Signedness.UNKNOWN.value
+    )
+    try:
+        candidate = create_research_candidate(
+            asset_key=asset_key,
+            session_id=session_id,
+            can_id=_parse_can_id(can_id),
+            start_bit=start_bit,
+            bit_length=bit_length,
+            byte_order=byte_order,
+            signedness=signedness,
+            classification=classification,
+            suggested_name=suggested_name,
+            factor=factor,
+            offset=offset,
+            unit=unit,
+            notes=notes,
+        )
+    except (ResearchCandidateError, ValueError) as exc:
+        if isinstance(exc, ResearchCandidateError):
+            click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        else:
+            click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+    click.echo("Research candidate created:")
+    _print_candidate(candidate)
+
+
+@research_candidate_group.command("list")
+@click.option("--asset", "asset_key", default=None)
+@click.option("--status", default=None)
+@click.option("--session", "session_id", default=None)
+@click.option("--limit", default=50, show_default=True)
+def research_candidate_list(
+    asset_key: str | None,
+    status: str | None,
+    session_id: str | None,
+    limit: int,
+) -> None:
+    """List research candidates."""
+    from canresearch.core.research_candidates import (
+        ResearchCandidateError,
+        list_research_candidates,
+    )
+
+    try:
+        rows = list_research_candidates(
+            asset_key=asset_key,
+            status=status,
+            session_id=session_id,
+            limit=limit,
+        )
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        raise SystemExit(1) from exc
+    if not rows:
+        click.echo("No research candidates.")
+        return
+    for row in rows:
+        name = row.signal_name or row.suggested_name or "-"
+        click.echo(
+            f"{row.id}  {row.status:9}  {row.asset_key}  0x{row.can_id:X}  "
+            f"{row.start_bit}|{row.bit_length}  {name}"
+        )
+
+
+@research_candidate_group.command("show")
+@click.argument("candidate_id")
+def research_candidate_show(candidate_id: str) -> None:
+    """Show one research candidate."""
+    from canresearch.core.research_candidates import ResearchCandidateError, get_research_candidate
+
+    try:
+        candidate = get_research_candidate(candidate_id)
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        raise SystemExit(1) from exc
+    _print_candidate(candidate)
+
+
+@research_candidate_group.command("review")
+@click.argument("candidate_id")
+@click.option("--notes", default=None)
+def research_candidate_review(candidate_id: str, notes: str | None) -> None:
+    """Mark a candidate as reviewed."""
+    from canresearch.core.research_candidates import ResearchCandidateError, mark_candidate_reviewed
+
+    try:
+        result = mark_candidate_reviewed(candidate_id, notes=notes)
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        raise SystemExit(1) from exc
+    click.echo(
+        f"Candidate {candidate_id} marked reviewed "
+        f"({result.from_status} → {result.to_status})"
+    )
+
+
+@research_candidate_group.command("confirm")
+@click.argument("candidate_id")
+@click.option("--name", required=True)
+@click.option("--factor", required=True, type=float)
+@click.option("--offset", required=True, type=float)
+@click.option("--unit", default="")
+@click.option("--signed/--unsigned", required=True)
+@click.option("--minimum", type=float, default=None)
+@click.option("--maximum", type=float, default=None)
+@click.option("--notes", default=None)
+@click.option(
+    "--classification",
+    type=click.Choice(["signal", "counter", "checksum", "reserved", "unknown"]),
+    default=None,
+)
+def research_candidate_confirm(
+    candidate_id: str,
+    name: str,
+    factor: float,
+    offset: float,
+    unit: str,
+    signed: bool,
+    minimum: float | None,
+    maximum: float | None,
+    notes: str | None,
+    classification: str | None,
+) -> None:
+    """Confirm a reviewed candidate (does not write DBC automatically)."""
+    from canresearch.core.research_candidates import (
+        ResearchCandidateError,
+        Signedness,
+        confirm_candidate,
+    )
+
+    try:
+        result = confirm_candidate(
+            candidate_id,
+            name=name,
+            factor=factor,
+            offset=offset,
+            signedness=Signedness.SIGNED.value if signed else Signedness.UNSIGNED.value,
+            unit=unit,
+            minimum=minimum,
+            maximum=maximum,
+            classification=classification,
+            notes=notes,
+        )
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        if exc.details:
+            click.echo(f"Details: {exc.details}", err=True)
+        raise SystemExit(1) from exc
+    click.echo(f"Candidate confirmed as {result.dbc_signal_name}")
+    if result.name_sanitized:
+        click.echo(f"  requested_name: {result.requested_name}")
+        click.echo(f"  dbc_signal_name: {result.dbc_signal_name}")
+
+
+@research_candidate_group.command("reject")
+@click.argument("candidate_id")
+@click.option("--notes", default=None)
+def research_candidate_reject(candidate_id: str, notes: str | None) -> None:
+    """Reject a candidate."""
+    from canresearch.core.research_candidates import ResearchCandidateError, reject_candidate
+
+    try:
+        result = reject_candidate(candidate_id, notes=notes)
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        raise SystemExit(1) from exc
+    click.echo(f"Candidate rejected ({result.from_status} → {result.to_status})")
+
+
+@research_candidate_group.command("evidence")
+@click.argument("candidate_id")
+@click.option("--limit", default=50, show_default=True)
+def research_candidate_evidence(candidate_id: str, limit: int) -> None:
+    """List evidence attached to a candidate."""
+    from canresearch.core.research_candidates import ResearchCandidateError, list_candidate_evidence
+
+    try:
+        rows = list_candidate_evidence(candidate_id, limit=limit)
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        raise SystemExit(1) from exc
+    if not rows:
+        click.echo("No evidence rows.")
+        return
+    for row in rows:
+        click.echo(f"[{row.id}] {row.evidence_type} @ {row.created_at.isoformat()}")
+        click.echo(f"  {row.evidence}")
+
+
+@research_candidate_group.command("note")
+@click.argument("candidate_id")
+@click.option("--text", required=True)
+def research_candidate_note(candidate_id: str, text: str) -> None:
+    """Append a manual note as candidate evidence."""
+    from canresearch.core.research_candidates import ResearchCandidateError, add_candidate_evidence
+
+    try:
+        row = add_candidate_evidence(
+            candidate_id,
+            evidence_type="manual_note",
+            evidence={"text": text},
+        )
+    except ResearchCandidateError as exc:
+        click.echo(f"Error [{exc.code}]: {exc.message}", err=True)
+        raise SystemExit(1) from exc
+    click.echo(f"Evidence added (id={row.id})")
+
+
+@research_group.command("dbc")
+@click.argument("asset_key")
+@click.option("--output", "-o", default=None, help="Output DBC path.")
+@click.option(
+    "--include-protocol-fields",
+    is_flag=True,
+    default=False,
+    help="Include confirmed counter/checksum/reserved fields.",
+)
+def research_dbc(asset_key: str, output: str | None, include_protocol_fields: bool) -> None:
+    """Generate asset research DBC from confirmed candidates only."""
+    from pathlib import Path
+
+    from canresearch.core.research_dbc import write_asset_research_dbc
+
+    try:
+        summary = write_asset_research_dbc(
+            asset_key,
+            output=Path(output) if output else None,
+            include_protocol_fields=include_protocol_fields,
+        )
+    except (ValueError, FileNotFoundError) as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise SystemExit(1) from exc
+    click.echo(f"Asset: {summary.asset_key}")
+    click.echo(f"Confirmed signals: {summary.confirmed_signal_count}")
+    click.echo(f"Messages: {summary.messages_generated}")
+    click.echo(f"Signals: {summary.signals_generated}")
+    click.echo(f"Skipped: {summary.signals_skipped}")
+    if summary.warnings:
+        click.echo("Warnings:")
+        for warning in summary.warnings:
+            click.echo(f"  {warning.category}: {warning.message}")
+    click.echo(f"Written: {summary.output_path}")
+
+
 @main.group("dbc")
 def dbc_group() -> None:
     """Build and manage machine-specific DBC files."""
@@ -1755,6 +2085,10 @@ def mcp_tools() -> None:
     click.echo("Signal research tools (candidate evidence):")
     for name in sorted(SIGNAL_RESEARCH_TOOL_NAMES):
         click.echo(f"  {name}")
+    click.echo("")
+    click.echo(
+        "Candidate confirmation/rejection is CLI-only (human approval boundary)."
+    )
     click.echo(f"Total: {len(list_tool_names())}")
 
 

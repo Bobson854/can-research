@@ -8,7 +8,12 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from canresearch.mcp import handlers, live_handlers, signal_research_handlers
+from canresearch.mcp import (
+    handlers,
+    live_handlers,
+    research_candidate_handlers,
+    signal_research_handlers,
+)
 from canresearch.mcp.errors import McpToolError
 
 
@@ -117,6 +122,36 @@ READ_ONLY_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
             "source_addresses are omitted."
         ),
         handler=handlers.handle_build_session_dbc_preview,
+    ),
+    _ToolBinding(
+        name="list_research_candidates",
+        description=(
+            "List persisted research signal candidates for an asset (read-only). "
+            "Candidates are not confirmed signals — use CLI to review/confirm."
+        ),
+        handler=research_candidate_handlers.handle_list_research_candidates,
+    ),
+    _ToolBinding(
+        name="get_research_candidate",
+        description=(
+            "Return one persisted research candidate including review status (read-only)."
+        ),
+        handler=research_candidate_handlers.handle_get_research_candidate,
+    ),
+    _ToolBinding(
+        name="list_candidate_evidence",
+        description=(
+            "List append-only evidence rows attached to a research candidate (read-only)."
+        ),
+        handler=research_candidate_handlers.handle_list_candidate_evidence,
+    ),
+    _ToolBinding(
+        name="preview_research_dbc",
+        description=(
+            "Preview an in-memory asset research DBC from confirmed candidates only. "
+            "Does not write files. Confirmation remains a CLI-only human action."
+        ),
+        handler=research_candidate_handlers.handle_preview_research_dbc,
     ),
 )
 
@@ -267,8 +302,10 @@ def create_server() -> MCPServer:
             "get_cansub_channel_status → start_live_capture → mark_experiment_event → "
             "stop_live_capture → compare_experiment_windows → rank_signal_candidates → "
             "analyze_can_id_activity → detect_counters/detect_checksums → "
-            "analyze_repeated_action → correlate_candidate_field. "
+            "analyze_repeated_action → correlate_candidate_field → "
+            "list_research_candidates / preview_research_dbc (read-only). "
             "Signal research tools return candidate evidence only — no DBC modification. "
+            "Candidate confirmation/rejection is CLI-only (human approval boundary). "
             "No CAN transmission tools are available."
         ),
     )
@@ -376,6 +413,52 @@ def create_server() -> MCPServer:
             asset_key=asset_key,
             source_addresses=source_addresses,
             preview_lines=preview_lines,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[12].description)
+    def list_research_candidates(
+        asset_key: str | None = None,
+        status: str | None = None,
+        session_id: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            research_candidate_handlers.handle_list_research_candidates,
+            asset_key=asset_key,
+            status=status,
+            session_id=session_id,
+            limit=limit,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[13].description)
+    def get_research_candidate(candidate_id: str) -> dict[str, Any]:
+        return _invoke(
+            research_candidate_handlers.handle_get_research_candidate,
+            candidate_id=candidate_id,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[14].description)
+    def list_candidate_evidence(
+        candidate_id: str,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            research_candidate_handlers.handle_list_candidate_evidence,
+            candidate_id=candidate_id,
+            limit=limit,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[15].description)
+    def preview_research_dbc(
+        asset_key: str,
+        preview_lines: int | None = None,
+        include_protocol_fields: bool = False,
+    ) -> dict[str, Any]:
+        return _invoke(
+            research_candidate_handlers.handle_preview_research_dbc,
+            asset_key=asset_key,
+            preview_lines=preview_lines,
+            include_protocol_fields=include_protocol_fields,
         )
 
     @server.tool(description=LIVE_TOOL_BINDINGS[0].description)
