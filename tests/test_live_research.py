@@ -196,6 +196,73 @@ def test_observe_live_traffic_aggregates(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(row["sample_payloads"]) <= 3
 
 
+def test_observe_live_traffic_first_last_seen_use_absolute_timestamps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from canresearch.cansub.ws_client import CansubRxResult
+    from canresearch.cansub.ws_protocol import TIMESTAMP_EPOCH_US, CansubFrame
+
+    can_id = encode_j1939_can_id(pgn=61444, priority=3, source_address=0)
+    start_us = TIMESTAMP_EPOCH_US + 5_000_000
+    end_us = TIMESTAMP_EPOCH_US + 7_500_000
+    scheduled = [
+        CansubFrame(
+            channel=1,
+            timestamp_us=start_us,
+            can_id=can_id,
+            extended=True,
+            fd=False,
+            rtr=False,
+            brs=False,
+            esi=False,
+            tx_ack=False,
+            dlc=1,
+            data=b"\x01",
+            is_error_frame=False,
+            error_type=None,
+            raw=b"",
+        ),
+        CansubFrame(
+            channel=1,
+            timestamp_us=end_us,
+            can_id=can_id,
+            extended=True,
+            fd=False,
+            rtr=False,
+            brs=False,
+            esi=False,
+            tx_ack=False,
+            dlc=1,
+            data=b"\x02",
+            is_error_frame=False,
+            error_type=None,
+            raw=b"",
+        ),
+    ]
+
+    def fake_receive(host, channel, *, duration, on_frame=None, **kwargs):
+        _ = host, channel, duration, kwargs
+        for frame in scheduled:
+            if on_frame is not None:
+                on_frame(frame)
+        return CansubRxResult(
+            host="example.test",
+            channel=1,
+            connected=True,
+            duration_s=2.5,
+            frame_count=len(scheduled),
+            exit_reason="duration elapsed",
+        )
+
+    monkeypatch.setattr("canresearch.core.live_research.receive_frames_sync", fake_receive)
+    result = observe_live_traffic("example.test", 1, duration_seconds=2.5)
+    row = result["traffic"][0]
+    assert row["first_seen"] == "2025-01-01T00:00:05+00:00"
+    assert row["last_seen"] == "2025-01-01T00:00:07.500000+00:00"
+    assert row["first_seen"].startswith("2025-")
+    assert row["last_seen"].startswith("2025-")
+
+
 def test_observe_live_traffic_channel_rx_in_use() -> None:
     registry = LiveCaptureRegistry()
     from canresearch.cansub.live_capture import ActiveCapture

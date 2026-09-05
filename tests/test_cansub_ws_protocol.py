@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 
 from canresearch.cansub.exceptions import CansubFrameError
-from canresearch.cansub.ws_protocol import HdlcFrameParser, parse_can_frame
+from canresearch.cansub.ws_protocol import (
+    TIMESTAMP_EPOCH_US,
+    HdlcFrameParser,
+    decode_timestamp_us,
+    parse_can_frame,
+)
 
 # Official test vectors from CANsub.2 WebSocket API documentation.
 TEST_VECTORS = [
@@ -105,3 +110,40 @@ def test_stuffed_data_bytes() -> None:
     frames = parser.parse_frames(network, channel=1)
     assert len(frames) == 1
     assert frames[0].data == bytes.fromhex("7E 7E 7E 7E 7D 7D 7D 7D")
+
+
+def test_timestamp_zero_is_2025_epoch() -> None:
+    assert decode_timestamp_us(bytes(6)) == TIMESTAMP_EPOCH_US
+    frame, _ = parse_can_frame(bytes.fromhex("00 00 00 00 00 00 01 00 01 00"), channel=1)
+    assert frame.timestamp_us == TIMESTAMP_EPOCH_US
+
+
+def test_timestamp_tv01_matches_official_vector() -> None:
+    network = bytes.fromhex("7E 1C AE 8C 13 E0 00 01 07 FF 00 98 4F D1 B8 7E")
+    frames = HdlcFrameParser().parse_frames(network, channel=1)
+    assert len(frames) == 1
+    rel_us = int.from_bytes(bytes.fromhex("1C AE 8C 13 E0 00"), "big")
+    assert frames[0].timestamp_us == TIMESTAMP_EPOCH_US + rel_us
+
+
+def test_timestamp_big_endian_not_little_endian() -> None:
+    header = bytes.fromhex("00 00 00 00 01 00 01 00 01 00")
+    frame_be, _ = parse_can_frame(header, channel=1)
+    rel_us = int.from_bytes(bytes.fromhex("00 00 00 00 01 00"), "big")
+    assert frame_be.timestamp_us == TIMESTAMP_EPOCH_US + rel_us
+    wrong_le = int.from_bytes(bytes.fromhex("00 00 00 00 01 00").ljust(8, b"\x00"), "little")
+    assert frame_be.timestamp_us != wrong_le
+
+
+def test_timestamp_ordering_and_delta_preserved() -> None:
+    first = bytes.fromhex("00 00 00 00 00 00 01 00 01 00")
+    second = bytes.fromhex("00 00 00 0F 42 40 01 00 02 02")
+    frame_a, _ = parse_can_frame(first, channel=1)
+    frame_b, _ = parse_can_frame(second, channel=1)
+    assert frame_a.timestamp_us < frame_b.timestamp_us
+    assert frame_b.timestamp_us - frame_a.timestamp_us == 1_000_000
+
+
+def test_timestamp_decode_requires_six_bytes() -> None:
+    with pytest.raises(CansubFrameError, match="timestamp"):
+        decode_timestamp_us(bytes(5))

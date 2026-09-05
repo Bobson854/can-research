@@ -14,6 +14,7 @@ HDLC_BOUNDARY = 0x7E
 HDLC_ESCAPE = 0x7D
 HDLC_ESCAPE_XOR = 0x20
 TIMESTAMP_EPOCH_US = 1735689600000000
+TIMESTAMP_EPOCH_S = 1735689600
 
 CANFD_DLC_LENGTHS = (0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64)
 
@@ -93,6 +94,18 @@ class HdlcFrameParser:
         return frames
 
 
+def decode_timestamp_us(data: bytes) -> int:
+    """Decode CANsub's 48-bit big-endian timestamp to absolute UTC microseconds.
+
+    Wire format: microseconds since 2025-01-01 00:00:00 UTC (see CANsub WS API).
+    """
+    if len(data) < 6:
+        msg = f"Not enough data bytes for CANsub timestamp ({len(data)} bytes)"
+        raise CansubFrameError(msg)
+    timestamp_rel_us = int.from_bytes(data[0:6], "big")
+    return TIMESTAMP_EPOCH_US + timestamp_rel_us
+
+
 def parse_can_payload(payload: bytes, *, channel: int) -> list[CansubFrame]:
     """Parse one or more serialized CAN frames from an HDLC payload."""
     frames: list[CansubFrame] = []
@@ -115,7 +128,7 @@ def parse_can_frame(data: bytes, *, channel: int) -> tuple[CansubFrame, int]:
         msg = f"Not enough data bytes for CAN frame ({len(data)} bytes)"
         raise CansubFrameError(msg)
 
-    timestamp_us = int.from_bytes(data[0:6].ljust(8, b"\x00"), "little") & 0xFFFFFFFFFFFF
+    timestamp_us = decode_timestamp_us(data)
     flags6 = data[6]
 
     is_error = (flags6 & 0xA0) == 0x20
