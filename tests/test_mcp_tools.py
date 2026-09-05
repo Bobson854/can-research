@@ -62,6 +62,8 @@ EXPECTED_TOOLS = frozenset(
         "get_research_candidate",
         "list_candidate_evidence",
         "preview_research_dbc",
+        "list_session_events",
+        "preview_candidate_values",
     }
 )
 

@@ -145,6 +145,30 @@ def decode_intel_dbc_signal(
     return value
 
 
+def decode_motorola_dbc_signal(
+    payload: bytes,
+    *,
+    start_bit: int,
+    bit_length: int,
+    signed: bool,
+) -> int:
+    """Decode a @0+ DBC signal from payload (Vector/cantools Motorola layout)."""
+    positions = iter_motorola_dbc_bit_positions(start_bit, bit_length)
+    value = 0
+    for pos in positions:
+        byte_idx = pos // 8
+        bit_in_byte = pos % 8
+        if byte_idx >= len(payload):
+            msg = f"signal extends past payload (byte {byte_idx + 1} > {len(payload)})"
+            raise ValueError(msg)
+        bit = (payload[byte_idx] >> bit_in_byte) & 1
+        value = (value << 1) | bit
+
+    if signed and bit_length > 0 and value >= (1 << (bit_length - 1)):
+        value -= 1 << bit_length
+    return value
+
+
 def encode_dbc_extended_id(can_id: int) -> int:
     """Encode a 29-bit CAN ID for Vector-style DBC BO_ lines."""
     return can_id | 0x80000000

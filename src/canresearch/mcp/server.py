@@ -153,6 +153,22 @@ READ_ONLY_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
         ),
         handler=research_candidate_handlers.handle_preview_research_dbc,
     ),
+    _ToolBinding(
+        name="list_session_events",
+        description=(
+            "List experiment event markers for a stored session (read-only). "
+            "Use to recover baseline/action labels after reconnecting."
+        ),
+        handler=handlers.handle_list_session_events,
+    ),
+    _ToolBinding(
+        name="preview_candidate_values",
+        description=(
+            "Preview raw and optional scaled values for a proposed signal field in a "
+            "stored session. Analysis only — does not persist or confirm candidates."
+        ),
+        handler=handlers.handle_preview_candidate_values,
+    ),
 )
 
 LIVE_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
@@ -303,7 +319,8 @@ def create_server() -> MCPServer:
             "stop_live_capture → compare_experiment_windows → rank_signal_candidates → "
             "analyze_can_id_activity → detect_counters/detect_checksums → "
             "analyze_repeated_action → correlate_candidate_field → "
-            "list_research_candidates / preview_research_dbc (read-only). "
+            "list_research_candidates / preview_research_dbc / list_session_events / "
+            "preview_candidate_values (read-only). "
             "Signal research tools return candidate evidence only — no DBC modification. "
             "Candidate confirmation/rejection is CLI-only (human approval boundary). "
             "No CAN transmission tools are available."
@@ -459,6 +476,44 @@ def create_server() -> MCPServer:
             asset_key=asset_key,
             preview_lines=preview_lines,
             include_protocol_fields=include_protocol_fields,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[16].description)
+    def list_session_events(
+        session_id: str,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            handlers.handle_list_session_events,
+            session_id=session_id,
+            limit=limit,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[17].description)
+    def preview_candidate_values(
+        session_id: str,
+        can_id: int,
+        is_extended: bool,
+        start_bit: int,
+        bit_length: int,
+        byte_order: str,
+        signedness: str,
+        factor: float | None = None,
+        offset: float | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            handlers.handle_preview_candidate_values,
+            session_id=session_id,
+            can_id=can_id,
+            is_extended=is_extended,
+            start_bit=start_bit,
+            bit_length=bit_length,
+            byte_order=byte_order,
+            signedness=signedness,
+            factor=factor,
+            offset=offset,
+            limit=limit,
         )
 
     @server.tool(description=LIVE_TOOL_BINDINGS[0].description)

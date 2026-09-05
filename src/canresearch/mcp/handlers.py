@@ -707,3 +707,91 @@ def handle_build_session_dbc_preview(
         "preview_lines": applied_lines,
         "preview_truncated": len(lines) > applied_lines,
     }
+
+
+def handle_list_session_events(
+    session_id: str,
+    *,
+    limit: int | None = None,
+    db_path: Path | None = None,
+) -> dict[str, Any]:
+    """Return experiment markers for a stored session."""
+    from canresearch.core.session_events import list_session_events
+    from canresearch.mcp.limits import DEFAULT_LIST_SESSION_EVENTS, MAX_LIST_SESSION_EVENTS
+
+    applied_limit = limit if limit is not None else DEFAULT_LIST_SESSION_EVENTS
+    if applied_limit <= 0 or applied_limit > MAX_LIST_SESSION_EVENTS:
+        raise limit_out_of_range(applied_limit, maximum=MAX_LIST_SESSION_EVENTS)
+    try:
+        events = list_session_events(
+            session_id,
+            limit=applied_limit,
+            db_path=_resolve_db_path(db_path),
+        )
+    except KeyError as exc:
+        raise McpToolError("session_not_found", str(exc)) from exc
+    except ValueError as exc:
+        raise McpToolError("limit_out_of_range", str(exc)) from exc
+
+    return {
+        "session_id": session_id,
+        "count": len(events),
+        "events": [
+            {
+                "id": event.id,
+                "session_id": event.session_id,
+                "timestamp_us": event.timestamp_us,
+                "label": event.label,
+                "notes": event.notes,
+                "created_at": event.created_at.isoformat(),
+            }
+            for event in events
+        ],
+    }
+
+
+def handle_preview_candidate_values(
+    session_id: str,
+    can_id: int,
+    is_extended: bool,
+    start_bit: int,
+    bit_length: int,
+    byte_order: str,
+    signedness: str,
+    *,
+    factor: float | None = None,
+    offset: float | None = None,
+    limit: int | None = None,
+    db_path: Path | None = None,
+) -> dict[str, Any]:
+    """Preview raw/scaled values for a proposed field in a stored session."""
+    from canresearch.core.candidate_preview import (
+        DEFAULT_PREVIEW_LIMIT,
+        MAX_PREVIEW_LIMIT,
+        preview_candidate_field_values,
+    )
+    from canresearch.core.research_candidates import ResearchCandidateError
+
+    applied_limit = limit if limit is not None else DEFAULT_PREVIEW_LIMIT
+    if applied_limit <= 0 or applied_limit > MAX_PREVIEW_LIMIT:
+        raise limit_out_of_range(applied_limit, maximum=MAX_PREVIEW_LIMIT)
+    try:
+        return preview_candidate_field_values(
+            session_id,
+            can_id=can_id,
+            is_extended=is_extended,
+            start_bit=start_bit,
+            bit_length=bit_length,
+            byte_order=byte_order,
+            signedness=signedness,
+            factor=factor,
+            offset=offset,
+            limit=applied_limit,
+            db_path=_resolve_db_path(db_path),
+        )
+    except KeyError as exc:
+        raise McpToolError("session_not_found", str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise McpToolError("session_not_found", str(exc)) from exc
+    except ResearchCandidateError as exc:
+        raise McpToolError(exc.code, exc.message) from exc

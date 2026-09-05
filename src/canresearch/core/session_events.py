@@ -77,21 +77,27 @@ def add_session_event(
 def list_session_events(
     session_id: str,
     *,
+    limit: int | None = None,
     db_path: Path | None = None,
 ) -> list[SessionEvent]:
-    """Return experiment markers for a session ordered by timestamp."""
+    """Return experiment markers for a session ordered deterministically."""
     get_session(session_id, db_path=db_path)
     path = db_path or default_db_path()
     conn = initialize(path)
     try:
-        rows = conn.execute(
-            """
+        query = """
             SELECT * FROM session_events
             WHERE session_id = ?
-            ORDER BY timestamp_us ASC, created_at ASC
-            """,
-            (session_id,),
-        ).fetchall()
+            ORDER BY timestamp_us ASC, created_at ASC, id ASC
+        """
+        params: list[object] = [session_id]
+        if limit is not None:
+            if limit <= 0:
+                msg = f"limit must be positive, got {limit}"
+                raise ValueError(msg)
+            query += " LIMIT ?"
+            params.append(limit)
+        rows = conn.execute(query, params).fetchall()
     finally:
         conn.close()
     return [_row_to_event(row) for row in rows]

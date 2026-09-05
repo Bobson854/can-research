@@ -92,6 +92,7 @@ def collect_payload_series(
     frames: Iterable[CanFrame],
     can_id: int,
     *,
+    is_extended: bool | None = None,
     start_us: int | None = None,
     end_us: int | None = None,
     source_address: int | None = None,
@@ -104,6 +105,8 @@ def collect_payload_series(
 
     for frame in frames:
         if frame.is_error_frame or frame.can_id != can_id:
+            continue
+        if is_extended is not None and frame.is_extended != is_extended:
             continue
         if start_us is not None and frame.timestamp_us < start_us:
             continue

@@ -127,7 +127,7 @@ uv run canresearch mcp tools
 
 ### MCP (read-only + live passive research)
 
-The MCP server exposes **16 read-only** tools for stored sessions, reference lookups,
+The MCP server exposes **18 read-only** tools for stored sessions, reference lookups,
 transport inspection, J1939 node identity, research candidates, and in-memory DBC preview. It also exposes
 **7 live CANsub.2 research tools** for passive observation, controlled capture,
 experiment markers, and baseline/action window comparison.
@@ -176,7 +176,7 @@ Research workflow:
 5. `analyze_repeated_action` (3–5 deliberate repetitions strongly preferred)
 6. `correlate_candidate_field` with a reference series (SPN decode, CSV, operator values)
 
-MCP adds 6 read-only signal research tools (**29 MCP tools total**). Terminology uses *candidate*,
+MCP adds 6 read-only signal research tools (**31 MCP tools total**). Terminology uses *candidate*,
 *evidence*, *consistency*, and *correlation* for on-demand analysis.
 
 **Candidate ≠ confirmed.** Persisted candidates require explicit CLI review and confirmation

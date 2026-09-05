@@ -60,7 +60,8 @@ Read-only MCP tools: `list_sessions`, `get_session`, `analyze_session`,
 `decode_session`, `inspect_transport`, `list_session_nodes`, `list_assets`,
 `get_asset`, `list_asset_nodes`, `lookup_pgn`, `lookup_spn`,
 `build_session_dbc_preview`, `list_research_candidates`, `get_research_candidate`,
-`list_candidate_evidence`, `preview_research_dbc`.
+`list_candidate_evidence`, `preview_research_dbc`, `list_session_events`,
+`preview_candidate_values`.
 
 Live MCP tools (passive): `get_cansub_device_status`, `get_cansub_channel_status`,
 `start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
