@@ -1,17 +1,31 @@
 # V1 scope
 
-## In scope (V1)
+## Completed (desk bench testing — no CAN bus yet)
 
-- [ ] CANsub.2 device discovery (USB + Ethernet)
-- [ ] Live capture with session metadata in SQLite
-- [ ] Pluggable `CaptureStore` for raw frames (format TBD after hardware testing)
-- [ ] J1939 29-bit identifier parsing
-- [ ] Import reference PGN/SPN data from user-provided DBC files
+- [x] CANsub.2 direct REST connection (configured hostname)
+- [x] Persistent local host config (`data/config.toml`)
+- [x] Read-only channel status (channels 1 and 2)
+- [x] WebSocket RX (idle verified; zero frames expected without bus)
+- [x] Live capture with session metadata in SQLite
+- [x] JSONL `CaptureStore` for raw frames (`data/sessions/`)
+- [x] J1939 29-bit identifier parsing
+- [x] Import reference PGN/SPN data from user-owned J1939 PDF
+- [x] Import ISOBUS DDI data from user-owned PDF
+- [x] Windows-first CLI with `uv` workflow
+
+Verified desk baseline: firmware **02.04.00**, API **04.00**, host
+`7413f810-usb.local`. See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
+
+## In scope (remaining V1)
+
+- [ ] Real CAN bus capture (non-zero frames)
+- [ ] Offline J1939/ISOBUS classification of saved sessions
 - [ ] Build base machine/tractor DBC from capture session observations
 - [ ] Session summary (observed PGNs, source addresses, rates)
 - [ ] Basic correlation analysis and findings storage
 - [ ] MCP server exposing sessions, references, and DBC tools
-- [ ] Windows-first CLI with `uv` workflow
+- [ ] CANsub.2 device discovery (USB + Ethernet scan)
+- [ ] Import reference PGN/SPN data from user-provided DBC files
 
 ## Explicitly out of scope (V1)
 
@@ -29,11 +43,12 @@
 
 ## Success criteria
 
-1. Capture a session from CANsub.2 and persist metadata + frames externally
-2. List and summarize sessions from CLI and MCP
-3. Import a reference DBC and look up PGNs/SPNs locally
-4. Generate a draft tractor DBC from session observations
-5. All tests pass; CLI and MCP modules import cleanly on Windows
+1. Capture a session from CANsub.2 with real bus traffic and persist metadata + frames externally
+2. Classify captured frames against the local J1939/ISOBUS reference catalogue
+3. List and summarize sessions from CLI and MCP
+4. Import a reference DBC and look up PGNs/SPNs locally
+5. Generate a draft tractor DBC from session observations
+6. All tests pass; CLI and MCP modules import cleanly on Windows
 
 ## Post-V1 candidates (not committed)
 

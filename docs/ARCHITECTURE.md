@@ -12,20 +12,21 @@ canresearch/
 
 ### `cansub/` — hardware only
 
-- USB and Ethernet discovery of CANsub.2 devices
-- Connection management and live frame streaming
-- No J1939 parsing, no DBC logic, no SQLite access
-- Depends on CSS Electronics APIs/SDK (to be integrated when hardware is available)
+- Direct REST and WebSocket access to CANsub.2 (configured hostname or IP)
+- Read-only channel status and live RX streaming
+- Capture orchestration (`run_capture`) — no J1939 parsing, no DBC logic
+- No SQLite access from this layer
 
 ### `core/` — domain logic
 
 - **j1939** — 29-bit identifier parsing (no SAE reference data)
-- **references** — local PGN/SPN catalogue populated from user imports
+- **references** — local PGN/SPN/DDI catalogue populated from user imports
 - **dbc** — DBC import/export and machine-specific generation
-- **sessions** — session metadata; `CaptureStore` ABC for raw frames
+- **sessions** — session metadata; `JsonlCaptureStore` for raw frames
 - **analysis** — correlation and findings over sessions
 
-Raw capture frames stay **outside** SQLite. Session rows hold metadata and a `frame_store_path` pointing to whatever format we choose (binary, Parquet, CSV, etc.) after measuring CANsub.2 logging volume.
+Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
+`frame_store_path` pointing to `data/sessions/<id>/frames.jsonl`.
 
 ### `mcp/` — AI client interface
 
@@ -37,7 +38,7 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a `fr
 
 - SQLite for reference PGNs/SPNs, machines, sessions, observed PGNs, findings, DBC revisions
 - Schema versioning via numbered migrations in `database.py`
-- Default path: `data/canresearch.sqlite` (gitignored)
+- Default path: `data/references/canresearch.db` (gitignored)
 
 ## External / licensed data
 
@@ -46,18 +47,39 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a `fr
 | SAE J1939 PDF / database | User-owned, external | **No** |
 | ISO 11783 / ISOBUS snapshots | User-owned, external | **No** |
 | Imported DBC reference files | `references/private/` or user path | **No** |
-| Parsed reference SQLite rows | `data/canresearch.sqlite` | **No** |
+| Parsed reference SQLite rows | `data/references/canresearch.db` | **No** |
+| Capture frame JSONL | `data/sessions/` | **No** |
 | Example fixtures | `examples/` | **Yes** (non-licensed samples only) |
 
 Copyrighted standards content must not be parsed, stored, or reproduced in this repository without appropriate licence.
 
-## Data flow (V1 target)
+## Verified data flow (desk unit, bench — no CAN bus)
+
+```text
+CANsub.2 (7413f810-usb.local)
+  -> REST control/status (device info, channel status)
+  -> WebSocket RX (wss://.../api/can/{channel}/ws)
+  -> JsonlCaptureStore (data/sessions/<id>/frames.jsonl)
+  -> SQLite session metadata
+```
+
+## Planned processing flow (not yet implemented)
+
+```text
+saved session (frames.jsonl)
+  -> J1939 identifier parser
+  -> PGN / source address / destination address
+  -> local reference catalogue lookup
+  -> classification: base J1939 / addition / ISOBUS / unknown
+```
+
+## Full V1 target (includes future work)
 
 ```mermaid
 flowchart LR
     CANsub[CANsub.2] --> cansub[cansub/]
     cansub --> sessions[core/sessions]
-    sessions --> store[CaptureStore files]
+    sessions --> store[JSONL CaptureStore]
     sessions --> sqlite[(SQLite metadata)]
     sessions --> analysis[core/analysis]
     analysis --> findings[(findings)]
@@ -71,9 +93,9 @@ flowchart LR
     cli --> mcp
 ```
 
-## Design decisions deferred
+## Design decisions
 
-1. **Raw frame format** — await real CANsub.2 capture volume before choosing binary vs Parquet vs CSV
-2. **CANsub.2 SDK** — exact Python/C API binding TBD when hardware is connected
+1. **Raw frame format** — JSON Lines for V1 (`JsonlCaptureStore`); Parquet deferred
+2. **CANsub API** — stdlib HTTP + `websockets`; accepts any `MAJOR.MINOR` version from device
 3. **MCP transport** — stdio for V1; network transport when needed for remote clients
-4. **Reference import sources** — DBC-first in V1; CSV/JSON import may follow
+4. **Reference import sources** — J1939/ISOBUS PDF importers implemented; DBC import scaffold remains

@@ -2,6 +2,29 @@
 
 Windows-first, CLI-first CAN research tool focused on **CSS Electronics CANsub.2** hardware, **J1939/ISOBUS** reference handling, capture/session analysis, machine-specific DBC generation, and an **MCP server** for AI-assisted interrogation (ChatGPT, Claude, etc.).
 
+## Current status
+
+The following milestones are **complete** on the development desk unit (Device ID
+`7413f810`, firmware **02.04.00**, API **04.00**). Bench testing only — **no
+CAN bus has been connected**; zero-frame idle results are expected.
+
+| Milestone | Status |
+|-----------|--------|
+| Private J1939 reference catalogue (PDF import) | Done |
+| ISOBUS DDI import | Done |
+| CANsub direct REST connection | Done |
+| Persistent configurable host | Done |
+| Read-only channel status | Done |
+| WebSocket RX (idle verified) | Done |
+| Persistent capture sessions (JSONL + SQLite) | Done |
+
+**Next major milestone:** real CAN bus capture + offline J1939/ISOBUS
+classification (PGN / source address / destination address against the local
+reference catalogue). Actual tractor traffic has not been captured yet.
+
+Connection details, tested commands, and hostname/IP notes:
+[docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
+
 ## V1 goal
 
 1. **Build or import** a parsed local PGN/SPN reference database (from user-owned sources).
@@ -10,14 +33,14 @@ Windows-first, CLI-first CAN research tool focused on **CSS Electronics CANsub.2
 
 No GUI in V1. No bundled SAE J1939 database.
 
-## Features (scaffold / planned)
+## Features
 
 | Area | Description |
 |------|-------------|
-| Hardware | CANsub.2 via USB or Ethernet |
+| Hardware | CANsub.2 via USB (configured hostname) or Ethernet |
 | Protocol | J1939/ISOBUS 29-bit identifier parsing and reference catalogue |
 | DBC | Import reference DBCs; generate machine-specific DBC from sessions |
-| Capture | Session metadata + pluggable raw-frame storage (not SQLite blobs) |
+| Capture | Session metadata in SQLite; raw frames in JSONL under `data/sessions/` |
 | MCP | Tools for sessions, references, and DBC operations |
 | Storage | SQLite for metadata, references, findings, DBC revisions |
 
@@ -35,7 +58,8 @@ No GUI in V1. No bundled SAE J1939 database.
 
 ```powershell
 uv sync
-uv run canresearch --help
+uv run canresearch config set-host your-device-id-usb.local
+uv run canresearch device info
 uv run pytest
 ```
 
@@ -43,13 +67,14 @@ uv run pytest
 
 ```text
 canresearch --help
-canresearch device list
-canresearch capture start
-canresearch capture stop
+canresearch config show
+canresearch device info
+canresearch device channel-info <channel>
+canresearch device rx <channel>
+canresearch capture start --channel <n>
 canresearch session list
-canresearch session summary
-canresearch dbc build
-canresearch reference import-dbc
+canresearch session summary <session-id>
+canresearch reference import-j1939 ...
 canresearch mcp serve
 ```
 
@@ -59,15 +84,12 @@ canresearch mcp serve
 src/canresearch/
   cli.py              CLI entry point
   core/               J1939, DBC, references, sessions, analysis
-  cansub/             CANsub.2 discovery, API, capture
+  cansub/             CANsub.2 API, WebSocket RX, capture
   mcp/                MCP server
   storage/            SQLite metadata and migrations
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/V1_SCOPE.md](docs/V1_SCOPE.md).
-
-For CANsub.2 USB/Ethernet connection notes (hostname vs IP, config), see
-[docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
 
 ## License
 
