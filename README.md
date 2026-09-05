@@ -69,32 +69,37 @@ uv run canresearch device info
 uv run pytest
 ```
 
+Repository/development examples use `uv run canresearch ...`, which runs the CLI
+inside the project's uv-managed environment. A bare `canresearch ...` command only
+works if the package has separately been installed so its console script is
+available on PATH.
+
 ## CLI commands
 
 ```text
-canresearch --help
-canresearch config show
-canresearch device info
-canresearch device channel-info <channel>
-canresearch device rx <channel>
-canresearch capture start --channel <n>
-canresearch session list
-canresearch session summary <session-id>
-canresearch session analyze <session-id>
-canresearch session decode <session-id>
-canresearch session tp <session-id>
-canresearch session nodes <session-id> [--refresh] [--source-address 0x80] [--show-raw]
-canresearch asset add --key <key> --type tractor --name "..."
-canresearch asset list
-canresearch asset show <asset-key>
-canresearch asset node add <asset-key> <j1939-name>
-canresearch asset node list <asset-key>
-canresearch asset node remove <asset-key> <j1939-name>
-canresearch session asset add <session-id> <asset-key> --role tractor
-canresearch session asset list <session-id>
-canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
-canresearch reference import-j1939 ...
-canresearch mcp serve
+uv run canresearch --help
+uv run canresearch config show
+uv run canresearch device info
+uv run canresearch device channel-info <channel>
+uv run canresearch device rx <channel>
+uv run canresearch capture start --channel <n>
+uv run canresearch session list
+uv run canresearch session summary <session-id>
+uv run canresearch session analyze <session-id>
+uv run canresearch session decode <session-id>
+uv run canresearch session tp <session-id>
+uv run canresearch session nodes <session-id> [--refresh] [--source-address 0x80] [--show-raw]
+uv run canresearch asset add --key <key> --type tractor --name "..."
+uv run canresearch asset list
+uv run canresearch asset show <asset-key>
+uv run canresearch asset node add <asset-key> <j1939-name>
+uv run canresearch asset node list <asset-key>
+uv run canresearch asset node remove <asset-key> <j1939-name>
+uv run canresearch session asset add <session-id> <asset-key> --role tractor
+uv run canresearch session asset list <session-id>
+uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
+uv run canresearch reference import-j1939 ...
+uv run canresearch mcp serve
 ```
 
 ### Agricultural workflow example
