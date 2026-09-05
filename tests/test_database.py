@@ -32,6 +32,9 @@ def test_database_initializes(tmp_path: Path) -> None:
         "dbc_revisions",
         "assets",
         "session_assets",
+        "j1939_nodes",
+        "j1939_node_observations",
+        "asset_j1939_nodes",
     }
     assert expected <= tables
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -263,6 +263,48 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_session_assets_session ON session_assets(session_id);
         CREATE INDEX IF NOT EXISTS idx_session_assets_asset ON session_assets(asset_id);
     """,
+    5: """
+        CREATE TABLE IF NOT EXISTS j1939_nodes (
+            id TEXT PRIMARY KEY,
+            name_value TEXT NOT NULL UNIQUE,
+            manufacturer_code INTEGER,
+            identity_number INTEGER,
+            function INTEGER,
+            function_instance INTEGER,
+            ecu_instance INTEGER,
+            vehicle_system INTEGER,
+            vehicle_system_instance INTEGER,
+            industry_group INTEGER,
+            arbitrary_address_capable INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS j1939_node_observations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            node_id TEXT NOT NULL REFERENCES j1939_nodes(id) ON DELETE CASCADE,
+            session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+            source_address INTEGER NOT NULL,
+            first_seen_at TEXT NOT NULL,
+            last_seen_at TEXT NOT NULL,
+            claim_count INTEGER NOT NULL DEFAULT 1,
+            cannot_claim INTEGER NOT NULL DEFAULT 0,
+            UNIQUE (node_id, session_id, source_address)
+        );
+
+        CREATE TABLE IF NOT EXISTS asset_j1939_nodes (
+            asset_id TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+            node_id TEXT NOT NULL UNIQUE REFERENCES j1939_nodes(id) ON DELETE CASCADE,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (asset_id, node_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_j1939_nodes_name ON j1939_nodes(name_value);
+        CREATE INDEX IF NOT EXISTS idx_j1939_node_obs_session
+            ON j1939_node_observations(session_id);
+        CREATE INDEX IF NOT EXISTS idx_j1939_node_obs_node ON j1939_node_observations(node_id);
+        CREATE INDEX IF NOT EXISTS idx_asset_j1939_nodes_asset ON asset_j1939_nodes(asset_id);
+    """,
 }
 
 
@@ -300,6 +342,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v3(conn)
         elif version == 4:
             _migrate_v4(conn)
+        elif version == 5:
+            _migrate_v5(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -339,6 +383,13 @@ def _migrate_v4(conn: sqlite3.Connection) -> None:
     if _table_exists(conn, "assets"):
         return
     conn.executescript(MIGRATIONS[4])
+
+
+def _migrate_v5(conn: sqlite3.Connection) -> None:
+    """Add J1939 node identity and asset-node links."""
+    if _table_exists(conn, "j1939_nodes"):
+        return
+    conn.executescript(MIGRATIONS[5])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:

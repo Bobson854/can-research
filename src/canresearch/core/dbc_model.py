@@ -17,6 +17,8 @@ class DbcProvenance:
     generator_version: str
     generated_at: str
     source_addresses: tuple[int, ...] = field(default_factory=tuple)
+    source_address_origin: str = "manual"
+    j1939_names: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, slots=True)

@@ -23,9 +23,9 @@ The following milestones are **complete** on the development desk unit (Device I
 | Asset registry and session asset associations | Done |
 | Asset-specific DBC provenance | Done |
 | J1939 transport-protocol reassembly (BAM / RTS-CTS) | Done |
+| J1939 NAME / Address Claim → asset identity mapping | Done |
 
-**Next major milestone:** J1939 NAME → asset mapping,
-MCP session/DBC tools, and proprietary signal research workflows.
+**Next major milestone:** MCP session/DBC tools and live CANsub.2 research workflows.
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -83,15 +83,42 @@ canresearch session summary <session-id>
 canresearch session analyze <session-id>
 canresearch session decode <session-id>
 canresearch session tp <session-id>
+canresearch session nodes <session-id> [--refresh] [--source-address 0x80] [--show-raw]
 canresearch asset add --key <key> --type tractor --name "..."
 canresearch asset list
 canresearch asset show <asset-key>
+canresearch asset node add <asset-key> <j1939-name>
+canresearch asset node list <asset-key>
+canresearch asset node remove <asset-key> <j1939-name>
 canresearch session asset add <session-id> <asset-key> --role tractor
 canresearch session asset list <session-id>
 canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 canresearch reference import-j1939 ...
 canresearch mcp serve
 ```
+
+### Agricultural workflow example
+
+```powershell
+# Discover ECUs from Address Claim traffic
+uv run canresearch session nodes abc123
+
+# Link observed J1939 NAMEs to assets
+uv run canresearch asset node add jd_6155r_01 0xAABBCCDDEEFF0011
+uv run canresearch asset node add weedit_quadro_01 0x1122334455667788
+
+# Generate asset-specific DBCs (source addresses resolved from linked nodes)
+uv run canresearch session dbc abc123 --asset jd_6155r_01
+uv run canresearch session dbc abc123 --asset weedit_quadro_01
+
+# Manual override when needed
+uv run canresearch session dbc abc123 --asset jd_6155r_01 --source-address 0x00
+```
+
+Asset-specific DBC generation resolves source addresses from J1939 NAMEs linked to
+the asset when `--source-address` is not supplied. If no linked nodes are observed
+in the session, the command fails with a clear message rather than including all
+session traffic.
 
 ## Project layout
 

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from canresearch.core.j1939 import J1939Identifier, parse_j1939_id
 from canresearch.core.j1939_logical_messages import categorize_j1939_frame
+from canresearch.core.j1939_nodes import scan_session_j1939_nodes
 from canresearch.core.j1939_tp import reassemble_j1939_transport
 from canresearch.core.jsonl_capture_store import iter_frames_from_path
 from canresearch.core.sessions import (
@@ -92,6 +93,10 @@ class SessionAnalysisSummary:
     transport_transfers_aborted: int = 0
     completed_transport_pgns: tuple[TransportedPgnSummary, ...] = field(default_factory=tuple)
     transport_warning_count: int = 0
+    identity_address_claim_frames: int = 0
+    identity_unique_nodes: int = 0
+    identity_claimed_addresses: tuple[int, ...] = field(default_factory=tuple)
+    identity_address_conflicts: int = 0
 
     @property
     def unique_pgns(self) -> int:
@@ -242,6 +247,21 @@ class SessionAnalyzer:
             conn.close()
 
         transport = reassemble_j1939_transport(iter_frames_from_path(frames_path))
+        node_result = scan_session_j1939_nodes(
+            session_id,
+            db_path=self.db_path,
+            persist=persist,
+        )
+        claimed_addresses = tuple(
+            sorted(
+                {
+                    obs.source_address
+                    for node in node_result.nodes
+                    for obs in node.observations
+                    if not obs.cannot_claim
+                }
+            )
+        )
         completed_transport = tuple(
             TransportedPgnSummary(
                 transported_pgn=message.transported_pgn or message.pgn,
@@ -272,6 +292,10 @@ class SessionAnalyzer:
             transport_transfers_aborted=transport.stats.transfers_aborted,
             completed_transport_pgns=completed_transport,
             transport_warning_count=len(transport.warnings),
+            identity_address_claim_frames=node_result.stats.address_claim_frames,
+            identity_unique_nodes=node_result.stats.unique_names,
+            identity_claimed_addresses=claimed_addresses,
+            identity_address_conflicts=node_result.stats.address_conflicts,
         )
 
     def _build_observed(

@@ -162,6 +162,7 @@ def test_generate_eec1_message_and_decode_equivalence(dbc_env) -> None:
     summary = generate_session_dbc(
         session_id,
         asset_key="test_asset",
+        source_addresses=(0x00,),
         db_path=dbc_env["db_path"],
     )
     assert summary.messages_generated == 1
@@ -207,6 +208,7 @@ def test_unknown_pgn_not_generated(dbc_env) -> None:
     summary = generate_session_dbc(
         session_id,
         asset_key="test_asset",
+        source_addresses=(0x00,),
         db_path=dbc_env["db_path"],
     )
     assert summary.messages_generated == 0
@@ -224,6 +226,7 @@ def test_edge101_proprietary_session_generates_nothing(dbc_env) -> None:
     summary = generate_session_dbc(
         session_id,
         asset_key="edge101_bench_01",
+        source_addresses=(0x01, 0x17),
         db_path=dbc_env["db_path"],
     )
     assert summary.observed_j1939_pgns == 2
@@ -250,6 +253,7 @@ def test_deterministic_output(dbc_env) -> None:
         generate_session_dbc(
             session_id,
             asset_key="test_asset",
+            source_addresses=(0x00,),
             db_path=dbc_env["db_path"],
         ).database
     )
@@ -257,6 +261,7 @@ def test_deterministic_output(dbc_env) -> None:
         generate_session_dbc(
             session_id,
             asset_key="test_asset",
+            source_addresses=(0x00,),
             db_path=dbc_env["db_path"],
         ).database
     )
@@ -316,6 +321,7 @@ def test_signal_overlap_skips_second_mapping(dbc_env) -> None:
     summary = generate_session_dbc(
         session_id,
         asset_key="test_asset",
+        source_addresses=(0x00,),
         db_path=dbc_env["db_path"],
     )
     assert summary.messages_generated == 1
@@ -348,7 +354,17 @@ def test_cli_session_dbc(dbc_env, monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["session", "dbc", session_id, "--asset", "test_asset", "--output", str(output)],
+        [
+            "session",
+            "dbc",
+            session_id,
+            "--asset",
+            "test_asset",
+            "--source-address",
+            "0x00",
+            "--output",
+            str(output),
+        ],
     )
     assert result.exit_code == 0, result.output
     assert output.exists()
@@ -465,7 +481,10 @@ def test_default_output_filename(dbc_env, monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.chdir(dbc_env["root"])
 
     runner = CliRunner()
-    result = runner.invoke(main, ["session", "dbc", session_id, "--asset", "jd_6155r_01"])
+    result = runner.invoke(
+        main,
+        ["session", "dbc", session_id, "--asset", "jd_6155r_01", "--source-address", "0x00"],
+    )
     assert result.exit_code == 0, result.output
     output = dbc_env["root"] / "jd_6155r_01_standard.dbc"
     assert output.exists()

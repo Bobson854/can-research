@@ -39,6 +39,9 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 - SQLite for reference PGNs/SPNs, machines, sessions, observed PGNs, findings, DBC revisions
 - **assets** — persistent device metadata (`asset_key`, type, manufacturer, model, …)
 - **session_assets** — many-to-many link between sessions and assets with an explicit role
+- **j1939_nodes** — global J1939 NAME identity (64-bit ECU/node identity)
+- **j1939_node_observations** — session-specific source-address claims per node
+- **asset_j1939_nodes** — persistent link between assets and J1939 NAME identities
 - Schema versioning via numbered migrations in `database.py`
 - Default path: `data/references/canresearch.db` (gitignored)
 
@@ -88,8 +91,9 @@ saved session (frames.jsonl)
   -> engineering values (on demand via session decode)
 ```
 
-Unknown/proprietary PGNs and ISOBUS DDI interpretation are skipped. Transport
-protocol reassembly is not implemented.
+Unknown/proprietary PGNs and ISOBUS DDI interpretation are skipped for standard decode.
+Transport-protocol reassembly and J1939 NAME identity mapping are implemented separately
+(see below).
 
 ## Asset identity model (implemented)
 
@@ -99,28 +103,36 @@ linked to sessions through `session_assets` with an explicit role.
 
 ```text
 Asset registry (assets)
-  -> session association (session_assets: role = tractor | implement | controller | other)
-  -> observed traffic (frames.jsonl + session analyze)
-  -> asset-specific DBC generation (session dbc --asset <key>)
+  ↔ J1939 NAME identity (j1939_nodes)           ← stable ECU/node identity
+  ↔ session-specific source address (j1939_node_observations)
+  → session association (session_assets: role = tractor | implement | controller | other)
+  → observed traffic (frames.jsonl + session analyze)
+  → asset-specific DBC generation (session dbc --asset <key>)
 ```
 
-Core rule: **a session can contain multiple assets; a generated DBC belongs to one asset.**
+Core rules:
+
+- **J1939 NAME** is the stable node identity (64-bit NAME from PGN 60928 Address Claim).
+- **Source address** is session/network state, not identity. The same NAME may claim
+  different SAs in different sessions.
+- **One asset may contain multiple J1939 nodes** (engine, transmission, display, …).
+- **One session may contain multiple assets** (tractor + implement on the same bus).
+- **Asset-specific DBC** resolves traffic via linked J1939 NAMEs when `--source-address`
+  is omitted; explicit `--source-address` overrides automatic resolution.
 
 Tractor and implement DBCs remain separate files so they can be loaded together,
 evolve independently, and carry clean provenance. The legacy `machines` table and
 `sessions.machine_id` column remain for backward compatibility but are not the primary
 multi-asset model.
 
-Future direction: attach discovered J1939 NAME / source-address identities to assets
-via a planned `asset_nodes` table (`asset_id`, `j1939_name`, `source_address`,
-`session_id`). Automatic NAME → asset assignment is not implemented yet.
-
 ## DBC generation flow (implemented)
 
 ```text
 JSONL session
   -> asset must be linked to session
-  -> optional --source-address filter (manual ECU/traffic selection)
+  -> source address selection:
+       manual --source-address filter, OR
+       automatic resolution from asset ↔ J1939 NAME links + session observations
   -> observed address-qualified J1939 traffic (PGN + SA + DA)
   -> reference-backed PGN/SPN mappings (j1939_base_2001 / j1939_addition only)
   -> mapping quality + overlap validation
@@ -128,6 +140,9 @@ JSONL session
   -> strict DBC writer with CM_ provenance comments (core/dbc_writer)
   -> <asset_key>_standard.dbc
 ```
+
+If automatic resolution finds no linked nodes or no observed SAs for linked NAMEs in
+the session, generation fails with a clear message (no silent “all session traffic”).
 
 Generated DBCs include only reference-backed signals actually observed in the
 selected traffic subset. Extended 29-bit CAN IDs use Vector-style `0x80000000` encoding in `BO_`
@@ -137,15 +152,42 @@ Example (one session, two assets):
 
 ```text
 Session abc123:
-  jd_6155r_01      role tractor
-  weedit_quadro_01 role implement
+  jd_6155r_01      role tractor    NAME 0xAABB… → SA 0x00
+  weedit_quadro_01 role implement  NAME 0x1122… → SA 0x80
 
-Generated:
-  jd_6155r_01_standard.dbc      (--source-address 0x00 when filtering manually)
-  weedit_quadro_01_standard.dbc (--source-address 0x80 when filtering manually)
+Generated (automatic SA resolution):
+  jd_6155r_01_standard.dbc
+  weedit_quadro_01_standard.dbc
 ```
 
 Proprietary/research DBC generation remains a future milestone.
+
+## J1939 NAME / Address Claim (implemented)
+
+```text
+JSONL frames
+  -> PGN 60928 (Address Claim) detection
+  -> 8-byte NAME payload (LSB-first on bus)
+  -> j1939_name parser (core/j1939_name)
+  -> discover_j1939_nodes / scan_session_j1939_nodes
+  -> persist j1939_nodes + j1939_node_observations (idempotent)
+  -> optional asset_j1939_nodes link (asset node add)
+  -> resolve_source_addresses_for_asset for DBC generation
+```
+
+Policies:
+
+- NAME is the global identity key; source address is session-specific observation history.
+- Repeated claims from the same NAME+SA increment `claim_count` and update timestamps.
+- Same NAME claiming different SAs in one session preserves both observations; latest
+  usable SA is available per node.
+- Two different NAMEs claiming the same SA → `source_address_conflict` warning; identities
+  are not merged.
+- SA `0xFE` (Cannot Claim Address) is stored with `cannot_claim=1` and excluded from
+  DBC SA resolution. SA `0xFF` is not a valid node source address.
+
+`session analyze` adds an additive **J1939 identity** section (Address Claim frames,
+unique NAMEs, claimed SAs, conflicts). `session nodes` lists persisted observations.
 
 ## Transport-protocol reassembly (implemented)
 
@@ -185,7 +227,7 @@ Use `session tp` to inspect reassembled payloads.
 ## Planned next processing (not yet implemented)
 
 ```text
-J1939 NAME asset mapping + MCP tooling + proprietary signal research
+MCP tooling + live CANsub.2 research workflows + proprietary signal research
 ```
 
 ## Full V1 target (includes future work)

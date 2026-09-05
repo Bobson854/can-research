@@ -454,6 +454,21 @@ def _print_session_analysis(summary) -> None:
         if summary.transport_warning_count:
             click.echo(f"Transport warnings:   {summary.transport_warning_count}")
 
+    if (
+        summary.identity_address_claim_frames
+        or summary.identity_unique_nodes
+        or summary.identity_address_conflicts
+    ):
+        click.echo("")
+        click.echo("J1939 identity")
+        click.echo(f"Address claims:        {summary.identity_address_claim_frames}")
+        click.echo(f"Unique nodes:          {summary.identity_unique_nodes}")
+        if summary.identity_claimed_addresses:
+            sa_text = ", ".join(f"{sa:02X}" for sa in summary.identity_claimed_addresses)
+            click.echo(f"Claimed addresses:     {sa_text}")
+        if summary.identity_address_conflicts:
+            click.echo(f"Address conflicts:     {summary.identity_address_conflicts}")
+
     if not summary.observed:
         click.echo("Observed traffic:     (none)")
         return
@@ -700,6 +715,10 @@ def _print_session_dbc(summary, output_path) -> None:
     if summary.source_addresses:
         sa_text = ", ".join(f"0x{sa:02X}" for sa in summary.source_addresses)
         click.echo(f"Source addresses:        {sa_text}")
+    if summary.provenance and summary.provenance.source_address_origin:
+        click.echo(f"Source address origin:   {summary.provenance.source_address_origin}")
+    if summary.provenance and summary.provenance.j1939_names:
+        click.echo(f"J1939 NAMEs:             {', '.join(summary.provenance.j1939_names)}")
     click.echo(f"Frames examined:         {summary.frames_examined}")
     click.echo(f"Observed J1939 PGNs:     {summary.observed_j1939_pgns}")
     click.echo(f"Reference-backed PGNs:   {summary.reference_backed_pgns}")
@@ -912,6 +931,157 @@ def asset_show(asset_key: str) -> None:
         click.echo(f"Notes:       {record.notes}")
     click.echo(f"Created:     {record.created_at.isoformat()}")
     click.echo(f"Updated:     {record.updated_at.isoformat()}")
+
+
+@asset_group.group("node")
+def asset_node_group() -> None:
+    """Link observed J1939 NAME identities to assets."""
+
+
+@asset_node_group.command("add")
+@click.argument("asset_key")
+@click.argument("j1939_name")
+def asset_node_add(asset_key: str, j1939_name: str) -> None:
+    """Link a J1939 NAME to an asset."""
+    from canresearch.core.j1939_nodes import link_asset_node
+
+    try:
+        link_asset_node(asset_key, j1939_name, require_observed=True)
+    except (KeyError, ValueError) as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"Linked {j1939_name} to asset {asset_key}")
+
+
+@asset_node_group.command("list")
+@click.argument("asset_key")
+def asset_node_list(asset_key: str) -> None:
+    """List J1939 NAMEs linked to an asset."""
+    from canresearch.core.j1939_nodes import list_asset_nodes
+
+    try:
+        nodes = list_asset_nodes(asset_key)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    if not nodes:
+        click.echo(f"No J1939 nodes linked to asset {asset_key}.")
+        return
+
+    click.echo(f"J1939 nodes for asset {asset_key}")
+    for node in nodes:
+        click.echo(
+            f"{node.name.name_hex:<22}  "
+            f"mfg={node.name.manufacturer_code:<4}  fn={node.name.function}"
+        )
+
+
+@asset_node_group.command("remove")
+@click.argument("asset_key")
+@click.argument("j1939_name")
+def asset_node_remove(asset_key: str, j1939_name: str) -> None:
+    """Remove a J1939 NAME link from an asset."""
+    from canresearch.core.j1939_nodes import unlink_asset_node
+
+    try:
+        unlink_asset_node(asset_key, j1939_name)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"Removed {j1939_name} from asset {asset_key}")
+
+
+@session_group.command("nodes")
+@click.argument("session_id")
+@click.option(
+    "--refresh",
+    is_flag=True,
+    help="Rescan frames and refresh persisted node observations.",
+)
+@click.option(
+    "--source-address",
+    "source_address",
+    type=lambda value: int(value, 0),
+    default=None,
+    help="Filter by claimed source address.",
+)
+@click.option(
+    "--manufacturer-code",
+    type=int,
+    default=None,
+    help="Filter by manufacturer code.",
+)
+@click.option("--show-raw", is_flag=True, help="Show full NAME field breakdown.")
+def session_nodes(
+    session_id: str,
+    refresh: bool,
+    source_address: int | None,
+    manufacturer_code: int | None,
+    show_raw: bool,
+) -> None:
+    """List J1939 Address Claim node identities observed in a session."""
+    from canresearch.core.j1939_nodes import list_session_nodes, scan_session_j1939_nodes
+
+    try:
+        if refresh:
+            result = scan_session_j1939_nodes(session_id, persist=True)
+            nodes = list(result.nodes)
+            warnings = result.warnings
+            stats = result.stats
+        else:
+            nodes = list_session_nodes(session_id)
+            if not nodes:
+                result = scan_session_j1939_nodes(session_id, persist=True)
+                nodes = list(result.nodes)
+                warnings = result.warnings
+                stats = result.stats
+            else:
+                warnings = ()
+                stats = None
+    except (KeyError, FileNotFoundError) as exc:
+        raise SystemExit(str(exc)) from exc
+
+    if source_address is not None:
+        nodes = [
+            node
+            for node in nodes
+            if any(obs.source_address == source_address for obs in node.observations)
+        ]
+    if manufacturer_code is not None:
+        nodes = [node for node in nodes if node.name.manufacturer_code == manufacturer_code]
+
+    click.echo(f"Session: {session_id}")
+    click.echo(f"Observed J1939 nodes: {len(nodes)}")
+    if stats is not None:
+        click.echo(f"Address claims:      {stats.address_claim_frames}")
+        if stats.address_conflicts:
+            click.echo(f"Address conflicts:   {stats.address_conflicts}")
+
+    if not nodes:
+        click.echo("No Address Claim nodes observed.")
+        return
+
+    click.echo("")
+    click.echo(f"{'NAME':<20}  {'SA':<4}  {'Mfg':<5}  {'Fn':<4}  {'IG':<3}  {'AAC':<3}")
+    for node in nodes:
+        sa_text = "--"
+        if node.latest_source_address is not None:
+            sa_text = f"{node.latest_source_address:02X}"
+        elif node.cannot_claim:
+            sa_text = "FE"
+        aac = "yes" if node.name.arbitrary_address_capable else "no"
+        click.echo(
+            f"{node.name.name_hex:<20}  {sa_text:<4}  "
+            f"{node.name.manufacturer_code:<5}  {node.name.function:<4}  "
+            f"{node.name.industry_group:<3}  {aac:<3}"
+        )
+        if show_raw:
+            for line in node.name.format_summary():
+                click.echo(f"  {line}")
+
+    if warnings:
+        click.echo("")
+        click.echo("Warnings:")
+        for warning in warnings:
+            click.echo(f"  {warning.category}: {warning.message}")
 
 
 @main.group("dbc")
