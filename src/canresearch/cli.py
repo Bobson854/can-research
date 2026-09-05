@@ -403,6 +403,80 @@ def session_list(limit: int) -> None:
         )
 
 
+@session_group.command("analyze")
+@click.argument("session_id")
+@click.option(
+    "--no-persist",
+    is_flag=True,
+    help="Compute analysis only; do not update observed_pgns or session status.",
+)
+def session_analyze(session_id: str, no_persist: bool) -> None:
+    """Analyze a capture session for J1939 traffic and reference matches."""
+    from canresearch.core.analysis import analyze_session
+
+    try:
+        summary = analyze_session(session_id, persist=not no_persist)
+    except KeyError as exc:
+        raise SystemExit(str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    _print_session_analysis(summary)
+
+
+def _print_session_analysis(summary) -> None:
+    click.echo(f"Session:              {summary.session_id}")
+    if summary.session_name:
+        click.echo(f"Name:                 {summary.session_name}")
+    click.echo(f"Frames:               {summary.total_frames}")
+    click.echo(f"J1939 frames:         {summary.j1939_frames}")
+    click.echo(f"Non-J1939 frames:     {summary.non_j1939_frames}")
+    if summary.error_frames:
+        click.echo(f"Error frames:         {summary.error_frames}")
+    if summary.malformed_frames:
+        click.echo(f"Malformed frames:     {summary.malformed_frames}")
+    click.echo(f"Unique PGNs:          {summary.unique_pgns}")
+    click.echo(f"Unique source addrs:  {summary.unique_source_addresses}")
+    click.echo(f"Known PGNs:           {summary.known_pgn_count}")
+    click.echo(f"Unknown PGNs:         {summary.unknown_pgn_count}")
+
+    if not summary.observed:
+        click.echo("Observed traffic:     (none)")
+        return
+
+    click.echo("")
+    click.echo("Observed traffic")
+    header = (
+        f"{'PGN':>6}  {'SA':>4}  {'DA':>4}  {'Count':>6}  "
+        f"{'Rate':>8}  {'Classification':<18}  Name"
+    )
+    click.echo(header)
+    for item in summary.observed:
+        sa_text = f"0x{item.source_address:02X}"
+        if item.destination_address is not None:
+            da_text = f"0x{item.destination_address:02X}"
+        else:
+            da_text = "-"
+        if summary.duration_s and summary.duration_s > 0:
+            rate = item.frame_count / summary.duration_s
+            rate_text = f"{rate:.2f}/s"
+        else:
+            rate_text = "-"
+        name = item.display_name or "-"
+        click.echo(
+            f"{item.pgn:>6}  {sa_text:>4}  {da_text:>4}  {item.frame_count:>6}  "
+            f"{rate_text:>8}  {item.classification:<18}  {name}"
+        )
+        if len(item.reference_matches) > 1:
+            extra = ", ".join(
+                match.origin
+                for match in item.reference_matches
+                if match.origin != item.classification
+            )
+            if extra:
+                click.echo(f"{'':>6}  {'':>4}  {'':>4}  {'':>6}  {'':>8}  {'also:':<18}  {extra}")
+
+
 @session_group.command("summary")
 @click.argument("session_id")
 def session_summary(session_id: str) -> None:

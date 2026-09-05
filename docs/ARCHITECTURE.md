@@ -53,25 +53,39 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 
 Copyrighted standards content must not be parsed, stored, or reproduced in this repository without appropriate licence.
 
-## Verified data flow (desk unit, bench — no CAN bus)
+## Verified data flow (desk unit)
 
 ```text
-CANsub.2 (7413f810-usb.local)
+CANsub.2 (USB hostname or Ethernet)
   -> REST control/status (device info, channel status)
   -> WebSocket RX (wss://.../api/can/{channel}/ws)
   -> JsonlCaptureStore (data/sessions/<id>/frames.jsonl)
   -> SQLite session metadata
+  -> offline session analyze (core/analysis)
+  -> observed_pgns aggregates + reference catalogue lookup
 ```
 
-## Planned processing flow (not yet implemented)
+## Classification flow (implemented)
 
 ```text
 saved session (frames.jsonl)
-  -> J1939 identifier parser
+  -> J1939 identifier parser (core/j1939)
   -> PGN / source address / destination address
+  -> aggregate by PGN + SA (+ DA for PDU1)
   -> local reference catalogue lookup
-  -> classification: base J1939 / addition / ISOBUS / unknown
+  -> classification: j1939_base_2001 / j1939_addition / isobus_addition / unknown
 ```
+
+## Planned next processing (not yet implemented)
+
+```text
+classified session
+  -> SPN value decode (scaling, offsets)
+  -> base machine DBC generation (strict DBC compatibility reference)
+```
+
+Future generated DBCs must follow [strict_dbc_compatibility_reference.md](strict_dbc_compatibility_reference.md)
+for CSS webCAN-compatible conservative output.
 
 ## Full V1 target (includes future work)
 

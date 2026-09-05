@@ -1,27 +1,29 @@
 # V1 scope
 
-## Completed (desk bench testing — no CAN bus yet)
+## Completed (desk bench)
 
-- [x] CANsub.2 direct REST connection (configured hostname)
+- [x] CANsub.2 direct REST connection (configured hostname or Ethernet IP)
 - [x] Persistent local host config (`data/config.toml`)
 - [x] Read-only channel status (channels 1 and 2)
-- [x] WebSocket RX (idle verified; zero frames expected without bus)
+- [x] WebSocket RX
 - [x] Live capture with session metadata in SQLite
 - [x] JSONL `CaptureStore` for raw frames (`data/sessions/`)
+- [x] Real CAN bus capture — EDGE101 two-node bench (session `9622f81f1e67`, 116 frames)
+- [x] Offline J1939 session classification (`session analyze`)
 - [x] J1939 29-bit identifier parsing
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
 - [x] Windows-first CLI with `uv` workflow
 
-Verified desk baseline: firmware **02.04.00**, API **04.00**, host
-`7413f810-usb.local`. See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
+Verified desk baseline: firmware **02.04.00**, API **04.00**. USB host
+`7413f810-usb.local`; Ethernet bench used `192.168.50.39` during testing (not a
+permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 
 ## In scope (remaining V1)
 
-- [ ] Real CAN bus capture (non-zero frames)
-- [ ] Offline J1939/ISOBUS classification of saved sessions
+- [ ] SPN value decode from classified sessions
 - [ ] Build base machine/tractor DBC from capture session observations
-- [ ] Session summary (observed PGNs, source addresses, rates)
+- [ ] Session summary enhancements (rates, transport notes)
 - [ ] Basic correlation analysis and findings storage
 - [ ] MCP server exposing sessions, references, and DBC tools
 - [ ] CANsub.2 device discovery (USB + Ethernet scan)

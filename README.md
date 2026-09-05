@@ -5,8 +5,7 @@ Windows-first, CLI-first CAN research tool focused on **CSS Electronics CANsub.2
 ## Current status
 
 The following milestones are **complete** on the development desk unit (Device ID
-`7413f810`, firmware **02.04.00**, API **04.00**). Bench testing only — **no
-CAN bus has been connected**; zero-frame idle results are expected.
+`7413f810`, firmware **02.04.00**, API **04.00**).
 
 | Milestone | Status |
 |-----------|--------|
@@ -15,14 +14,15 @@ CAN bus has been connected**; zero-frame idle results are expected.
 | CANsub direct REST connection | Done |
 | Persistent configurable host | Done |
 | Read-only channel status | Done |
-| WebSocket RX (idle verified) | Done |
+| WebSocket RX | Done |
 | Persistent capture sessions (JSONL + SQLite) | Done |
+| Real CAN bus capture (EDGE101 bench) | Done |
+| Offline J1939 session classification | Done |
 
-**Next major milestone:** real CAN bus capture + offline J1939/ISOBUS
-classification (PGN / source address / destination address against the local
-reference catalogue). Actual tractor traffic has not been captured yet.
+**Next major milestone:** SPN-level decode and base machine DBC generation from
+classified sessions (following the repo strict DBC compatibility reference).
 
-Connection details, tested commands, and hostname/IP notes:
+Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
 
 ## V1 goal
@@ -74,6 +74,7 @@ canresearch device rx <channel>
 canresearch capture start --channel <n>
 canresearch session list
 canresearch session summary <session-id>
+canresearch session analyze <session-id>
 canresearch reference import-j1939 ...
 canresearch mcp serve
 ```

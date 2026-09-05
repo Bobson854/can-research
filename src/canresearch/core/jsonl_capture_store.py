@@ -36,13 +36,7 @@ class JsonlCaptureStore(CaptureStore):
     def iter_frames(self) -> Iterator[CanFrame]:
         if self._path is None:
             return iter(())
-        if not self._path.exists():
-            return iter(())
-        with self._path.open(encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if line:
-                    yield _frame_from_json(json.loads(line))
+        return iter_frames_from_path(self._path)
 
     def close(self) -> None:
         if self._handle is not None:
@@ -70,6 +64,17 @@ def _frame_to_json(frame: CanFrame) -> dict[str, Any]:
         "is_error_frame": frame.is_error_frame,
         "error_type": frame.error_type,
     }
+
+
+def iter_frames_from_path(path: Path) -> Iterator[CanFrame]:
+    """Iterate frames from a JSONL capture file."""
+    if not path.exists():
+        return iter(())
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                yield _frame_from_json(json.loads(line))
 
 
 def _frame_from_json(payload: dict[str, Any]) -> CanFrame:
