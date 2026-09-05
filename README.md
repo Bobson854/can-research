@@ -25,12 +25,21 @@ The following milestones are **complete** on the development desk unit (Device I
 | J1939 transport-protocol reassembly (BAM / RTS-CTS) | Done |
 | J1939 NAME / Address Claim → asset identity mapping | Done |
 | Read-only MCP session/research tools | Done |
-| Live CANsub.2 MCP research controls | Done |
+| Live CANsub.2 MCP research controls (passive) | Done |
 | Proprietary signal research primitives | Done |
-| Candidate review / confirmation workflow | Done |
+| Candidate review / confirmation workflow (CLI) | Done |
 | Asset research DBC generation (`<asset>_research.dbc`) | Done |
+| MCP analysis tools (`list_session_events`, `preview_candidate_values`) | Done |
+| Streamable HTTP MCP transport (`/mcp` on port 8765) | Done |
+| Multi-instance backend configuration (`instance_key`, `display_name`) | Done |
+| MCP instance identification (`get_instance_info`) | Done |
 
-**Next major milestone:** Guided live reverse-engineering workflow (orchestrate capture → compare → rank → present for human review; still stops before confirmation).
+**MCP software is ready for connector deployment.** The ChatGPT connector and OpenAI
+tunnel have **not** been installed or verified yet.
+
+**Next operational milestone:** Deploy/configure the first CAN Research MCP tunnel
++ ChatGPT connector per installation, then perform guided live reverse-engineering
+validation.
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -49,11 +58,12 @@ No GUI in V1. No bundled SAE J1939 database.
 |------|-------------|
 | Hardware | CANsub.2 via USB (configured hostname) or Ethernet |
 | Protocol | J1939/ISOBUS 29-bit identifier parsing and reference catalogue |
-| DBC | Import reference DBCs; generate asset-specific DBC from sessions |
+| DBC | Generate `<asset>_standard.dbc` from sessions; `<asset>_research.dbc` from confirmed candidates |
 | Assets | Registry of tractor/implement/controller devices with session links |
-| Capture | Session metadata in SQLite; raw frames in JSONL under `data/sessions/` |
-| MCP | Tools for sessions, references, and DBC operations |
-| Storage | SQLite for metadata, references, findings, DBC revisions |
+| Capture | Session metadata in SQLite; raw frames in JSONL under `{data_dir}/sessions/` |
+| Configuration | TOML at `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
+| MCP | 32 tools: stored/offline analysis, passive live CANsub research, signal research, instance identity |
+| Storage | SQLite for metadata, references, candidates, findings; frames outside SQLite |
 
 ## Licensed / private data
 
@@ -69,21 +79,31 @@ No GUI in V1. No bundled SAE J1939 database.
 
 ```powershell
 uv sync
+uv run canresearch config show
 uv run canresearch config set-host your-device-id-usb.local
 uv run canresearch device info
 uv run pytest
 ```
 
-Repository/development examples use `uv run canresearch ...`, which runs the CLI
-inside the project's uv-managed environment. A bare `canresearch ...` command only
-works if the package has separately been installed so its console script is
-available on PATH.
+Development defaults work without setting an instance (`instance_key = local`).
+For a named deployment (workshop laptop, travel laptop, etc.):
+
+```powershell
+uv run canresearch config set-instance --key workshop --name "CAN Research - Workshop"
+```
+
+Repository examples use `uv run canresearch ...`, which runs the CLI inside the
+project's uv-managed environment. A bare `canresearch ...` command only works if
+the package has separately been installed on PATH.
 
 ## CLI commands
 
 ```text
 uv run canresearch --help
 uv run canresearch config show
+uv run canresearch config set-instance --key <key> --name "<display name>"
+uv run canresearch config set-host <hostname-or-ip>
+uv run canresearch config set-data-dir <path>
 uv run canresearch device info
 uv run canresearch device channel-info <channel>
 uv run canresearch device rx <channel>
@@ -121,29 +141,93 @@ uv run canresearch research candidate evidence <candidate-id>
 uv run canresearch research dbc <asset-key> [--output path]
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch reference import-j1939 ...
-uv run canresearch mcp serve
-uv run canresearch mcp serve --transport streamable-http   # ChatGPT / OpenAI tunnel
 uv run canresearch mcp tools
 ```
 
-### MCP (read-only + live passive research)
+### MCP serving
 
-The MCP server exposes **19 read-only** tools (including `get_instance_info`) for stored sessions, reference lookups,
-transport inspection, J1939 node identity, research candidates, and in-memory DBC preview. It also exposes
-**7 live CANsub.2 research tools** for passive observation, controlled capture,
-experiment markers, and baseline/action window comparison.
+Both transports use the **same tool registry** (32 tools). Stdio is for desktop MCP
+clients; streamable HTTP is for OpenAI tunnel / ChatGPT connector deployment.
 
-**No CAN transmission tools** are registered. The agent operates CANsub.2 as a passive
-research instrument; physical actions remain human-in-the-loop.
+**Stdio (Cursor, Claude Desktop, etc.):**
+
+```powershell
+uv run canresearch mcp serve
+```
+
+**Streamable HTTP (local connector endpoint):**
+
+```powershell
+uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+```
+
+Standard deployment example endpoint:
+
+```text
+http://127.0.0.1:8765/mcp
+```
+
+Port **8765** is a project convention (avoids BLE Research on `8000`), not an MCP
+protocol requirement. Each laptop may use the same port because hosts differ.
+
+A plain `GET` to `/mcp` may return HTTP **400** (missing session ID). That does
+**not** mean the endpoint is down. Authoritative checks:
+
+```powershell
+uv run canresearch mcp tools
+uv run python scripts/mcp_verify_http.py
+```
+
+### MCP tool surface (32 total)
+
+| Group | Count | Purpose |
+|-------|-------|---------|
+| Read-only | 19 | Sessions, references, assets, candidates, DBC preview, instance identity |
+| Live / passive | 7 | CANsub status, capture, events, bounded live observation |
+| Signal research | 6 | Candidate evidence (rank, activity, counters, checksums, correlation) |
+
+**Read-only tools:** `get_instance_info`, `list_sessions`, `get_session`,
+`analyze_session`, `decode_session`, `inspect_transport`, `list_session_nodes`,
+`list_assets`, `get_asset`, `list_asset_nodes`, `lookup_pgn`, `lookup_spn`,
+`build_session_dbc_preview`, `list_research_candidates`, `get_research_candidate`,
+`list_candidate_evidence`, `preview_research_dbc`, `list_session_events`,
+`preview_candidate_values`.
+
+**Live tools (passive):** `get_cansub_device_status`, `get_cansub_channel_status`,
+`start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
+`mark_experiment_event`, `compare_experiment_windows`.
+
+**Signal research:** `rank_signal_candidates`, `analyze_can_id_activity`,
+`analyze_repeated_action`, `detect_counters`, `detect_checksums`,
+`correlate_candidate_field`.
+
+**MCP can:**
+
+- Inspect references, sessions, assets, nodes, candidates, and evidence
+- Preview standard and research DBCs in memory
+- Identify which CAN Research backend instance is connected (`get_instance_info`)
+- Observe live traffic, start/stop passive capture, mark experiment events
+- Compare experiment windows and run deterministic signal research
+
+**MCP cannot:**
+
+- Create, review, confirm, or reject research candidates (CLI-only human boundary)
+- Mutate confirmed DBC files or write DBCs to disk
+- Transmit CAN or perform arbitrary bus injection
+
+**No CAN transmission tools** are registered. Physical actions remain
+human-in-the-loop.
 
 Offline agent workflow:
 
-1. `list_sessions` → `get_session`
-2. `analyze_session` → `list_session_nodes`
-3. `lookup_pgn` / `lookup_spn`
-4. `decode_session` → `inspect_transport` (if needed)
-5. `get_asset` / `list_asset_nodes`
-6. `build_session_dbc_preview`
+1. `get_instance_info` (when multiple connectors may exist)
+2. `list_sessions` → `get_session`
+3. `analyze_session` → `list_session_nodes`
+4. `lookup_pgn` / `lookup_spn`
+5. `decode_session` → `inspect_transport` (if needed)
+6. `list_session_events` (recover experiment markers)
+7. `get_asset` / `list_asset_nodes`
+8. `build_session_dbc_preview` / `preview_candidate_values` (analysis only)
 
 Live experiment workflow:
 
@@ -155,37 +239,24 @@ Live experiment workflow:
 6. operator performs physical action
 7. `stop_live_capture`
 8. `compare_experiment_windows`
-9. `analyze_session` / `decode_session` / `lookup_pgn` as needed
+9. `rank_signal_candidates` / `analyze_can_id_activity` / … as needed
 
 `observe_live_traffic` provides bounded aggregated traffic (default 3s, max 15s;
 max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in_use`).
 
-Responses are bounded (default limits on decode rows, observed traffic, DBC preview
-lines, observation duration, and comparison windows).
+Connector deployment guides (not yet executed):
 
-ChatGPT connector setup: [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) (streamable-http +
-OpenAI tunnel profile per instance). Multi-laptop deployment: [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md).
+- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md)
+- [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md)
 
 ### Signal research (candidate evidence only)
 
 After capture and experiment marking, use deterministic research primitives to rank
 **candidates** — not confirmed signals. **No DBC files are modified automatically.**
 
-Research workflow:
-
-1. `compare_experiment_windows` or `session compare`
-2. `rank_signal_candidates` / `session research rank`
-3. `analyze_can_id_activity` / `session research id`
-4. `detect_counters` / `detect_checksums`
-5. `analyze_repeated_action` (3–5 deliberate repetitions strongly preferred)
-6. `correlate_candidate_field` with a reference series (SPN decode, CSV, operator values)
-
-MCP adds 6 read-only signal research tools (**32 MCP tools total**). Terminology uses *candidate*,
-*evidence*, *consistency*, and *correlation* for on-demand analysis.
-
 **Candidate ≠ confirmed.** Persisted candidates require explicit CLI review and confirmation
 before inclusion in `<asset_key>_research.dbc`. MCP exposes read-only candidate listing and
-research DBC preview only — confirmation/rejection stays CLI-only (human approval boundary).
+research DBC preview only.
 
 ### Candidate review → research DBC
 
@@ -204,46 +275,67 @@ confirmed
 Load `<asset_key>_standard.dbc` (reference-backed J1939) and `<asset_key>_research.dbc`
 (confirmed proprietary signals) together. No combined DBC is generated.
 
-Frame identity for candidates and research DBC grouping is `(is_extended, can_id)` — an
-11-bit standard frame and a 29-bit extended frame with the same numeric ID are distinct.
-Research DBC generation includes all confirmed candidates for an asset (MCP list limits
-do not apply internally).
+Frame identity for candidates and research DBC grouping is `(is_extended, can_id)`.
+
+### Multi-instance model
+
+Each laptop/backend is an **independent installation** with the same code and identical
+32-tool MCP schemas. There is **no central routing or shared backend** yet.
+
+| Concept | Meaning |
+|---------|---------|
+| **Instance** | Laptop/backend installation (`instance_key`, `display_name`) |
+| **CANsub** | Physical CAN interface currently reachable from that installation |
+| **Asset** | Machine/implement/controller being researched |
+| **Session** | One recorded research/capture session (UUID) |
+| **Connector** | ChatGPT route to one backend instance |
+
+Examples (deployment configuration only — not hard-coded in application logic):
+
+| | Workshop | Travel |
+|---|---|---|
+| `instance_key` | `workshop` | `travel` |
+| Local MCP | `http://127.0.0.1:8765/mcp` | `http://127.0.0.1:8765/mcp` |
+| Tunnel profile | `can-research-workshop` | `can-research-travel` |
+| ChatGPT app | CAN Research - Workshop | CAN Research - Travel |
+
+Same code, same MCP tool schemas, independent local data, independent tunnels/connectors.
+CANsub hardware may move between installations — configure `[cansub].host` per machine.
+
+See [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) for full detail.
 
 ### Agricultural workflow example
 
 ```powershell
-# Discover ECUs from Address Claim traffic
 uv run canresearch session nodes abc123
-
-# Link observed J1939 NAMEs to assets
 uv run canresearch asset node add jd_6155r_01 0xAABBCCDDEEFF0011
-uv run canresearch asset node add weedit_quadro_01 0x1122334455667788
-
-# Generate asset-specific DBCs (source addresses resolved from linked nodes)
 uv run canresearch session dbc abc123 --asset jd_6155r_01
-uv run canresearch session dbc abc123 --asset weedit_quadro_01
-
-# Manual override when needed
-uv run canresearch session dbc abc123 --asset jd_6155r_01 --source-address 0x00
 ```
-
-Asset-specific DBC generation resolves source addresses from J1939 NAMEs linked to
-the asset when `--source-address` is not supplied. If no linked nodes are observed
-in the session, the command fails with a clear message rather than including all
-session traffic.
 
 ## Project layout
 
 ```text
 src/canresearch/
   cli.py              CLI entry point
+  config.py           Instance, paths, CANsub configuration
   core/               J1939, DBC, references, sessions, analysis
   cansub/             CANsub.2 API, WebSocket RX, capture
-  mcp/                MCP server
+  mcp/                MCP server (stdio + streamable-http)
   storage/            SQLite metadata and migrations
+config/examples/      Workshop/travel deployment examples
+scripts/              MCP HTTP verification helper
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/V1_SCOPE.md](docs/V1_SCOPE.md).
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit connection notes, bench lessons, verified commands |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
+| [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope and success criteria |
+| [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance ChatGPT connector checklist (tunnel not yet deployed) |
+| [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Multi-laptop deployment model and configuration |
+| [docs/strict_dbc_compatibility_reference.md](docs/strict_dbc_compatibility_reference.md) | Strict DBC / webCAN compatibility target |
 
 ## License
 

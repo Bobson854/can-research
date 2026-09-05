@@ -91,9 +91,13 @@ This reflects tested bench behaviour on this setup, not a universal vendor requi
 ## Persistent configuration
 
 Local settings are stored in `data/config.toml` (gitignored). See
-`config.toml.example` for the template.
+`config.toml.example` for the template (`[instance]`, `[paths]`, `[cansub]`).
 
-Precedence:
+**Installation vs CANsub:** `instance_key` identifies the laptop/backend installation.
+`[cansub].host` identifies whichever CANsub.2 is currently attached — the same
+physical unit may move between installations; update the host when it moves.
+
+Precedence for CANsub host:
 
 1. CLI `--host` (explicit override)
 2. `[cansub].host` in `data/config.toml`
@@ -190,11 +194,12 @@ history and are not deleted automatically.
 
 ## Live MCP research (passive)
 
-The MCP server exposes live CANsub.2 research tools alongside read-only session tools.
-These are **passive only** — no CAN transmission, no autonomous experimentation.
+The MCP server exposes **32 tools** (19 read-only, 7 live, 6 signal research).
+Live tools are **passive only** — no CAN transmission, no autonomous experimentation.
 
 | Tool | Purpose |
 |------|---------|
+| `get_instance_info` | Backend installation identity (use when multiple connectors exist) |
 | `get_cansub_device_status` | Device ID, firmware, API version, channels |
 | `get_cansub_channel_status` | Bus state, counters, PHY config |
 | `start_live_capture` | Background capture → session JSONL |

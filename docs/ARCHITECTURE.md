@@ -4,6 +4,7 @@
 
 ```text
 canresearch/
+├── config.py   Local installation config ([instance], [paths], [cansub])
 ├── cansub/     Hardware and CSS Electronics CANsub.2 API access only
 ├── core/       Protocol logic, references, DBC, sessions, analysis
 ├── mcp/        AI-facing tool interface (MCP server)
@@ -36,7 +37,10 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
   repeated-action consistency, counter/checksum detection, reference correlation
 - Thin adapter over `core/` and `cansub/` — delegates to existing service APIs
 - **No CAN transmission** tools; **no automatic DBC mutation**; **no MCP confirmation**
-- Stdio for desktop MCP clients; streamable-http at `127.0.0.1:8765/mcp` for tunnel/ChatGPT
+- **stdio** and **streamable-http** transports share one server/tool registry via a thin
+  transport adapter in `serve()`; deployment endpoint is `/mcp` (port configurable;
+  **8765** in project examples)
+- **32 tools total:** 19 read-only, 7 live (passive), 6 signal research
 
 ```text
 AI agent
@@ -56,7 +60,7 @@ CAN Research core / cansub
   └─ research DBC generation (<asset>_research.dbc from confirmed candidates only)
 ```
 
-Read-only MCP tools: `list_sessions`, `get_session`, `analyze_session`,
+Read-only MCP tools: `get_instance_info`, `list_sessions`, `get_session`, `analyze_session`,
 `decode_session`, `inspect_transport`, `list_session_nodes`, `list_assets`,
 `get_asset`, `list_asset_nodes`, `lookup_pgn`, `lookup_spn`,
 `build_session_dbc_preview`, `list_research_candidates`, `get_research_candidate`,
@@ -72,12 +76,40 @@ Signal research MCP tools (evidence only): `rank_signal_candidates`,
 `detect_checksums`, `correlate_candidate_field`.
 
 **Candidate ≠ confirmed.** On-demand signal research tools do not modify DBC files.
-Persisted research candidates (schema v7) follow: `candidate → reviewed → confirmed`
-(or `rejected`). Only confirmed candidates are eligible for `<asset_key>_research.dbc`.
-MCP candidate tools are read-only; confirmation is CLI-only (human approval boundary).
+Persisted research candidates (introduced schema v7, current DB **schema v8**) follow:
+`candidate → reviewed → confirmed` (or `rejected`). Only confirmed candidates are
+eligible for `<asset_key>_research.dbc`. MCP candidate tools are read-only;
+confirmation is CLI-only (human approval boundary).
 Repeated-action consistency remains the strongest primitive for narrowing field candidates.
 
-Concurrency: one active capture per channel.
+Concurrency: **process-local** live capture registry — one active capture per channel
+per running installation/process (not shared across laptops or connectors).
+
+### Installation identity (`config.py`)
+
+- **`instance_key` / `display_name`** — stable backend/laptop identity in `data/config.toml`
+  (not derived from hostname; exposed via MCP `get_instance_info`)
+- **`paths.data_dir`** — root for SQLite and JSONL captures (default `data`)
+- **Separate from CANsub device identity** — `[cansub].host` for the CANsub.2 currently
+  attached; hardware may move between installations
+- **Separate from asset/session identity** — no instance prefix on UUIDs or asset keys;
+  each installation has an independent local datastore
+
+### MCP deployment paths (implemented)
+
+```text
+Desktop MCP client                    ChatGPT / remote connector
+        |                                        |
+   stdio transport                         OpenAI tunnel (per instance)
+        |                                        |
+        +--------> CAN Research MCP server <-----+
+                 (same 32-tool registry)
+                        |
+              core + storage + cansub (local)
+```
+
+Every installation exposes the **same MCP tool names and schemas**. Instance-specific
+details appear in configuration and `get_instance_info` results, not in per-instance tools.
 
 ### `storage/` — persistence
 
@@ -89,7 +121,7 @@ Concurrency: one active capture per channel.
 - **research_candidates** / **research_candidate_evidence** / **research_candidate_status_history** — persisted review workflow (schema v7+); frame-identity index (v8)
 - **asset_j1939_nodes** — persistent link between assets and J1939 NAME identities
 - Schema versioning via numbered migrations in `database.py`
-- Default path: `data/references/canresearch.db` (gitignored)
+- Default path: `{data_dir}/references/canresearch.db` (default `data_dir = data`, gitignored)
 
 ## External / licensed data
 
@@ -284,35 +316,44 @@ longer than 8 bytes where mappings exist).
 transported payloads are not exported as `BO_` messages (`transported_pgn_not_dbc_exportable`).
 Use `session tp` to inspect reassembled payloads.
 
-## Planned next processing (not yet implemented)
-
-```text
-Live CANsub.2 MCP research controls (device status, capture start/stop, event markers)
-```
-
-## Full V1 target (includes future work)
+## System overview (current)
 
 ```mermaid
-flowchart LR
-    CANsub[CANsub.2] --> cansub[cansub/]
-    cansub --> sessions[core/sessions]
-    sessions --> store[JSONL CaptureStore]
-    sessions --> sqlite[(SQLite metadata)]
-    sessions --> analysis[core/analysis]
-    analysis --> findings[(findings)]
-    references[core/references] --> sqlite
-    analysis --> dbc[core/dbc]
-    dbc --> revisions[(dbc_revisions)]
-    mcp[mcp/server] --> core
-    mcp --> storage
-    cli[cli.py] --> cansub
-    cli --> core
-    cli --> mcp
+flowchart TB
+    subgraph remote [Remote connector path]
+        ChatGPT[ChatGPT app per instance]
+        Tunnel[OpenAI tunnel can-research-instance_key]
+        ChatGPT --> Tunnel
+    end
+    subgraph local [Local installation]
+        HTTP["streamable-http /mcp :8765"]
+        STDIO[stdio transport]
+        MCP[mcp/server — 32 tools]
+        Core[core/]
+        Store[(SQLite + JSONL)]
+        CANsubHW[CANsub.2 local]
+        Tunnel --> HTTP
+        HTTP --> MCP
+        STDIO --> MCP
+        MCP --> Core
+        MCP --> Store
+        Core --> CANsubHW
+        CANsubHW --> Store
+    end
+    CLI[cli.py] --> Core
+    CLI --> MCP
+    Config[config.py instance/paths/cansub] --> Core
+    Config --> MCP
 ```
 
 ## Design decisions
 
 1. **Raw frame format** — JSON Lines for V1 (`JsonlCaptureStore`); Parquet deferred
 2. **CANsub API** — stdlib HTTP + `websockets`; accepts any `MAJOR.MINOR` version from device
-3. **MCP transport** — stdio for desktop clients; streamable-http at `http://127.0.0.1:8765/mcp` for tunnel/ChatGPT (see [MCP_CONNECTION.md](MCP_CONNECTION.md))
-4. **Reference import sources** — J1939/ISOBUS PDF importers implemented; DBC import scaffold remains
+3. **MCP transport** — stdio and streamable-http share one registry; thin adapter in
+   `serve()`; deployment endpoint `/mcp` (port **8765** in examples). See
+   [MCP_CONNECTION.md](MCP_CONNECTION.md) and [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md).
+4. **Multi-instance identity** — `instance_key`/`display_name` describe the installation,
+   not the CANsub or asset; independent local datastore per laptop; no central router.
+5. **Reference import sources** — J1939/ISOBUS PDF importers implemented; DBC import scaffold remains
+6. **Frame identity** — candidates and research DBC grouping use `(is_extended, can_id)`

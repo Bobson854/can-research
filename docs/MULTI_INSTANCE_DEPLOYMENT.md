@@ -174,6 +174,18 @@ not encoded in application logic.
 Each running CAN Research process maintains **process-local** live capture state
 (one active capture per channel). This is not shared across laptops or connectors.
 
+## Port 8765 on every laptop
+
+Using `http://127.0.0.1:8765/mcp` on workshop, travel, and other machines is fine.
+Each host is a different machine — ports do not collide across installations.
+
+## No central shared MCP endpoint
+
+There is currently **no mechanism** for multiple laptops to connect through one
+shared central CAN Research MCP backend or router. Each installation runs its own
+MCP server, datastore, and (future) tunnel profile. Central routing may be
+revisited later but is **not** current architecture and must not be implied by docs.
+
 ## What is explicitly out of scope
 
 - Central routing or shared MCP backend
@@ -181,8 +193,8 @@ Each running CAN Research process maintains **process-local** live capture state
 - Cloud databases or remote CANsub access
 - Instance-prefixed session/asset IDs in the database
 
-Central routing may be considered later; this milestone only makes independent
-multi-laptop deployment a first-class configuration concept.
+Central routing may be considered later; independent multi-laptop deployment is the
+current model.
 
 ## Verification checklist (per installation)
 

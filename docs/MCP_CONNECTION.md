@@ -1,10 +1,21 @@
 # CAN Research MCP connection
 
-Operational reference for exposing the CAN Research MCP server to ChatGPT via an
-OpenAI tunnel. See also:
+Per-instance operational guide for exposing a local CAN Research MCP server to ChatGPT
+via an OpenAI tunnel. **MCP software is ready; no ChatGPT connector or tunnel profile
+has been verified yet.**
+
+See also:
 
 - [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — three-layer troubleshooting
 - [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) — workshop/travel model
+
+## Three independent states
+
+These must **all** agree before tools work in ChatGPT:
+
+1. **Local MCP service** — 32 tools, initialize OK, correct `get_instance_info`
+2. **OpenAI tunnel** — healthy, targets `http://127.0.0.1:8765/mcp` on the same host
+3. **ChatGPT app** — published schema refreshed, app enabled in the chat/workspace
 
 ## Per-instance deployment record
 
@@ -158,7 +169,7 @@ creating the profile.
 | Local MCP HTTP verified | Yes — 32 tools, initialize OK |
 | `openai-tunnel-client` on Windows dev host | **Not installed** |
 | WSL / `/opt/openai-tunnel-client` | **Not available** on Windows dev host |
-| Profile `can-research` created | **Pending** — requires tunnel host access |
+| Profile `can-research-<instance_key>` created | **Pending** — requires tunnel host access |
 | BLE `ble-research` profile | **Not modified** (not present on this host) |
 
 ### Create profile (on tunnel host)
@@ -172,19 +183,19 @@ client's current CLI first — do not assume syntax:
 /opt/openai-tunnel-client profile show ble-research   # reference only — do not edit
 ```
 
-Create **one** new profile (example — adjust to actual client syntax):
+Create **one** new profile per instance (example — adjust to actual client syntax):
 
 ```bash
 # Example pattern; replace with commands from --help / ble-research service unit
-/opt/openai-tunnel-client profile create can-research \
+/opt/openai-tunnel-client profile create can-research-workshop \
   --target http://127.0.0.1:8765/mcp
-/opt/openai-tunnel-client profile start can-research
-/opt/openai-tunnel-client profile status can-research
+/opt/openai-tunnel-client profile start can-research-workshop
+/opt/openai-tunnel-client profile status can-research-workshop
 ```
 
 Verify:
 
-- Profile `can-research` exists separately from `ble-research`
+- Profile `can-research-<instance_key>` exists separately from `ble-research`
 - Target URL is `http://127.0.0.1:8765/mcp`
 - Process stays running; status shows connected/healthy
 - Stable tunnel URL is printed (record below once available)
@@ -197,7 +208,7 @@ Record when configured:
 |---|---|
 | Tunnel client path | `/opt/openai-tunnel-client` |
 | Tunnel client version | _TBD — run client `--version` on tunnel host_ |
-| Profile name | `can-research` |
+| Profile name | `can-research-<instance_key>` (e.g. `can-research-workshop`) |
 | Public tunnel URL | _TBD after profile start_ |
 
 ### Start / restart tunnel
@@ -205,8 +216,8 @@ Record when configured:
 Use the tunnel host's service manager or client CLI (same as BLE). Example:
 
 ```bash
-/opt/openai-tunnel-client profile restart can-research
-/opt/openai-tunnel-client profile status can-research
+/opt/openai-tunnel-client profile restart can-research-workshop
+/opt/openai-tunnel-client profile status can-research-workshop
 ```
 
 ## Layer 3 — ChatGPT app (manual)
@@ -217,8 +228,8 @@ Stop here until layers 1 and 2 are proven on the tunnel host.
 
 | Field | Value |
 |---|---|
-| Connector / app name | **CAN Research** |
-| Tunnel URL | _TBD — from `can-research` profile status_ |
+| Connector / app name | **CAN Research - \<display name\>** (e.g. CAN Research - Workshop) |
+| Tunnel URL | _TBD — from `can-research-<instance_key>` profile status_ |
 | Expected tools | **32** |
 | Authentication | **No auth** (internal read-only; match tunnel setup) |
 | Tool groups | 19 read-only / 7 live / 6 signal research |
@@ -246,7 +257,7 @@ Passive live (if CANsub available):
 | **1. Local MCP** | Wrong tool count locally | `uv run canresearch mcp tools`; `scripts/mcp_verify_http.py`; `pytest tests/test_mcp.py` | Code/deploy issue — fix before tunnel or ChatGPT |
 | **1. Local MCP** | Connection refused | Server process running? Port 8765 free? | Service not started or wrong port |
 | **1. Local MCP** | Initialize fails | Server logs; verify script output | Transport misconfiguration |
-| **2. Tunnel** | Tunnel unhealthy | `profile status can-research`; process list | Wrong target URL or local MCP down |
+| **2. Tunnel** | Tunnel unhealthy | `profile status can-research-<instance_key>`; process list | Wrong target URL or local MCP down |
 | **2. Tunnel** | Calls fail through tunnel | Curl/script against `127.0.0.1:8765/mcp` from tunnel host | Tunnel OK but backend unhealthy |
 | **2. Tunnel** | BLE broken after CAN setup | `ble-research` profile unchanged; still targets `:8000/mcp` | Accidental profile overwrite |
 | **3. ChatGPT app** | Stale/missing tools | App config tool count vs local 32 | Schema cache — refresh tunnel, re-check app, **new chat** |
@@ -259,7 +270,7 @@ Passive live (if CANsub available):
 - [x] Local initialize + 32-tool verification passed (2026-09-05)
 - [x] Multi-instance configuration (`instance_key`, `display_name`, `get_instance_info`)
 - [ ] CAN Research MCP running on tunnel host alongside tunnel client
-- [ ] Tunnel profile `can-research` healthy
-- [ ] ChatGPT app created with tunnel URL
+- [ ] Tunnel profile `can-research-<instance_key>` healthy
+- [ ] ChatGPT connector created with tunnel URL (not yet done)
 - [ ] Fresh-chat tool-name check passes
 - [ ] Read-only smoke test (`list_sessions(limit=5)`) passes in chat
