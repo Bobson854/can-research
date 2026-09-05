@@ -13,13 +13,14 @@ from typing import Any
 
 from canresearch.core.assets import get_asset_by_key, require_session_asset_link
 from canresearch.core.dbc_identifiers import sanitize_dbc_identifier
-from canresearch.core.dbc_position import signal_bit_range
+from canresearch.core.dbc_position import signal_bit_range, validate_classic_payload_field
 from canresearch.core.j1939 import parse_j1939_id
 from canresearch.core.research_frames import parse_can_id_fields
 from canresearch.storage.database import connect, default_db_path, initialize
 
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 200
+INTERNAL_PAGE_SIZE = 500
 
 
 class CandidateStatus(StrEnum):
@@ -257,6 +258,22 @@ def _validate_evidence_type(evidence_type: str) -> str:
     return value
 
 
+def _validate_field_definition(
+    *,
+    start_bit: int,
+    bit_length: int,
+    byte_order: str,
+) -> None:
+    try:
+        validate_classic_payload_field(
+            start_bit=start_bit,
+            bit_length=bit_length,
+            byte_order=byte_order,
+        )
+    except ValueError as exc:
+        raise ResearchCandidateError("invalid_field_definition", str(exc)) from exc
+
+
 def _infer_j1939_fields(can_id: int, *, is_extended: bool) -> dict[str, int | None]:
     fields = parse_can_id_fields(can_id, is_extended=is_extended)
     return {
@@ -275,6 +292,7 @@ def _collect_overlap_conflicts(
     *,
     asset_id: str,
     can_id: int,
+    is_extended: bool,
     start_bit: int,
     bit_length: int,
     exclude_candidate_id: str | None = None,
@@ -287,10 +305,16 @@ def _collect_overlap_conflicts(
         """
         SELECT id, signal_name, start_bit, bit_length
         FROM research_candidates
-        WHERE asset_id = ? AND can_id = ? AND status = ?
+        WHERE asset_id = ? AND can_id = ? AND is_extended = ? AND status = ?
           AND id != COALESCE(?, '')
         """,
-        (asset_id, can_id, CandidateStatus.CONFIRMED.value, exclude_candidate_id),
+        (
+            asset_id,
+            can_id,
+            1 if is_extended else 0,
+            CandidateStatus.CONFIRMED.value,
+            exclude_candidate_id,
+        ),
     ).fetchall()
     for row in rows:
         other_range = signal_bit_range(row["start_bit"], row["bit_length"])
@@ -387,13 +411,12 @@ def create_research_candidate(
     asset = get_asset_by_key(asset_key, db_path=path)
     require_session_asset_link(session_id, asset_key, db_path=path)
 
-    if start_bit < 0 or bit_length <= 0:
-        raise ResearchCandidateError(
-            "invalid_field_definition",
-            "start_bit must be >= 0 and bit_length must be > 0",
-        )
-
     byte_order_value = _validate_byte_order(byte_order)
+    _validate_field_definition(
+        start_bit=start_bit,
+        bit_length=bit_length,
+        byte_order=byte_order_value,
+    )
     signedness_value = _validate_signedness(signedness)
     classification_value = _validate_classification(classification)
 
@@ -497,6 +520,51 @@ def list_research_candidates(
     try:
         rows = conn.execute(query, params).fetchall()
         return [_row_to_candidate(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def list_all_confirmed_research_candidates(
+    asset_key: str,
+    *,
+    db_path: Path | None = None,
+    page_size: int = INTERNAL_PAGE_SIZE,
+) -> list[ResearchCandidateRecord]:
+    """Return all confirmed candidates for an asset (internal, unbounded pagination)."""
+    path = db_path or default_db_path()
+    initialize(path)
+    asset = get_asset_by_key(asset_key, db_path=path)
+
+    if page_size < 1:
+        msg = f"page_size must be >= 1, got {page_size}"
+        raise ValueError(msg)
+
+    results: list[ResearchCandidateRecord] = []
+    offset = 0
+    conn = connect(path)
+    try:
+        while True:
+            rows = conn.execute(
+                _candidate_select()
+                + """
+                WHERE rc.asset_id = ? AND rc.status = ?
+                ORDER BY rc.can_id ASC, rc.is_extended ASC, rc.start_bit ASC, rc.id ASC
+                LIMIT ? OFFSET ?
+                """,
+                (
+                    asset.id,
+                    CandidateStatus.CONFIRMED.value,
+                    page_size,
+                    offset,
+                ),
+            ).fetchall()
+            if not rows:
+                break
+            results.extend(_row_to_candidate(row) for row in rows)
+            if len(rows) < page_size:
+                break
+            offset += page_size
+        return results
     finally:
         conn.close()
 
@@ -772,6 +840,12 @@ def confirm_candidate(
             else candidate.classification
         )
 
+        _validate_field_definition(
+            start_bit=candidate.start_bit,
+            bit_length=candidate.bit_length,
+            byte_order=candidate.byte_order,
+        )
+
         requested_name = name.strip()
         dbc_signal_name = sanitize_dbc_identifier(requested_name)
         name_sanitized = requested_name != dbc_signal_name
@@ -785,6 +859,7 @@ def confirm_candidate(
             conn,
             asset_id=candidate.asset_id,
             can_id=candidate.can_id,
+            is_extended=candidate.is_extended,
             start_bit=candidate.start_bit,
             bit_length=candidate.bit_length,
             exclude_candidate_id=candidate_id,
@@ -811,21 +886,27 @@ def confirm_candidate(
         duplicate_name = conn.execute(
             """
             SELECT id FROM research_candidates
-            WHERE asset_id = ? AND can_id = ? AND status = ?
+            WHERE asset_id = ? AND can_id = ? AND is_extended = ? AND status = ?
               AND signal_name = ? AND id != ?
             """,
             (
                 candidate.asset_id,
                 candidate.can_id,
+                1 if candidate.is_extended else 0,
                 CandidateStatus.CONFIRMED.value,
                 dbc_signal_name,
                 candidate_id,
             ),
         ).fetchone()
         if duplicate_name is not None:
+            frame_label = (
+                f"0x{candidate.can_id:X} extended"
+                if candidate.is_extended
+                else f"0x{candidate.can_id:X} standard"
+            )
             raise ResearchCandidateError(
                 "duplicate_signal_name",
-                f"Signal name {dbc_signal_name!r} already confirmed on this CAN ID",
+                f"Signal name {dbc_signal_name!r} already confirmed on frame {frame_label}",
                 details={"conflicting_id": duplicate_name["id"]},
             )
 

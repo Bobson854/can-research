@@ -9,15 +9,15 @@ from pathlib import Path
 from canresearch import __version__
 from canresearch.core.assets import default_dbc_filename, get_asset_by_key
 from canresearch.core.dbc_generation import GenerationWarning
+from canresearch.core.dbc_identifiers import sanitize_dbc_identifier
 from canresearch.core.dbc_model import DbcDatabase, DbcMessage, DbcProvenance, DbcSignal
 from canresearch.core.dbc_position import encode_dbc_extended_id, signal_bit_range
 from canresearch.core.dbc_writer import render_dbc, write_dbc
 from canresearch.core.j1939 import parse_j1939_id
 from canresearch.core.research_candidates import (
     CandidateClassification,
-    CandidateStatus,
     ResearchCandidateRecord,
-    list_research_candidates,
+    list_all_confirmed_research_candidates,
 )
 from canresearch.storage.database import default_db_path, initialize
 
@@ -56,7 +56,21 @@ def _bit_ranges_overlap(a: tuple[int, int], b: tuple[int, int]) -> bool:
     return a[0] < b[1] and b[0] < a[1]
 
 
-def _research_message_name(candidate: ResearchCandidateRecord) -> str:
+def _frame_group_key(candidate: ResearchCandidateRecord) -> tuple[bool, int]:
+    return candidate.is_extended, candidate.can_id
+
+
+def _research_message_name_fallback(candidate: ResearchCandidateRecord) -> str:
+    if candidate.is_extended:
+        return sanitize_dbc_identifier(f"Research_{candidate.can_id:08X}")
+    return sanitize_dbc_identifier(f"Research_{candidate.can_id:03X}_11b")
+
+
+def _research_message_name(
+    candidate: ResearchCandidateRecord,
+    *,
+    used_names: set[str],
+) -> str:
     if candidate.is_extended and candidate.can_id <= 0x1FFFFFFF:
         try:
             parsed = parse_j1939_id(candidate.can_id)
@@ -65,10 +79,32 @@ def _research_message_name(candidate: ResearchCandidateRecord) -> str:
                 if candidate.source_address is not None
                 else parsed.source_address
             )
-            return f"Prop_PGN{parsed.pgn}_SA{sa:02X}"
+            if parsed.is_pdu1:
+                da = (
+                    candidate.destination_address
+                    if candidate.destination_address is not None
+                    else parsed.destination_address
+                )
+                if da is not None:
+                    raw = f"Prop_PGN{parsed.pgn}_SA{sa:02X}_DA{da:02X}"
+                else:
+                    raw = f"Prop_PGN{parsed.pgn}_SA{sa:02X}"
+            else:
+                raw = f"Prop_PGN{parsed.pgn}_SA{sa:02X}"
+            base = sanitize_dbc_identifier(raw)
+            if base not in used_names:
+                return base
         except ValueError:
             pass
-    return f"Research_{candidate.can_id:08X}"
+    fallback = _research_message_name_fallback(candidate)
+    if fallback not in used_names:
+        return fallback
+    disambiguated = sanitize_dbc_identifier(
+        f"{fallback}_ID{candidate.can_id:08X}"
+        if candidate.is_extended
+        else f"{fallback}_ID{candidate.can_id:03X}"
+    )
+    return disambiguated
 
 
 def _load_confirmed_candidates(
@@ -77,12 +113,7 @@ def _load_confirmed_candidates(
     db_path: Path,
     include_protocol_fields: bool,
 ) -> tuple[list[ResearchCandidateRecord], int]:
-    all_confirmed = list_research_candidates(
-        asset_key=asset_key,
-        status=CandidateStatus.CONFIRMED.value,
-        limit=200,
-        db_path=db_path,
-    )
+    all_confirmed = list_all_confirmed_research_candidates(asset_key, db_path=db_path)
     selected: list[ResearchCandidateRecord] = []
     skipped = 0
     for candidate in all_confirmed:
@@ -151,15 +182,17 @@ def generate_asset_research_dbc(
     )
     warnings: list[GenerationWarning] = []
 
-    by_can_id: dict[int, list[ResearchCandidateRecord]] = defaultdict(list)
+    by_frame: dict[tuple[bool, int], list[ResearchCandidateRecord]] = defaultdict(list)
     for candidate in candidates:
-        by_can_id[candidate.can_id].append(candidate)
+        by_frame[_frame_group_key(candidate)].append(candidate)
 
     messages: list[DbcMessage] = []
     signals_generated = 0
+    used_message_names: set[str] = set()
 
-    for can_id in sorted(by_can_id):
-        group = by_can_id[can_id]
+    for frame_key in sorted(by_frame, key=lambda key: (key[0], key[1])):
+        group = by_frame[frame_key]
+        is_extended, can_id = frame_key
         representative = group[0]
         used_names: set[str] = set()
         occupied: list[tuple[int, int]] = []
@@ -225,14 +258,17 @@ def generate_asset_research_dbc(
         if not dbc_signals:
             continue
 
+        message_name = _research_message_name(representative, used_names=used_message_names)
+        used_message_names.add(message_name)
+
         dbc_frame_id = (
             encode_dbc_extended_id(can_id)
-            if representative.is_extended
+            if is_extended
             else can_id
         )
         messages.append(
             DbcMessage(
-                name=_research_message_name(representative),
+                name=message_name,
                 can_id=can_id,
                 dbc_frame_id=dbc_frame_id,
                 dlc=DEFAULT_DLC,

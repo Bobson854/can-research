@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -386,6 +386,12 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_research_candidate_status_history
             ON research_candidate_status_history(candidate_id);
     """,
+    8: """
+        CREATE INDEX IF NOT EXISTS idx_research_candidates_frame
+            ON research_candidates(asset_id, is_extended, can_id);
+        CREATE INDEX IF NOT EXISTS idx_research_candidates_asset_status
+            ON research_candidates(asset_id, status);
+    """,
 }
 
 
@@ -429,6 +435,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v6(conn)
         elif version == 7:
             _migrate_v7(conn)
+        elif version == 8:
+            _migrate_v8(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -489,6 +497,16 @@ def _migrate_v7(conn: sqlite3.Connection) -> None:
     if _table_exists(conn, "research_candidates"):
         return
     conn.executescript(MIGRATIONS[7])
+
+
+def _migrate_v8(conn: sqlite3.Connection) -> None:
+    """Add frame-identity index for research candidates."""
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_research_candidates_frame'"
+    ).fetchone()
+    if row is not None:
+        return
+    conn.executescript(MIGRATIONS[8])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:

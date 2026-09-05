@@ -200,6 +200,11 @@ confirmed
 Load `<asset_key>_standard.dbc` (reference-backed J1939) and `<asset_key>_research.dbc`
 (confirmed proprietary signals) together. No combined DBC is generated.
 
+Frame identity for candidates and research DBC grouping is `(is_extended, can_id)` — an
+11-bit standard frame and a 29-bit extended frame with the same numeric ID are distinct.
+Research DBC generation includes all confirmed candidates for an asset (MCP list limits
+do not apply internally).
+
 ### Agricultural workflow example
 
 ```powershell

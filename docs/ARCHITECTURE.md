@@ -85,7 +85,7 @@ Concurrency: one active capture per channel.
 - **session_assets** — many-to-many link between sessions and assets with an explicit role
 - **j1939_nodes** — global J1939 NAME identity (64-bit ECU/node identity)
 - **j1939_node_observations** — session-specific source-address claims per node
-- **research_candidates** / **research_candidate_evidence** / **research_candidate_status_history** — persisted review workflow (schema v7)
+- **research_candidates** / **research_candidate_evidence** / **research_candidate_status_history** — persisted review workflow (schema v7+); frame-identity index (v8)
 - **asset_j1939_nodes** — persistent link between assets and J1939 NAME identities
 - Schema versioning via numbered migrations in `database.py`
 - Default path: `data/references/canresearch.db` (gitignored)
@@ -209,7 +209,9 @@ Proprietary/research DBC generation (implemented):
 
 ```text
 Confirmed research candidates (asset-owned, multi-session)
+  -> grouped by frame identity (is_extended, can_id)
   -> overlap validation vs other confirmed + reference-backed signals (best effort)
+  -> classic 8-byte payload bounds enforced at create/confirm
   -> exclude counter/checksum/reserved unless --include-protocol-fields
   -> deterministic DBC model (core/research_dbc + core/dbc_writer)
   -> <asset_key>_research.dbc

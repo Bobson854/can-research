@@ -357,7 +357,7 @@ def test_capture_cli_zero_frames(capture_env, monkeypatch: pytest.MonkeyPatch) -
 def test_schema_version_includes_session_columns(tmp_path: Path) -> None:
     db_path = tmp_path / "test.sqlite"
     conn = initialize(db_path)
-    assert SCHEMA_VERSION == 7
+    assert SCHEMA_VERSION == 8
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
     assert {"host", "channel"} <= columns
     conn.close()

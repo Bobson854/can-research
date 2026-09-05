@@ -60,6 +60,65 @@ def signal_bit_range(start_bit: int, bit_length: int) -> tuple[int, int]:
     return start_bit, start_bit + bit_length
 
 
+CLASSIC_CAN_PAYLOAD_BITS = 64
+
+
+def iter_motorola_dbc_bit_positions(start_bit: int, bit_length: int) -> tuple[int, ...]:
+    """Yield DBC bit positions occupied by a @0 (Motorola) signal.
+
+    Follows Vector/cantools big-endian layout: from MSB toward lower bits, wrapping
+    from bit 0 of a byte to bit 7 of the next byte.
+    """
+    positions: list[int] = []
+    pos = start_bit
+    for _ in range(bit_length):
+        positions.append(pos)
+        if pos % 8 == 0:
+            pos += 15
+        else:
+            pos -= 1
+    return tuple(positions)
+
+
+def validate_classic_payload_field(
+    *,
+    start_bit: int,
+    bit_length: int,
+    byte_order: str,
+    payload_bits: int = CLASSIC_CAN_PAYLOAD_BITS,
+) -> None:
+    """Raise ValueError if a field does not fit in a classic 8-byte CAN payload."""
+    if start_bit < 0:
+        msg = f"start_bit must be >= 0, got {start_bit}"
+        raise ValueError(msg)
+    if bit_length <= 0:
+        msg = f"bit_length must be > 0, got {bit_length}"
+        raise ValueError(msg)
+
+    order = byte_order.strip().lower()
+    if order == J1939_INTEL:
+        if start_bit + bit_length > payload_bits:
+            msg = (
+                f"signal extends past {payload_bits}-bit payload "
+                f"({start_bit + bit_length} > {payload_bits})"
+            )
+            raise ValueError(msg)
+        return
+
+    if order == J1939_MOTOROLA:
+        for pos in iter_motorola_dbc_bit_positions(start_bit, bit_length):
+            if pos < 0 or pos >= payload_bits:
+                msg = (
+                    f"Motorola signal extends past {payload_bits}-bit payload "
+                    f"(bit position {pos})"
+                )
+                raise ValueError(msg)
+        return
+
+    msg = f"byte_order must be 'intel' or 'motorola', got {byte_order!r}"
+    raise ValueError(msg)
+
+
 def decode_intel_dbc_signal(
     payload: bytes,
     *,
