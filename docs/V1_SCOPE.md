@@ -38,7 +38,9 @@ Verified desk baseline: firmware **02.04.00**, API **04.00**. USB host
 permanent address). See [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md).
 
 **MCP connector deployment** (OpenAI tunnel + ChatGPT app) is the next operational
-milestone — software is ready; connector not yet installed.
+milestone — software is ready; connector not yet installed. Guided proprietary signal
+trials should follow [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) and the
+[can-signal-research Skill](../skills/can-signal-research/SKILL.md).
 
 ## In scope (remaining V1)
 

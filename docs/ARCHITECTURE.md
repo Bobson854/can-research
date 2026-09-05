@@ -80,6 +80,12 @@ Persisted research candidates (introduced schema v7, current DB **schema v8**) f
 `candidate → reviewed → confirmed` (or `rejected`). Only confirmed candidates are
 eligible for `<asset_key>_research.dbc`. MCP candidate tools are read-only;
 confirmation is CLI-only (human approval boundary).
+
+**AI-guided proprietary research** (generative experiment planning + Skill orchestration)
+is documented in [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md). The Skill
+scaffold lives at `skills/can-signal-research/`. The generative layer plans experiments;
+MCP/core measures facts.
+
 Repeated-action consistency remains the strongest primitive for narrowing field candidates.
 
 Concurrency: **process-local** live capture registry — one active capture per channel

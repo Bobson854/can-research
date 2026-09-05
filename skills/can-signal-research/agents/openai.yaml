@@ -1,0 +1,21 @@
+interface:
+  display_name: "CAN Signal Research"
+  short_description: "Find proprietary CAN signals with guided physical experiments via CAN Research MCP."
+  default_prompt: >-
+    Help me find a proprietary CAN signal on my machine. Use the CAN Research MCP
+    connector, establish asset scope, account for known reference and confirmed DBC
+    signals first, then design a minimal physical experiment and analyze the evidence.
+    Ask me for physical actions in short steps; do not confirm candidates automatically.
+
+policy:
+  allow_implicit_invocation: true
+
+dependencies:
+  tools:
+    - type: mcp
+      value: can-research
+      description: >-
+        CAN Research MCP connector for this installation. Attach the operator's
+        configured connector (streamable HTTP tunnel to local `can-research mcp serve`).
+        Call get_instance_info when backend identity matters. Do not assume a specific
+        instance name or hostname — installations are independent (office, workshop, travel, etc.).

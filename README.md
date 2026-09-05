@@ -39,7 +39,8 @@ tunnel have **not** been installed or verified yet.
 
 **Next operational milestone:** Deploy/configure the first CAN Research MCP tunnel
 + ChatGPT connector per installation, then perform guided live reverse-engineering
-validation.
+validation using the [AI-guided signal research](docs/AI_GUIDED_SIGNAL_RESEARCH.md)
+workflow and [can-signal-research Skill](skills/can-signal-research/SKILL.md).
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -323,6 +324,7 @@ src/canresearch/
   mcp/                MCP server (stdio + streamable-http)
   storage/            SQLite metadata and migrations
 config/examples/      Workshop/travel deployment examples
+skills/               AI Skill scaffolds (e.g. can-signal-research)
 scripts/              MCP HTTP verification helper
 ```
 
@@ -330,6 +332,8 @@ scripts/              MCP HTTP verification helper
 
 | Document | Description |
 |----------|-------------|
+| [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) | AI + MCP + Skill workflow for proprietary signal discovery |
+| [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | ChatGPT/Codex Skill scaffold for guided research |
 | [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit connection notes, bench lessons, verified commands |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
 | [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope and success criteria |
