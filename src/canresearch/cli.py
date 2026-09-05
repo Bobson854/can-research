@@ -1437,6 +1437,15 @@ def mcp_group() -> None:
     """Run the MCP server for AI client integration."""
 
 
+@mcp_group.command("tools")
+def mcp_tools() -> None:
+    """List read-only MCP tools registered by the server."""
+    from canresearch.mcp.server import list_tool_names
+
+    for name in list_tool_names():
+        click.echo(name)
+
+
 @mcp_group.command("serve")
 @click.option("--host", default="127.0.0.1", help="Bind address for MCP server.")
 @click.option("--port", default=8765, type=int, help="Bind port for MCP server.")

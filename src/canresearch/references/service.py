@@ -486,6 +486,22 @@ class ReferenceService:
             (spn,),
         ).fetchall()
 
+    def spn_pgn_mappings(self, spn: int) -> list[sqlite3.Row]:
+        """Return PGN mapping rows referencing an SPN across origins."""
+        return self.conn.execute(
+            """
+            SELECT p.pgn, p.origin, p.name AS pgn_name, p.acronym,
+                   m.start_byte, m.start_bit, m.bit_length, m.raw_position_text,
+                   sp.name AS spn_name, sp.unit, sp.resolution
+            FROM reference_pgn_spns m
+            JOIN reference_pgns p ON p.id = m.pgn_id
+            LEFT JOIN reference_spns sp ON sp.id = m.spn_id
+            WHERE m.spn = ?
+            ORDER BY p.origin, p.pgn, m.position_order, m.id
+            """,
+            (spn,),
+        ).fetchall()
+
     def lookup_ddi(self, ddi: int) -> list[sqlite3.Row]:
         return self.conn.execute(
             """

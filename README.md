@@ -24,8 +24,9 @@ The following milestones are **complete** on the development desk unit (Device I
 | Asset-specific DBC provenance | Done |
 | J1939 transport-protocol reassembly (BAM / RTS-CTS) | Done |
 | J1939 NAME / Address Claim → asset identity mapping | Done |
+| Read-only MCP session/research tools | Done |
 
-**Next major milestone:** MCP session/DBC tools and live CANsub.2 research workflows.
+**Next major milestone:** Live CANsub.2 MCP research controls.
 
 Connection details, bench lessons, and tested commands:
 [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
@@ -100,7 +101,26 @@ uv run canresearch session asset list <session-id>
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch reference import-j1939 ...
 uv run canresearch mcp serve
+uv run canresearch mcp tools
 ```
+
+### MCP (read-only)
+
+The MCP server exposes **read-only** tools for stored sessions, reference lookups,
+transport inspection, J1939 node identity, and in-memory DBC preview. It does not
+control live capture, mutate assets, or write DBC files.
+
+Suggested agent workflow:
+
+1. `list_sessions` → `get_session`
+2. `analyze_session` → `list_session_nodes`
+3. `lookup_pgn` / `lookup_spn`
+4. `decode_session` → `inspect_transport` (if needed)
+5. `get_asset` / `list_asset_nodes`
+6. `build_session_dbc_preview`
+
+Responses are bounded (default limits on decode rows, observed traffic, DBC preview
+lines). Live CANsub.2 MCP controls are planned for a later milestone.
 
 ### Agricultural workflow example
 

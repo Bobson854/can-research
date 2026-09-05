@@ -366,6 +366,34 @@ def list_session_nodes(
     return views
 
 
+def lookup_asset_keys_for_nodes(
+    node_ids: Iterable[str],
+    *,
+    db_path: Path | None = None,
+) -> dict[str, str]:
+    """Map node IDs to linked asset keys (read-only)."""
+    ids = tuple(node_ids)
+    if not ids:
+        return {}
+    path = db_path or default_db_path()
+    conn = initialize(path)
+    try:
+        placeholders = ",".join("?" for _ in ids)
+        rows = conn.execute(
+            f"""
+            SELECT n.id, a.asset_key
+            FROM j1939_nodes n
+            JOIN asset_j1939_nodes aj ON aj.node_id = n.id
+            JOIN assets a ON a.id = aj.asset_id
+            WHERE n.id IN ({placeholders})
+            """,
+            ids,
+        ).fetchall()
+    finally:
+        conn.close()
+    return {str(row["id"]): str(row["asset_key"]) for row in rows}
+
+
 def link_asset_node(
     asset_key: str,
     name_text: str,

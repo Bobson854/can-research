@@ -213,6 +213,30 @@ def list_assets(*, db_path: Path | None = None, limit: int = 100) -> list[AssetR
     return [_row_to_asset(row) for row in rows]
 
 
+def list_sessions_for_asset(
+    asset_key: str,
+    *,
+    db_path: Path | None = None,
+) -> list[SessionAssetRecord]:
+    """Return session links for an asset (read-only)."""
+    asset = get_asset_by_key(asset_key, db_path=db_path)
+    conn = initialize(db_path or default_db_path())
+    try:
+        rows = conn.execute(
+            """
+            SELECT sa.*, a.asset_key, a.display_name, a.asset_type
+            FROM session_assets sa
+            JOIN assets a ON a.id = sa.asset_id
+            WHERE sa.asset_id = ?
+            ORDER BY sa.created_at DESC
+            """,
+            (asset.id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [_row_to_session_asset(row) for row in rows]
+
+
 def link_session_asset(
     session_id: str,
     asset_key: str,
