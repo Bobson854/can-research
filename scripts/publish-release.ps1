@@ -20,8 +20,23 @@ function Fail([string]$Message) {
 
 function Invoke-Git {
     param([string[]]$GitArgs)
-    $output = & git @GitArgs 2>&1
-    if ($LASTEXITCODE -ne 0) {
+
+    # Windows PowerShell 5.1 converts native stderr into ErrorRecord objects.
+    # With the script-wide ErrorActionPreference = Stop, harmless git status/progress
+    # output (for example from git fetch) can otherwise terminate the script even
+    # when git exits successfully. Temporarily allow native stderr, then decide
+    # success strictly from git's exit code.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = & git @GitArgs 2>&1
+        $gitExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($gitExitCode -ne 0) {
         Fail ("git {0} failed: {1}" -f ($GitArgs -join " "), ($output -join "`n"))
     }
     return $output
