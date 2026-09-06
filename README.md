@@ -60,8 +60,8 @@ bench validation**, not a finished autonomous reverse-engineering product.
 unknown remainder, passive-first inference, physical experiment only if needed, CLI
 confirm). See [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
 
-Connection details, bench lessons, and tested commands:
-[docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md).
+Connection details: [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) (public) ·
+[docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) (bench record).
 
 ## V1 goal
 
@@ -121,7 +121,64 @@ Safety boundaries unchanged: **passive / no CAN TX**, **32-tool MCP substrate**,
 
 ## Licensed / private data
 
-**Do not commit** SAE J1939, ISO 11783, or other licensed standards content. Parsed reference data built from your own licensed sources belongs under `references/private/` or `data/` (both gitignored). This repository ships **no** comprehensive J1939/ISOBUS database.
+**Do not commit** SAE J1939, ISO 11783, or other licensed standards content.
+
+Full policy and import options: [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md).
+
+Parsed reference data built from your own licensed sources belongs under `references/private/` or `data/` (both gitignored). This repository ships **no** comprehensive J1939/ISOBUS database.
+
+## Getting started
+
+CAN Research has three layers: **deterministic core** → **MCP (32 tools)** →
+**CAN Signal Research Skill** (generative orchestration in ChatGPT).
+
+```text
+CAN bus
+   ↓
+CANsub.2
+   ↓
+CAN Research core
+   ↓
+MCP
+   ↓
+ChatGPT / Codex / other MCP client
+   ↓
+CAN Signal Research Skill
+```
+
+### Installation path (new user)
+
+| Step | Action | Details |
+|------|--------|---------|
+| 1 | Install CAN Research | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
+| 2 | Configure CANsub.2 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) |
+| 3 | Configure local instance | `data/config.toml` — [INSTALLATION.md](docs/INSTALLATION.md) |
+| 4 | Start MCP | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) |
+| 5 | Connect ChatGPT / MCP client | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) |
+| 6 | Install CAN Signal Research Skill | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) |
+| 7 | Configure reference data | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
+| 8 | First passive validation | Preflight below |
+
+**Already installed?** After reboot, restart only MCP + tunnel — [MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot).
+
+**Multiple machines?** Each is self-contained — [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md).
+
+**Problems?** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+
+### First-run smoke test
+
+```powershell
+uv run canresearch device info
+uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+```
+
+With MCP connected in ChatGPT:
+
+```text
+get_instance_info → get_cansub_device_status → get_cansub_channel_status → observe_live_traffic
+```
+
+Confirm frames before research capture. Matches [Skill V2 preflight](skills/can-signal-research/SKILL.md).
 
 ## Requirements
 
@@ -129,7 +186,7 @@ Safety boundaries unchanged: **passive / no CAN TX**, **32-tool MCP substrate**,
 - [uv](https://docs.astral.sh/uv/) for environment and dependency management
 - Python 3.11+
 
-## Quick start
+## Quick start (minimal)
 
 ```powershell
 uv sync
@@ -138,6 +195,8 @@ uv run canresearch config set-host your-device-id-usb.local
 uv run canresearch device info
 uv run pytest
 ```
+
+For the full path see [Getting started](#getting-started) and [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
 Development defaults work without setting an instance (`instance_key = local`).
 For a named deployment (workshop laptop, travel laptop, etc.):
@@ -233,10 +292,9 @@ uv run python scripts/mcp_verify_http.py
 ```
 
 **Already installed?** After a Windows reboot, restart only the **MCP server** and
-**tunnel client** — the ChatGPT connector and installed Skill persist. Do not repeat
-one-time setup unless configuration was lost.
+**tunnel client** — the ChatGPT connector and installed Skill persist.
 
-→ [Normal startup after a reboot](docs/MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot)
+→ [Normal startup after reboot](docs/MCP_SETUP.md#normal-startup-after-reboot)
 
 ### MCP tool surface (32 total)
 
@@ -309,8 +367,9 @@ max 200 rows). It cannot run on a channel with an active capture (`channel_rx_in
 
 Connector deployment guides:
 
-- [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) — one-time install + **reboot startup** (canonical)
-- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) — per-instance checklist and verification state
+- [docs/MCP_SETUP.md](docs/MCP_SETUP.md) — **public** MCP + tunnel setup (canonical)
+- [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) — verified Office deployment record
+- [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) — per-instance checklist
 - [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md)
 
 ### Signal research (candidate evidence only)
@@ -393,16 +452,34 @@ scripts/              MCP HTTP verification helper
 
 ## Documentation
 
+### Installation and operations
+
+| Document | Description |
+|----------|-------------|
+| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Clone, uv, config, first-run smoke test |
+| [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
+| [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
+| [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | CAN Signal Research Skill install/update |
+| [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | Reference data policy and import options |
+| [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Decision guide for common failures |
+
+### Architecture and research
+
 | Document | Description |
 |----------|-------------|
 | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) | AI + MCP + Skill workflow for proprietary signal discovery |
-| [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | ChatGPT/Codex Skill scaffold for guided research |
-| [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit connection notes, bench lessons, verified commands |
+| [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | ChatGPT Skill source (canonical) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
-| [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope and success criteria |
-| [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) | One-time install + normal startup after reboot |
-| [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance ChatGPT connector (Office validated) |
-| [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Multi-laptop deployment model and configuration |
+| [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope |
+
+### Bench records (historical / deployment-specific)
+
+| Document | Description |
+|----------|-------------|
+| [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit bench notes and verified commands |
+| [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) | Office MCP/tunnel verified deployment |
+| [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance connector verification state |
 | [docs/strict_dbc_compatibility_reference.md](docs/strict_dbc_compatibility_reference.md) | Strict DBC / webCAN compatibility target |
 
 ## License

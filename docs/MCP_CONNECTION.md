@@ -1,5 +1,9 @@
 # CAN Research MCP connection
 
+> **Public canonical guide:** [MCP_SETUP.md](MCP_SETUP.md)
+>
+> This document retains **per-instance verification state** and Office deployment records.
+
 Per-instance operational guide for exposing a local CAN Research MCP server to ChatGPT
 via an OpenAI tunnel.
 
@@ -8,7 +12,8 @@ reboot recovery **2026-09-06** (MCP + tunnel restart only — connector and Skil
 
 See also:
 
-- [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — **normal startup after reboot** (near top) and one-time install sequence
+- [MCP_SETUP.md](MCP_SETUP.md) — **public** normal startup after reboot and one-time install
+- [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — Office verified deployment record
 - [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) — workshop/travel model
 
 ## Three independent states
@@ -225,7 +230,7 @@ Do **not** repeat one-time installation. After reboot, start only:
 
 Full commands, CMD vs PowerShell notes, and “do not recreate” list:
 
-[MCP_CONNECTOR_INSTALL_GUIDE.md — Normal startup after a reboot](MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot)
+[MCP_SETUP.md — Normal startup after reboot](MCP_SETUP.md#normal-startup-after-reboot)
 
 The ChatGPT connector and installed **can-signal-research** Skill persist across reboot.
 

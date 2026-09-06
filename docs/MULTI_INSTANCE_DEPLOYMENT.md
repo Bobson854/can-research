@@ -1,14 +1,33 @@
 # Multi-instance CAN Research deployment
 
+Each machine is **self-contained** — no central coordination server required.
+
+**Public guides:** [INSTALLATION.md](INSTALLATION.md) · [MCP_SETUP.md](MCP_SETUP.md) ·
+[SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
 CAN Research is designed so **each laptop/backend is an independent installation**
 with the same code and MCP tool schemas. Connectors, tunnels, and datastores are
 **not shared** in this milestone.
 
 See also:
 
-- [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — three-layer
-  troubleshooting (local MCP → tunnel → ChatGPT app)
+- [MCP_SETUP.md](MCP_SETUP.md) — public MCP + tunnel setup (canonical)
+- [MCP_CONNECTOR_INSTALL_GUIDE.md](MCP_CONNECTOR_INSTALL_GUIDE.md) — verified Office deployment record
 - [MCP_CONNECTION.md](MCP_CONNECTION.md) — per-instance connector checklist
+
+## Example: two independent machines
+
+```text
+Office machine                    Laptop / travel machine
+  local repo clone                  local repo clone
+  data/config.toml (office)         data/config.toml (travel)
+  local CANsub.2                    local CANsub.2
+  MCP http://127.0.0.1:8765/mcp     MCP http://127.0.0.1:8765/mcp
+  tunnel profile can-research-office  tunnel profile can-research-travel
+  ChatGPT connector (Office)          ChatGPT connector (Travel)
+```
+
+Same MCP port on each machine is fine — each host is a different computer.
 
 ## Model
 
@@ -56,7 +75,7 @@ The Skill must **not** hard-code Office backend identity. After connect, call
 `get_instance_info` to confirm which installation is active.
 
 Normal startup after reboot (two processes only):
-[MCP_CONNECTOR_INSTALL_GUIDE.md — Normal startup after a reboot](MCP_CONNECTOR_INSTALL_GUIDE.md#normal-startup-after-a-reboot).
+[MCP_SETUP.md — Normal startup after reboot](MCP_SETUP.md#normal-startup-after-reboot).
 
 ## Identity concepts (keep separate)
 

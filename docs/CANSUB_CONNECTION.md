@@ -1,5 +1,10 @@
 # CANsub.2 USB / Ethernet connection notes
 
+> **Public canonical guide:** [CANSUB_SETUP.md](CANSUB_SETUP.md)
+>
+> This document retains **desk-unit bench history**, verified firmware/API versions, and
+> tested command output from development hardware.
+
 Observed behaviour on the development desk unit (Device ID `7413f810`). This is
 **not** vendor-guaranteed documentation — it records what we have tested locally.
 
