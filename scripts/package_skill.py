@@ -45,7 +45,7 @@ def validate_skill_source(skill_dir: Path) -> str:
     if not desc_match:
         raise ValueError("SKILL.md frontmatter is missing description")
 
-    name = name_match.group(1).strip().strip('"\'')
+    name = name_match.group(1).strip().strip("\"'")
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", name):
         raise ValueError(f"Invalid Skill name: {name!r}")
     if skill_dir.name != name:
