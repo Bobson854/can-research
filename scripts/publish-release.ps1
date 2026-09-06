@@ -1,4 +1,4 @@
-﻿# Publish a CAN Research release: bump version, build, test, tag, push.
+# Publish a CAN Research release: bump version, build, test, tag, push.
 # GitHub Actions (.github/workflows/release.yml) publishes the Release asset when the tag lands.
 param(
     [Parameter(Mandatory = $true)]
@@ -48,7 +48,8 @@ function Get-CurrentVersion {
 function Get-ReleaseTag {
     param([string]$ReleaseVersion)
     $result = & uv run python scripts/publish_release.py tag-for-version --version $ReleaseVersion
-    if ($LASTEXITCODE -ne 0) { Fail "Invalid release version: $ReleaseVersion"
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Invalid release version: $ReleaseVersion"
     }
     return ($result | Select-Object -Last 1).Trim()
 }
@@ -93,7 +94,7 @@ if (-not $AllowDirty) {
         Fail "Working tree is dirty. Commit or stash changes, or pass -AllowDirty to override.`n$($porcelain -join "`n")"
     }
 } else {
-    Write-Host "[WARN] AllowDirty set - continuing with uncommitted changes.
+    Write-Host "[WARN] AllowDirty set - continuing with uncommitted changes."
 }
 
 Invoke-Git @("fetch", "origin") | Out-Null
@@ -118,7 +119,7 @@ try {
         Fail "Tag $tag already exists locally."
     }
 } catch {
- # tag absent - expected
+    # tag absent - expected
 }
 
 $remoteTag = & git ls-remote --tags origin "refs/tags/$tag" 2>$null
@@ -184,7 +185,7 @@ Write-Host "  Artifact: $artifact"
 Write-Host "  Commit:   Release v$Version"
 Write-Host ""
 Write-Host "  Next Git operations are irreversible without manual cleanup."
-Write-Host " Press Enter to commit, tag, and push - Ctrl+C to abort.
+Write-Host "  Press Enter to commit, tag, and push - Ctrl+C to abort."
 Write-Host "============================================================"
 [void][System.Console]::ReadLine()
 
