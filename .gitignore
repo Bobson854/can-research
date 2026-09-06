@@ -69,6 +69,11 @@ references/private/
 *.generated.dbc
 output/
 
+# Generated ChatGPT Skill deployment packages
+# Skill source under skills/<name>/ is canonical; build skill.zip locally with
+# scripts/package_skill.py before uploading to ChatGPT.
+skills/*/skill.zip
+
 # Secrets
 .env
 .env.*
