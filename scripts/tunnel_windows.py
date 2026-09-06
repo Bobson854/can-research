@@ -12,7 +12,6 @@ CONFIG_PATH = Path("data/config.toml")
 DEFAULT_HEALTH_HOST = "127.0.0.1"
 DEFAULT_HEALTH_PORT = 8081
 DEFAULT_INSTALL_DIR = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData/Local"))) / "CAN Research" / "tunnel-client"
-DEFAULT_EXE = DEFAULT_INSTALL_DIR / "tunnel-client.exe"
 
 
 def load_config() -> dict:
@@ -56,10 +55,9 @@ def source_candidates() -> list[Path]:
 
     for letter in "DEFGHIJKLMNOPQRSTUVWXYZ":
         root = Path(f"{letter}:/Downloads")
-        if not root.exists():
-            continue
-        candidates.extend(root.glob("tunnel-client*/tunnel-client.exe"))
-        candidates.extend(root.glob("tunnel-client.exe"))
+        if root.exists():
+            candidates.extend(root.glob("tunnel-client*/tunnel-client.exe"))
+            candidates.extend(root.glob("tunnel-client.exe"))
 
     seen: set[str] = set()
     unique: list[Path] = []
@@ -120,6 +118,11 @@ def status() -> int:
     print(f"       profile: {profile}")
     print(f"       health:  {host}:{port}")
 
+    if os.environ.get("CONTROL_PLANE_API_KEY"):
+        print("[OK]   CONTROL_PLANE_API_KEY is present in this process environment")
+    else:
+        print("[WARN] CONTROL_PLANE_API_KEY is not present in this process environment")
+
     if tcp_open(host, port):
         print("[OK]   tunnel health listener is reachable")
     else:
@@ -132,6 +135,7 @@ def status() -> int:
 def emit_env() -> int:
     cfg = settings()
     print(f'set "TUNNEL_EXE={cfg["exe"]}"')
+    print(f'set "TUNNEL_DIR={cfg["install_dir"]}"')
     print(f'set "TUNNEL_PROFILE={cfg["profile"]}"')
     print(f'set "TUNNEL_HEALTH_HOST={cfg["health_host"]}"')
     print(f'set "TUNNEL_HEALTH_PORT={cfg["health_port"]}"')
@@ -149,12 +153,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Windows OpenAI tunnel helper for CAN Research")
     parser.add_argument("command", choices=("install", "status", "env", "show"))
     args = parser.parse_args()
-    return {
-        "install": install,
-        "status": status,
-        "env": emit_env,
-        "show": show,
-    }[args.command]()
+    return {"install": install, "status": status, "env": emit_env, "show": show}[args.command]()
 
 
 if __name__ == "__main__":
