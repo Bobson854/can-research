@@ -26,3 +26,13 @@ data_dir = "data"
 host = "your-device-id-usb.local"
 timeout = 5.0
 verify_tls = false
+
+[tunnel]
+# OpenAI Secure MCP tunnel settings for this machine.
+# The default profile convention is can-research-<instance_key>.
+profile = "can-research-local"
+health_host = "127.0.0.1"
+health_port = 8081
+# Permanent per-user install location. Environment variables are expanded.
+# setup.cmd can migrate tunnel-client.exe here from a Downloads folder.
+install_dir = "%LOCALAPPDATA%\\CAN Research\\tunnel-client"
