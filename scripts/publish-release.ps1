@@ -1,4 +1,4 @@
-# Publish a CAN Research release: bump version, build, test, tag, push.
+﻿# Publish a CAN Research release: bump version, build, test, tag, push.
 # GitHub Actions (.github/workflows/release.yml) publishes the Release asset when the tag lands.
 param(
     [Parameter(Mandatory = $true)]
@@ -93,7 +93,7 @@ if (-not $AllowDirty) {
         Fail "Working tree is dirty. Commit or stash changes, or pass -AllowDirty to override.`n$($porcelain -join "`n")"
     }
 } else {
-    Write-Host "[WARN] AllowDirty set — continuing with uncommitted changes."
+    Write-Host "[WARN] AllowDirty set - continuing with uncommitted changes.
 }
 
 Invoke-Git @("fetch", "origin") | Out-Null
@@ -118,7 +118,7 @@ try {
         Fail "Tag $tag already exists locally."
     }
 } catch {
-    # tag absent — expected
+ # tag absent - expected
 }
 
 $remoteTag = & git ls-remote --tags origin "refs/tags/$tag" 2>$null
@@ -168,7 +168,7 @@ if (-not (Test-Path $artifact)) {
     Fail "Expected release artifact not found: $artifact"
 }
 $item = Get-Item $artifact
-Write-Host "       Artifact: $($item.FullName) ($($item.Length) bytes)"
+Write-Host ('       Artifact: {0} ({1} bytes)' -f $item.FullName, $item.Length)
 
 Write-Host "[4/6] Running release tests..."
 & uv run pytest tests/test_release_build.py -q
@@ -184,7 +184,7 @@ Write-Host "  Artifact: $artifact"
 Write-Host "  Commit:   Release v$Version"
 Write-Host ""
 Write-Host "  Next Git operations are irreversible without manual cleanup."
-Write-Host "  Press Enter to commit, tag, and push — Ctrl+C to abort."
+Write-Host " Press Enter to commit, tag, and push - Ctrl+C to abort.
 Write-Host "============================================================"
 [void][System.Console]::ReadLine()
 
