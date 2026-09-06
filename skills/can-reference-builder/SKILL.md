@@ -10,9 +10,14 @@ Convert messy reference material into the stable CAN Research normalized referen
 
 **Boundary:** interpret source material generatively; do not redesign CAN Research storage. The output contract is the integration point.
 
+When starting a **new** reference conversion or import on **Windows**, proactively suggest
+the **Downloads staging convention** — see
+[reference-ingest-staging.md](references/reference-ingest-staging.md).
+
 ## Required workflow
 
 ```text
+0. STAGE (Windows)      Downloads folder — original + output JSON together (recommended)
 1. IDENTIFY SOURCE       establish source_key + source type/visibility if known
 2. READ SOURCE           inspect text, tables, diagrams and page context
 3. MAP KNOWLEDGE         messages / signals / families / registers / faults / notes / enums
@@ -20,7 +25,7 @@ Convert messy reference material into the stable CAN Research normalized referen
 5. MARK UNCERTAINTY      omit unknown fields; use confidence only when useful
 6. CHECK STRUCTURE       apply Reference Bundle V1 rules
 7. OUTPUT BUNDLE         valid JSON, schema_version=1, matching source_key
-8. HANDOFF               validate/import through CAN Research CLI or onboarding workflow
+8. HANDOFF               validate/import through CAN Research CLI — see reference-ingest-staging.md
 ```
 
 ## Source handling rules
@@ -126,13 +131,16 @@ Before handing off, check:
 
 ## CAN Research handoff
 
-After bundle creation, guide the user through [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md):
+After bundle creation, guide the user through validate/import. On Windows, use Downloads
+staging paths — [reference-ingest-staging.md](references/reference-ingest-staging.md).
 
 ```powershell
-uv run canresearch reference bundle validate <bundle.json>
-uv run canresearch reference bundle import <bundle.json>
+uv run canresearch reference bundle validate "$env:USERPROFILE\Downloads\<source_key>_reference.json"
+uv run canresearch reference bundle import "$env:USERPROFILE\Downloads\<source_key>_reference.json"
 uv run canresearch reference search "<known term>"
 ```
+
+Public workflow reference: [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md)
 
 The Skill must **not** call import or modify the database directly.
 
@@ -153,7 +161,8 @@ If the V1 contract cannot faithfully represent an important source construct, re
 
 ## References
 
-- [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md) — canonical operator workflow
+- [reference-ingest-staging.md](references/reference-ingest-staging.md) — Windows Downloads staging + validate/import
+- [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md) — canonical public operator workflow
 - [reference-bundle-v1.md](references/reference-bundle-v1.md) — normalized contract and validation guidance
 - [reference-bundle-v1.schema.json](references/reference-bundle-v1.schema.json) — current machine-readable schema snapshot
 - [extraction-patterns.md](references/extraction-patterns.md) — how to map common document shapes
