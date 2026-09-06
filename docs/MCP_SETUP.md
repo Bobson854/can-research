@@ -25,7 +25,7 @@ Once configured **once**, do **not** repeat full installation. Start only:
 
 ### Terminal 1 — CAN Research MCP
 
-From your repository root:
+From your repository or install root (or use **`start-can-research.cmd`** on Windows):
 
 ```powershell
 uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
@@ -116,7 +116,9 @@ localhost independently — the same port on different laptops does not conflict
 A plain `GET` to `/mcp` may return HTTP **400** (missing session ID). That does **not**
 mean the server is down — use `mcp tools` or `mcp_verify_http.py`.
 
-### 2. Stdio transport (Cursor, Claude Desktop, etc.)
+### 2. Stdio transport (Claude Desktop, developer tools)
+
+For desktop MCP clients that use stdio — see [AI_INTEGRATION.md](AI_INTEGRATION.md):
 
 For desktop MCP clients that use stdio:
 

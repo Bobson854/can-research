@@ -1,6 +1,7 @@
 # CAN Research Skills — installation
 
-Install and update the CAN Research Skills in ChatGPT (or compatible hosts).
+Install and update CAN Research **ChatGPT Skills**. MCP connection and frontend setup:
+[AI_INTEGRATION.md](AI_INTEGRATION.md) — not duplicated here.
 
 ## Canonical source vs deployment package
 
@@ -8,24 +9,24 @@ The repository stores **Skill source only**. Generated `skill.zip` files are loc
 
 ```text
 repo Skill source
-  → package locally
+  → package locally (developers) or use release-provided archives
   → upload skill.zip to ChatGPT
   → installed Skill
 ```
 
-Git history is the version history. Keep Skill names stable; do not create `v2` / `v3` copies in ChatGPT.
+Keep Skill names stable; do not create `v2` / `v3` copies in ChatGPT.
 
 Current Skills:
 
 | Skill | Purpose |
 |------|---------|
-| `can-onboarding` | Fresh-machine setup, CANsub, MCP, Skills, reference onboarding, smoke tests |
+| `can-onboarding` | Fresh-machine setup, CANsub, MCP verification, reference checks, smoke tests |
 | `can-reference-builder` | Convert user-owned CAN manuals/tables into Reference Bundle V1 JSON |
 | `can-signal-research` | Known-first proprietary CAN signal research |
 
-## Build skill.zip locally
+## Build skill.zip locally (developers / maintainers)
 
-From the repository root, use the repo packaging script:
+From the repository root:
 
 ```powershell
 uv run python scripts/package_skill.py skills/can-onboarding
@@ -33,108 +34,65 @@ uv run python scripts/package_skill.py skills/can-reference-builder
 uv run python scripts/package_skill.py skills/can-signal-research
 ```
 
-Or build all three in one command:
+Or all three:
 
 ```powershell
 uv run python scripts/package_skill.py skills/can-onboarding skills/can-reference-builder skills/can-signal-research
 ```
 
-Each command writes:
-
-```text
-skills/<skill-name>/skill.zip
-```
-
-The script:
-
-- verifies `SKILL.md` exists
-- verifies `agents/openai.yaml` exists
-- checks the Skill directory name matches frontmatter `name`
-- packages exactly one top-level Skill folder
-- excludes generated/local hidden files
-- runs ZIP CRC/integrity validation
-- checks required archive members
-- enforces the 25 MiB upload limit
-- prints SHA-256 for the finished archive
-
-`skill.zip` is ignored by Git. If it disappears after a fresh clone, rebuild it locally; that is expected.
+Each command writes `skills/<skill-name>/skill.zip`. Release ZIPs may include pre-built archives — check your release notes.
 
 ## Install in ChatGPT
 
-1. Build the required `skill.zip` locally.
+1. Obtain `skill.zip` (build locally or from release).
 2. Open ChatGPT **Skills** (`/skills`).
 3. Upload **one `skill.zip` at a time**.
-4. Do not manually unzip it first.
+4. Do not manually unzip before upload.
 5. Enable the Skill as required by the UI.
 
-For an update, replace/reinstall the existing Skill using a newly built archive.
+For an update, replace/reinstall using a newly built archive.
 
-## Fresh laptop recommended order
+## Recommended install order
 
 ```text
-1. git clone / git pull
-2. uv sync
-3. build can-onboarding skill.zip
-4. install can-onboarding
-5. follow onboarding flow
-6. build/install can-reference-builder when reference material is ready
-7. build/install can-signal-research before research
+1. CAN Research installed (setup.cmd) and MCP running (start-can-research.cmd)
+2. ChatGPT MCP connector connected — AI_INTEGRATION.md
+3. can-onboarding
+4. can-reference-builder (when reference material exists)
+5. can-signal-research (before proprietary research)
 ```
+
+Start **can-onboarding** after MCP is connected. Parallel human path: [USER_ONBOARDING.md](USER_ONBOARDING.md).
 
 ## Verification after install
 
 ### `can-onboarding`
 
-Ask it to continue setup from the current machine state. It should verify rather than assume and should distinguish PowerShell vs CMD where relevant.
+Ask it to continue setup from the current machine state. It should verify rather than assume.
 
 ### `can-reference-builder`
 
-Give it a user-owned CAN reference document and a registered `source_key`. It should
-produce Reference Bundle V1-compatible structured output while preserving provenance and
-uncertainty, then hand off to the workflow in [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md).
+Provide a user-owned document and registered `source_key`. Output should match Reference Bundle V1; hand off to [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md).
 
 ### `can-signal-research`
 
-With the CAN Research MCP connector attached, it should confirm backend identity, run live preflight, inventory known references/DBCs first, and isolate the proprietary remainder before experiments.
-
-## MCP version check
-
-Do not treat a historical tool count in documentation as permanent. Verify the current local registry with:
-
-```powershell
-uv run canresearch mcp tools
-```
-
-Then confirm the ChatGPT connector exposes the same intended surface.
+With MCP attached: confirm `get_instance_info`, run live preflight, inventory known references/DBCs before experiments.
 
 ## Update workflow
 
 ```text
-observed weakness / new capability
-  ↓
-edit canonical source under skills/<name>/
-  ↓
-review references and SKILL.md
-  ↓
-package locally with scripts/package_skill.py
-  ↓
-ZIP integrity check passes
-  ↓
-replace installed Skill in ChatGPT
-  ↓
-benchmark again
+edit skills/<name>/ source
+  → uv run python scripts/package_skill.py skills/<name>
+  → replace installed Skill in ChatGPT
 ```
 
 ## Private/reference material
 
-Do not bundle SAE/ISO/OEM licensed source documents into Skills. Skills may contain public instructions/schema snapshots, but private/licensed originals stay in the configured local CAN Research reference-source area.
+Do not bundle SAE/ISO/OEM licensed source documents into Skills.
 
 ## Related
 
-- [INSTALLATION.md](INSTALLATION.md) — clone, uv, config
-- [MCP_SETUP.md](MCP_SETUP.md) — MCP + tunnel + connector
-- [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) — manual → bundle operator workflow
-- [REFERENCE_DATA.md](REFERENCE_DATA.md) — reference-source and bundle model
-- [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end new-user path
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — connector and channel issues
-- [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) — independent installations
+- [AI_INTEGRATION.md](AI_INTEGRATION.md) — MCP + frontend connection (ChatGPT primary)
+- [INSTALLATION.md](INSTALLATION.md) — software install
+- [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end path
+- [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) — reference bundle workflow

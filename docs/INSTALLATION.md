@@ -1,40 +1,110 @@
 # Installation
 
-General installation guide for CAN Research on a new machine.
+Software installation for CAN Research on Windows.
 
-**Validated path:** Windows-first (desk and bench testing). Linux and macOS may work for
-development where dependencies are available, but the primary supported workflow today is
-Windows + CANsub.2 + `uv`.
+**Two supported paths:**
 
-## Architecture (three layers)
+| Path | Audience | Start here |
+|------|----------|------------|
+| **Release ZIP** | Ordinary Windows users | Extract ZIP → `setup.cmd` |
+| **Git + uv** | Developers / contributors | Clone → `uv sync` |
+
+You do **not** need Git, Cursor, or an IDE for normal CAN Research use.
+
+After install, connect AI: [AI_INTEGRATION.md](AI_INTEGRATION.md) · CANsub: [CANSUB_SETUP.md](CANSUB_SETUP.md)
+
+---
+
+## Windows prerequisites
+
+| Requirement | Notes |
+|-------------|--------|
+| **Windows 10/11** | Primary supported platform |
+| **[uv](https://docs.astral.sh/uv/)** | Required — manages Python and dependencies |
+| **Python 3.11+** | Installed automatically by uv on first sync if missing |
+| **CANsub.2** | Optional at install time; required for live CAN work |
+| **Git** | **Developers only** — not required for release ZIP install |
+
+CAN Research does **not** install uv or Python for you inside `setup.cmd`. If `uv` is missing,
+`setup.cmd` prints a clear message with the official install link.
+
+Linux/macOS may work for development where dependencies are available; the validated
+end-user path is **Windows + CANsub.2**.
+
+---
+
+## Release ZIP installation (recommended for users)
+
+Intended flow for someone who downloaded a release archive (no Git).
+
+### 1. Extract
+
+Extract the ZIP to a permanent folder, for example:
 
 ```text
-CAN bus
-   ↓
-CANsub.2
-   ↓
-CAN Research core          ← deterministic capture, parsing, reference lookup, evidence
-   ↓
-MCP (41 tools — verify with `mcp tools`)  ← bounded access to core capabilities
-   ↓
-ChatGPT / Codex / other MCP client
-   ↓
-CAN Research Skills (onboarding, reference-builder, signal-research)
+C:\CAN Research\can-research
 ```
 
-Repo source is **canonical**. Installed ChatGPT Skills, tunnel profiles, and connector
-configuration are **deployment artifacts** on each machine.
+Open that folder. Read `README-FIRST.txt` at the top level.
 
-## Requirements
+### 2. Run setup
 
-| Item | Notes |
-|------|--------|
-| Python | 3.11+ |
-| [uv](https://docs.astral.sh/uv/) | Environment and dependency management |
-| Git | Clone this repository |
-| CANsub.2 | Optional at install time; required for live CAN work |
+Double-click **`setup.cmd`** or from Command Prompt:
 
-## 1. Clone and install dependencies
+```cmd
+cd /d C:\CAN Research\can-research
+setup.cmd
+```
+
+`setup.cmd` will:
+
+- Verify `uv` is on PATH
+- Run `uv sync`
+- Create `data\config.toml` from `config.toml.example` if missing
+- Verify `uv run canresearch` works
+- Print next steps
+
+### 3. Configure (first run)
+
+Edit `data\config.toml`:
+
+```toml
+[instance]
+instance_key = "workshop"
+display_name = "CAN Research - Workshop"
+
+[cansub]
+host = "your-device-id-usb.local"
+```
+
+Or use CLI after setup:
+
+```powershell
+uv run canresearch config set-instance --key workshop --name "CAN Research - Workshop"
+uv run canresearch config set-host your-device-id-usb.local
+```
+
+### 4. Start CAN Research
+
+Run **`start-can-research.cmd`** — leaves MCP listening at:
+
+```text
+http://127.0.0.1:8765/mcp
+```
+
+Leave that window open while using AI. Health check: **`status.cmd`**
+
+### 5. Connect AI and Skills
+
+[AI_INTEGRATION.md](AI_INTEGRATION.md) · [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) · [USER_ONBOARDING.md](USER_ONBOARDING.md)
+
+---
+
+## Developer installation (Git + uv)
+
+For contributors and anyone working from source control.
+
+### 1. Clone and sync
 
 ```powershell
 git clone <your-repo-url> can-research
@@ -42,16 +112,18 @@ cd can-research
 uv sync
 ```
 
-All CLI examples in this project use:
+All CLI examples use:
 
 ```powershell
 uv run canresearch ...
 ```
 
-A bare `canresearch` command only works if the package has been separately installed
-on `PATH` — not required for normal use.
+### 2. Configuration
 
-## 2. Verify the CLI
+Same as release path — copy `config.toml.example` to `data\config.toml` or run `setup.cmd`
+(which performs the same config bootstrap).
+
+### 3. Verify
 
 ```powershell
 uv run canresearch --help
@@ -59,122 +131,120 @@ uv run canresearch config show
 uv run pytest
 ```
 
-Without a config file, development defaults apply:
+Developers start MCP directly or use `start-can-research.cmd`:
+
+```powershell
+uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+```
+
+---
+
+## Install directory layout
+
+After setup, expect:
 
 ```text
-instance_key = local
-display_name = CAN Research (local)
+can-research/                 ← install root (extract or clone)
+  setup.cmd
+  start-can-research.cmd
+  status.cmd
+  README-FIRST.txt
+  data/                       ← local only (gitignored in dev clones)
+    config.toml
+    references/
+    sessions/
+    reference_sources/
+  docs/
+  skills/
+  src/
+  config.toml.example
 ```
 
-## 3. Create local configuration
+Local data defaults under `data/` unless overridden in config.
 
-Copy the example config and edit for your machine:
-
-```powershell
-copy config.toml.example data\config.toml
-```
-
-On Linux/macOS:
-
-```bash
-mkdir -p data
-cp config.toml.example data/config.toml
-```
-
-Edit `data/config.toml`:
-
-```toml
-[instance]
-instance_key = "workshop"
-display_name = "CAN Research - Workshop"
-
-[paths]
-data_dir = "data"
-
-[cansub]
-host = "your-device-id-usb.local"
-timeout = 5.0
-verify_tls = false
-```
-
-Or use the CLI:
-
-```powershell
-uv run canresearch config set-instance --key workshop --name "CAN Research - Workshop"
-uv run canresearch config set-host your-device-id-usb.local
-uv run canresearch config show
-```
-
-`data/` is gitignored — do not commit machine-specific settings.
-
-Multi-instance examples: `config/examples/workshop.toml.example`,
-`config/examples/travel.toml.example`.
-
-## 4. Local data directory
-
-By default CAN Research stores:
-
-| Purpose | Path |
-|---------|------|
-| Config | `data/config.toml` |
-| SQLite metadata + references | `data/references/canresearch.db` |
-| Capture frames (JSONL) | `data/sessions/<session-id>/frames.jsonl` |
-
-Override the root:
+Override data root:
 
 ```powershell
 uv run canresearch config set-data-dir D:\CANResearch\workshop-data
 ```
 
-## 5. Next steps
+| Purpose | Default path |
+|---------|----------------|
+| Config | `data/config.toml` |
+| SQLite metadata + references | `data/references/canresearch.db` |
+| Capture frames (JSONL) | `data/sessions/<session-id>/frames.jsonl` |
+| Reference source registry | `data/reference_sources/` |
+
+`data/` must not be committed — machine-specific and may contain private reference material.
+
+Multi-instance examples: `config/examples/workshop.toml.example`, `config/examples/travel.toml.example`
+
+---
+
+## Upgrading
+
+### Release ZIP install
+
+1. Stop MCP (close `start-can-research.cmd` window)
+2. Extract the **new release** over your install folder **or** extract beside the old folder and copy `data\` across
+3. Run **`setup.cmd`** again (`uv sync`)
+4. Run **`status.cmd`**
+5. Reconnect AI client if needed; Skills may need reinstall per [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md)
+
+Preserve **`data\`** — it holds config, captures, and reference knowledge.
+
+### Developer install
+
+```powershell
+git pull
+uv sync
+uv run pytest
+```
+
+Restart MCP after upgrade.
+
+---
+
+## Uninstall / removal
+
+CAN Research is **portable** — no system-wide installer.
+
+To remove:
+
+1. Stop MCP (`start-can-research.cmd` window)
+2. Delete the install folder (e.g. `C:\CAN Research\can-research`)
+3. Remove ChatGPT connector / tunnel profile / Skills in ChatGPT manually if configured
+4. Optionally delete `%USERPROFILE%\.local\bin\uv` only if you installed uv solely for CAN Research
+
+Your **`data\`** folder contains all local research data — back it up before deletion if needed.
+
+---
+
+## Next steps
 
 | Step | Document |
 |------|----------|
 | Connect CANsub.2 | [CANSUB_SETUP.md](CANSUB_SETUP.md) |
-| Add your CAN knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) · [USER_ONBOARDING.md](USER_ONBOARDING.md) |
-| Start MCP + ChatGPT connector | [MCP_SETUP.md](MCP_SETUP.md) |
-| Install CAN Signal Research Skill | [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
-| Provide J1939/ISOBUS reference data | [REFERENCE_DATA.md](REFERENCE_DATA.md) |
-| Multiple laptops / machines | [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) |
+| Connect AI frontend | [AI_INTEGRATION.md](AI_INTEGRATION.md) |
+| Install ChatGPT Skills | [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
+| End-to-end onboarding | [USER_ONBOARDING.md](USER_ONBOARDING.md) |
+| ChatGPT tunnel (if used) | [MCP_SETUP.md](MCP_SETUP.md) |
+| Multiple machines | [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) |
 | Problems | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 
-## First-run smoke test
+---
 
-After CANsub is configured:
-
-```powershell
-# 1. Start MCP (separate terminal — see MCP_SETUP.md)
-uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
-
-# 2. Local checks
-uv run canresearch mcp tools
-uv run python scripts/mcp_verify_http.py
-uv run canresearch device info
-uv run canresearch device channel-info 1
-```
-
-In ChatGPT (with MCP connected), run the live preflight sequence:
+## Architecture (reference)
 
 ```text
-get_instance_info
-get_cansub_device_status
-get_cansub_channel_status
-observe_live_traffic
+CAN bus → CANsub.2 → CAN Research core → MCP → AI client (+ Skills where supported)
 ```
 
-Confirm frames are present before starting research capture. This aligns with the
-[CAN Signal Research Skill](../skills/can-signal-research/SKILL.md) V2 preflight.
+MCP tool count: verify with `uv run canresearch mcp tools` (baseline 41).
 
-## 6. Reference onboarding (second laptop)
-
-After install, follow the **laptop smoke test** in [USER_ONBOARDING.md](USER_ONBOARDING.md)
-(register private PDF → validate/import bundle → MCP verify). Bundle format:
-[REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md).
+---
 
 ## Future: active / TX research
 
-Current CAN Research live tools are **passive RX only** — no CAN transmission through MCP.
-
-Future active probing / TX research would be a **separate capability set** with its own
-safety model, likely a separate Skill and possibly a separate application module sharing
-common core code. It is **not** part of the current installation path.
+Current live MCP tools are **passive RX only**. Future TX/probing would be a separate
+capability with its own safety model — not part of this installation path.

@@ -111,21 +111,23 @@ Source under `skills/` — package locally: [SKILL_INSTALLATION.md](docs/SKILL_I
 - Proprietary signal research
 - Evidence and confidence reporting
 
-### Typical new-user path
+### Typical new-user path (Windows)
 
 ```text
-New user
+Download release ZIP → extract → setup.cmd
    ↓
-Install CAN Research
+Connect CANsub.2
    ↓
-Start can-onboarding
+start-can-research.cmd
    ↓
-Verify CANsub.2 + MCP
+Connect AI frontend (see AI_INTEGRATION.md)
    ↓
-Import existing DBC / reference knowledge
+Install Skills → start can-onboarding
    ↓
-Begin CAN research (can-signal-research)
+Import DBC / reference knowledge → begin research
 ```
+
+Developers: git clone → `uv sync` → same MCP/AI steps. Details: [INSTALLATION.md](docs/INSTALLATION.md).
 
 Architecture detail: [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
 
@@ -133,7 +135,8 @@ Architecture detail: [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEAR
 
 | Goal | Start here |
 |------|------------|
-| Install and validate a new machine | [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) · **can-onboarding** |
+| Install and validate a new machine | [docs/INSTALLATION.md](docs/INSTALLATION.md) · **setup.cmd** · **can-onboarding** |
+| Connect AI (ChatGPT, Claude, etc.) | [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) |
 | DBCs, manuals, licensing, reference model | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
 | **OEM manual / PDF / spreadsheet intake** | [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) · **can-reference-builder** |
 | Bundle schema / JSON contract | [docs/REFERENCE_BUNDLE_FORMAT.md](docs/REFERENCE_BUNDLE_FORMAT.md) |
@@ -185,34 +188,53 @@ ships **no** comprehensive J1939/ISOBUS database.
 
 ## Getting started
 
-**New users:** install the recommended Skills before beginning setup — see
-[SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md). They are intended to reduce onboarding
-friction and guide verification at each stage, rather than requiring you to manually
-interpret every setup document. Then start **can-onboarding** or follow
-[USER_ONBOARDING.md](docs/USER_ONBOARDING.md).
+### Recommended — Windows user install
 
-Quick software install: [docs/INSTALLATION.md](docs/INSTALLATION.md) · CANsub:
-[docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) · MCP:
-[docs/MCP_SETUP.md](docs/MCP_SETUP.md).
+No Git or IDE required. **Cursor is not needed** for normal use.
 
-```powershell
-uv sync
-uv run canresearch config show
-uv run canresearch --help
+```text
+Download release ZIP
+   → extract to a folder (e.g. C:\CAN Research\can-research)
+   → run setup.cmd
+   → connect CANsub.2 (docs/CANSUB_SETUP.md)
+   → run start-can-research.cmd
+   → connect your AI frontend (docs/AI_INTEGRATION.md)
+   → install Skills and start can-onboarding
 ```
 
-**After reboot:** restart MCP + tunnel only — [MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot).
+See **`README-FIRST.txt`** in the install folder. Health check: **`status.cmd`**.
+
+Install details: [docs/INSTALLATION.md](docs/INSTALLATION.md) · AI connection:
+[docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) · Skills:
+[docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) · Guided workflow:
+[docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) or **can-onboarding**.
+
+### Developer install
+
+```powershell
+git clone <repo-url> can-research
+cd can-research
+uv sync
+setup.cmd          # optional — same config bootstrap as release install
+```
+
+Run MCP via **`start-can-research.cmd`** or `uv run canresearch mcp serve ...` — see
+[docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md).
+
+**After reboot:** restart MCP (+ tunnel if used) — [MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot).
 
 **Multiple machines:** [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) ·
 **Problems:** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ## Requirements
 
-- Windows (primary target; Linux/macOS may work for development)
-- [uv](https://docs.astral.sh/uv/) for environment and dependency management
-- Python 3.11+
+- Windows 10/11 (primary supported platform)
+- [uv](https://docs.astral.sh/uv/) — environment and dependency management (**install manually**; `setup.cmd` detects it)
+- Python 3.11+ (usually provided by uv on first sync)
+- CANsub.2 for live CAN work
+- Git — **developers only**
 
-## Quick start (minimal)
+## Quick start (developer / CLI)
 
 ```powershell
 uv sync
@@ -257,11 +279,14 @@ Full onboarding sequence: [USER_ONBOARDING.md](docs/USER_ONBOARDING.md).
 Both transports use the **same tool registry** (41 tools). Stdio is for desktop MCP
 clients; streamable HTTP is for OpenAI tunnel / ChatGPT connector deployment.
 
-**Stdio (Cursor, Claude Desktop, etc.):**
+**Stdio (Claude Desktop, developer tools, etc.):**
 
 ```powershell
 uv run canresearch mcp serve
 ```
+
+See [AI_INTEGRATION.md](docs/AI_INTEGRATION.md) for frontend-specific connection notes.
+Cursor is a **development** MCP client — not required for end users.
 
 **Streamable HTTP (local connector endpoint):**
 
@@ -437,6 +462,9 @@ uv run canresearch session dbc abc123 --asset jd_6155r_01
 ## Project layout
 
 ```text
+setup.cmd             Windows first-run setup (release install)
+start-can-research.cmd Start local MCP service
+status.cmd            Health check (CLI, MCP, CANsub)
 src/canresearch/
   cli.py              CLI entry point
   config.py           Instance, paths, CANsub configuration
@@ -455,10 +483,11 @@ scripts/              MCP HTTP verification helper
 
 | Document | Description |
 |----------|-------------|
-| [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) | **End-to-end new user path** — install, knowledge intake, known-first research |
+| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Release ZIP + developer install, upgrade, uninstall |
+| [docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) | Connect ChatGPT, Claude, Cursor (dev), generic MCP |
+| [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) | **End-to-end new user path** — knowledge intake, known-first research |
 | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, sources, bundles, DBCs, provenance |
-| [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) | **Operator workflow** — manual/PDF → source → bundle → import |
-| [docs/INSTALLATION.md](docs/INSTALLATION.md) | Clone, uv, config, first-run smoke test |
+| [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) | Operator workflow — manual/PDF → bundle → import |
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
 | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | All three Skills — package and install |

@@ -40,7 +40,7 @@ If yes → plan to add them during steps 5–10 below. Details: [REFERENCE_DATA.
 | Step | Task | Guide |
 |------|------|-------|
 | 0 | Guided setup (optional) | **can-onboarding** Skill — [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
-| 1 | Install CAN Research | [INSTALLATION.md](INSTALLATION.md) |
+| 1 | Install CAN Research | [INSTALLATION.md](INSTALLATION.md) — **`setup.cmd`** (Windows) or developer clone |
 | 2 | Configure local instance | [INSTALLATION.md](INSTALLATION.md) — `data/config.toml`, `instance_key` |
 | 3 | Connect CANsub.2 | [CANSUB_SETUP.md](CANSUB_SETUP.md) |
 | 4 | Validate CAN traffic | [CANSUB_SETUP.md](CANSUB_SETUP.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
