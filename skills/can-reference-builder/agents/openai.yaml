@@ -1,0 +1,3 @@
+interface:
+  display_name: "CAN Reference Builder"
+  short_description: "Convert CAN reference documents into normalized bundle JSON"
