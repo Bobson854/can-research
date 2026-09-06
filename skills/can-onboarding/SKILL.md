@@ -151,6 +151,12 @@ Use existing supported catalogue import where appropriate.
 
 ### OEM/supplier/general document
 
+Before register/validate/import on Windows, suggest the **Downloads staging convention**
+(see [reference-onboarding.md](references/reference-onboarding.md)): place the original
+and generated `<source_key>_reference.json` together in Downloads for predictable CLI paths.
+The original does not need to move into the repo after ingest — `reference source add`
+copies into the managed registry; never commit private/licensed originals to Git.
+
 ```text
 register source → classify visibility → can-reference-builder → bundle validate → import → search/lookup
 ```
