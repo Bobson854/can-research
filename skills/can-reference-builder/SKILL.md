@@ -126,13 +126,15 @@ Before handing off, check:
 
 ## CAN Research handoff
 
-After bundle creation, guide the user to run:
+After bundle creation, guide the user through [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md):
 
 ```powershell
 uv run canresearch reference bundle validate <bundle.json>
 uv run canresearch reference bundle import <bundle.json>
 uv run canresearch reference search "<known term>"
 ```
+
+The Skill must **not** call import or modify the database directly.
 
 If the CAN Research MCP connector is available, verification may use:
 
@@ -151,6 +153,7 @@ If the V1 contract cannot faithfully represent an important source construct, re
 
 ## References
 
+- [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md) — canonical operator workflow
 - [reference-bundle-v1.md](references/reference-bundle-v1.md) — normalized contract and validation guidance
 - [reference-bundle-v1.schema.json](references/reference-bundle-v1.schema.json) — current machine-readable schema snapshot
 - [extraction-patterns.md](references/extraction-patterns.md) — how to map common document shapes

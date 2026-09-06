@@ -53,7 +53,8 @@ Three Skills ship as source under `skills/` (package locally — see
 |------|------------|
 | Install and validate a new machine | [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) · **can-onboarding** |
 | DBCs, manuals, licensing, reference model | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
-| Bundle schema / can-reference-builder handoff | [docs/REFERENCE_BUNDLE_FORMAT.md](docs/REFERENCE_BUNDLE_FORMAT.md) |
+| **OEM manual / PDF / spreadsheet intake** | [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) · **can-reference-builder** |
+| Bundle schema / JSON contract | [docs/REFERENCE_BUNDLE_FORMAT.md](docs/REFERENCE_BUNDLE_FORMAT.md) |
 | Proprietary signal research architecture | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) · **can-signal-research** |
 | Why CAN Research exists (positioning) | [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) |
 
@@ -371,6 +372,7 @@ scripts/              MCP HTTP verification helper
 |----------|-------------|
 | [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) | **End-to-end new user path** — install, knowledge intake, known-first research |
 | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, sources, bundles, DBCs, provenance |
+| [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) | **Operator workflow** — manual/PDF → source → bundle → import |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Clone, uv, config, first-run smoke test |
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |

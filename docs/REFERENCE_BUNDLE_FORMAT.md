@@ -1,7 +1,10 @@
 # Reference bundle format (V1)
 
-Formal handoff contract between **can-reference-builder** (external Skill), other
-generative converters, and **CAN Research** deterministic import.
+Formal handoff contract between **can-reference-builder**, other generative converters,
+and **CAN Research** deterministic import.
+
+**Full operator lifecycle:** [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md)  
+**Knowledge model context:** [REFERENCE_DATA.md](REFERENCE_DATA.md)
 
 ```text
 ORIGINAL SOURCE (retained, registered)
@@ -11,8 +14,8 @@ generative conversion (external)
 reference_bundle.json  →  validate  →  import  →  MCP lookup/search
 ```
 
-CAN Research **does not** parse PDFs in this milestone. It validates and stores
-normalized knowledge.
+CAN Research **does not** parse arbitrary PDFs in-core. It validates and stores
+normalized knowledge from Reference Bundle V1 JSON.
 
 **Machine-readable schema:** [../schemas/reference-bundle-v1.schema.json](../schemas/reference-bundle-v1.schema.json)
 
@@ -259,4 +262,5 @@ Reference Bundle V1 JSON. Package locally with `scripts/package_skill.py` — se
 [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md). CAN Research validates and imports the
 bundle deterministically; it does not parse arbitrary PDFs in-core.
 
-See [USER_ONBOARDING.md](USER_ONBOARDING.md) and [REFERENCE_DATA.md](REFERENCE_DATA.md).
+See [USER_ONBOARDING.md](USER_ONBOARDING.md), [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md),
+and [REFERENCE_DATA.md](REFERENCE_DATA.md).

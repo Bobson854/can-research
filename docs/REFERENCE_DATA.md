@@ -111,12 +111,15 @@ Generative tools (e.g. **can-reference-builder**, external) produce **normalized
 bundles**; CAN Research validates and imports deterministic knowledge into SQLite.
 
 ```text
-reference source add  →  external conversion  →  bundle validate  →  bundle import
+reference source add  →  can-reference-builder  →  bundle validate  →  bundle import
 ```
 
-Full contract: [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md)
+**Operator workflow:** [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md)  
+**JSON contract:** [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md)
 
 ### Implemented today
+
+Step-by-step operator guide: [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md).
 
 **Register original sources:**
 
@@ -268,6 +271,8 @@ Not all knowledge arrives as a clean PGN/SPN table or DBC. Operators often have 
 protocol specs, OEM manuals, spreadsheets, CSV signal lists, and Markdown notes.
 
 ### Implemented workflow
+
+See [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) for the full operator sequence.
 
 ```text
 reference source add (retain original, visibility metadata)
@@ -445,6 +450,7 @@ Import remains **CLI-only** (catalogue PDFs, source registration, bundle import,
 
 ## Related
 
+- [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) — operator workflow (manual → bundle → import)
 - [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end new user path
 - [INSTALLATION.md](INSTALLATION.md) — software setup
 - [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — all three Skills

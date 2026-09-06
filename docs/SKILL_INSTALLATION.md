@@ -89,7 +89,9 @@ Ask it to continue setup from the current machine state. It should verify rather
 
 ### `can-reference-builder`
 
-Give it a user-owned CAN reference document and a registered `source_key`. It should produce Reference Bundle V1-compatible structured output while preserving provenance and uncertainty.
+Give it a user-owned CAN reference document and a registered `source_key`. It should
+produce Reference Bundle V1-compatible structured output while preserving provenance and
+uncertainty, then hand off to the workflow in [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md).
 
 ### `can-signal-research`
 
@@ -131,6 +133,7 @@ Do not bundle SAE/ISO/OEM licensed source documents into Skills. Skills may cont
 
 - [INSTALLATION.md](INSTALLATION.md) — clone, uv, config
 - [MCP_SETUP.md](MCP_SETUP.md) — MCP + tunnel + connector
+- [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) — manual → bundle operator workflow
 - [REFERENCE_DATA.md](REFERENCE_DATA.md) — reference-source and bundle model
 - [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end new-user path
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — connector and channel issues

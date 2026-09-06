@@ -47,9 +47,9 @@ If yes → plan to add them during steps 5–10 below. Details: [REFERENCE_DATA.
 | 5 | Inventory existing CAN knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) — three knowledge paths |
 | 6 | Add/import structured reference data | [REFERENCE_DATA.md](REFERENCE_DATA.md) — catalogue import |
 | 7 | Add existing DBC files | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **`reference dbc register`** |
-| 8 | Register supporting reference documents | [REFERENCE_DATA.md](REFERENCE_DATA.md) — source registry |
-| 9 | Convert messy formats (if needed) | **can-reference-builder** → [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md) |
-| 10 | Validate and import reference bundles | `reference bundle validate` / `import` |
+| 8 | Register supporting reference documents | [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) — source registry |
+| 9 | Convert messy formats (if needed) | [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) · **can-reference-builder** |
+| 10 | Validate and import reference bundles | [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) — validate / import / verify |
 | 11 | Install Skills + MCP | [MCP_SETUP.md](MCP_SETUP.md) · [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
 | 12 | Establish first asset | [INSTALLATION.md](INSTALLATION.md) — `asset add` |
 | 13 | Run known-first analysis | Below + [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) |
@@ -88,14 +88,9 @@ uv run canresearch session dbc-coverage <session-id>
 
 ### 3. Supporting reference sources + Reference Bundle V1
 
-PDFs, spreadsheets, CSV, Markdown, OEM manuals — registered for provenance; normalized
-**Reference Bundle V1** JSON is validated and imported deterministically by CAN Research.
-
-```powershell
-uv run canresearch reference source add path\to\manual.pdf --key my_manual --visibility private
-uv run canresearch reference bundle validate my_manual.json
-uv run canresearch reference bundle import my_manual.json
-```
+PDFs, spreadsheets, CSV, Markdown, OEM manuals — follow the operator workflow in
+[REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) (register → can-reference-builder →
+validate → import → verify).
 
 Messy source conversion is handled by the **can-reference-builder** Skill (generative);
 CAN Research core does not parse arbitrary PDFs.
@@ -161,13 +156,15 @@ uv run canresearch session dbc <session-id> --asset <asset-key>
 
 ### Supporting documents (implemented registry + bundle import)
 
-Register originals, convert with **can-reference-builder**, validate and import:
+Full step-by-step: [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md).
+
+Summary:
 
 ```powershell
 uv run canresearch reference source add path\to\manual.pdf --key my_manual --visibility private
-# … produce my_manual.json via can-reference-builder (see skills/can-reference-builder/) …
-uv run canresearch reference bundle validate my_manual.json
-uv run canresearch reference bundle import my_manual.json
+# … can-reference-builder produces my_manual_reference.json …
+uv run canresearch reference bundle validate my_manual_reference.json
+uv run canresearch reference bundle import my_manual_reference.json
 uv run canresearch reference search "motor speed"
 ```
 
@@ -308,6 +305,7 @@ After onboarding you should have:
 
 | Document | When |
 |----------|------|
+| [REFERENCE_ONBOARDING.md](REFERENCE_ONBOARDING.md) | Manual/PDF → bundle operator workflow |
 | [REFERENCE_DATA.md](REFERENCE_DATA.md) | Knowledge model, licensing, three paths |
 | [INSTALLATION.md](INSTALLATION.md) | Software install |
 | [CANSUB_SETUP.md](CANSUB_SETUP.md) | Hardware |

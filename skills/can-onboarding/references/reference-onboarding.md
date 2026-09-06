@@ -1,5 +1,7 @@
 # Reference onboarding
 
+Canonical public workflow: [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md)
+
 ## Principle
 
 Onboarding is not complete merely because the software runs. Load existing CAN knowledge before researching unknown traffic.
@@ -23,9 +25,11 @@ Keep separate:
 
 Default uncertain material to `private`. Licensed sources are stored in the private managed folder.
 
-## Supporting document flow
+## Supporting document flow (Reference Bundle V1)
 
-Register original:
+Follow [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md).
+
+1. Register original:
 
 ```powershell
 uv run canresearch reference source add path\to\manual.pdf --key my_manual --visibility private
@@ -33,9 +37,9 @@ uv run canresearch reference source list
 uv run canresearch reference source inspect my_manual
 ```
 
-Then hand the original user-provided document plus exact `source_key` to `can-reference-builder`.
+2. Hand the original document plus exact `source_key` to **can-reference-builder**.
 
-Validate/import its output:
+3. Validate and import its output (`<source_key>_reference.json`):
 
 ```powershell
 uv run canresearch reference bundle validate my_manual_reference.json
@@ -43,14 +47,16 @@ uv run canresearch reference bundle import my_manual_reference.json
 uv run canresearch reference search "motor speed"
 ```
 
-MCP verification:
+4. MCP verification:
 
 - `list_reference_sources`
 - `inspect_reference_source`
 - `search_reference_knowledge`
 - `lookup_reference_message`
 
-## Existing DBC
+The Skill must not write to the CAN Research database directly.
+
+## Existing DBC (separate path)
 
 ```powershell
 uv run canresearch reference dbc register --key supplier_baseline path\to\file.dbc [--asset my_asset]
@@ -67,7 +73,7 @@ MCP:
 - `lookup_dbc_signal`
 - `analyze_dbc_coverage`
 
-## Structured J1939 / ISOBUS imports
+## Structured J1939 / ISOBUS imports (catalogue path)
 
 When the source matches the existing deterministic importers:
 
