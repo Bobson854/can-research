@@ -1,158 +1,378 @@
-# Reference data policy
+# Reference data and CAN knowledge model
 
-CAN Research can **use** J1939/ISOBUS reference data for lookup, session classification,
-and standard DBC generation — but this repository **does not distribute** licensed SAE,
-ISO, or other proprietary standards content.
+CAN Research can **use** J1939, ISOBUS, OEM, and proprietary reference knowledge — but
+this repository **does not distribute** licensed SAE, ISO, or vendor material.
 
 ```text
 CAN Research software can use reference data.
 Users are responsible for providing material they are authorised to use.
 ```
 
-**Do not commit** licensed PDFs, full SAE databases, or vendor OEM documentation to the
-repository. Parsed reference data built from your own sources belongs under `data/` or
-other gitignored paths (see `.gitignore`).
+**Onboarding principle:** establish the user's **existing CAN knowledge** before treating
+every frame as unknown. See [USER_ONBOARDING.md](USER_ONBOARDING.md).
+
+```text
+Use existing knowledge first.
+Research only what remains unknown.
+```
 
 ---
 
-## Your options today
+## Three knowledge categories
 
-### A. Use an existing local reference database
+| Category | Examples | Normalized use |
+|----------|----------|----------------|
+| **A. Structured reference catalogue** | J1939 PGN/SPN, ISOBUS DDI, OEM tables | SQLite `data/references/canresearch.db` |
+| **B. Existing DBC knowledge** | OEM/supplier DBC, tuned DBC, `<asset>_standard.dbc`, confirmed `<asset>_research.dbc` | Message/signal definitions, coverage vs traffic |
+| **C. Supporting reference documents** | PDF manuals, spreadsheets, CSV, Markdown, protocol notes | Provenance + generative/manual consultation → import |
 
-If you already have a CAN Research-compatible SQLite reference catalogue at
-`data/references/canresearch.db` (from a prior import on that machine), CAN Research
-will use it for `lookup_pgn`, `lookup_spn`, session analysis, and standard DBC preview.
+These are **first-class inputs**, not afterthoughts.
 
-Check status:
+---
 
-```powershell
-uv run canresearch reference stats
-uv run canresearch reference validate
-uv run canresearch reference pgn 61444
-uv run canresearch reference spn 190
+## Known-first research workflow
+
+```text
+live/stored CAN traffic
+        +
+reference catalogue (A)
+        +
+existing DBCs (B)
+        +
+supporting documents (C)
+        ↓
+known baseline
+        ↓
+unknown / proprietary remainder
+        ↓
+CAN Signal Research Skill
+        ↓
+confirmed research knowledge (CLI → <asset>_research.dbc)
 ```
 
-### B. Import from user-owned PDF sources (implemented)
+The Skill inventories standards-backed traffic, reuses DBC layout fingerprints, and
+focuses proprietary effort on the **remainder**.
 
-If you hold a **licence** to use specific source documents, the CLI can import into the
-local private catalogue:
+---
 
-**J1939-71 PDF** (user-provided, licensed):
+## A. Structured reference catalogue
+
+### What it is
+
+A local SQLite catalogue (`data/references/canresearch.db` by default) of PGN/SPN/DDI
+definitions used for:
+
+- Session classification (`analyze_session`)
+- Reference-backed decode (`decode_session`)
+- MCP lookup (`lookup_pgn`, `lookup_spn`)
+- Standard DBC generation (`build_session_dbc_preview`, `session dbc`)
+
+### Implemented today
+
+**Import licensed PDFs (CLI):**
 
 ```powershell
 uv run canresearch reference import-j1939 path\to\your-licensed-j1939-71.pdf
-```
-
-**ISOBUS DDI PDF** (user-provided, licensed):
-
-```powershell
 uv run canresearch reference import-isobus-pdf path\to\your-licensed-isobus-ddi.pdf
 ```
 
-After import:
+**Validate and inspect:**
 
 ```powershell
 uv run canresearch reference validate
 uv run canresearch reference stats
 uv run canresearch reference source list
+uv run canresearch reference pgn 61444
+uv run canresearch reference spn 190
+uv run canresearch reference warnings
 ```
 
-These commands write to **your local** `data/references/canresearch.db` only.
+**MCP (read-only):** `lookup_pgn`, `lookup_spn`, `build_session_dbc_preview`.
 
-### C. Import from DBC (planned — not implemented)
+MCP does **not** import reference data — import is CLI-only today.
 
-```powershell
-uv run canresearch reference import-dbc path\to\file.dbc
-```
+### Planned / not implemented
 
-Currently prints **“not yet implemented”**. Only import DBCs you are licensed to use.
-When implemented, this will follow the same local-private storage model.
-
-### D. Build a private reference bundle (future workflow)
-
-**Planned / future** — no finished “import bundle” CLI exists yet.
-
-Intended architecture:
-
-```text
-user-owned reference documents (PDF, spreadsheet, DBC, CSV, OEM manuals)
-        ↓
-generative extraction / reference-builder workflow
-        ↓
-deterministic validation
-        ↓
-CAN Research reference import format
-        ↓
-local private reference database
-```
-
-**Principle:**
-
-```text
-Generative AI interprets messy source material.
-Deterministic CAN Research tooling validates and imports it.
-```
-
-Deterministic validation should cover (conceptually):
-
-- PGN, SPN, bit positions, bit lengths
-- Endian, signedness, factor, offset, units, enums
-- Duplicates, overlaps, provenance
-
-### Planned companion Skill: can-reference-builder
-
-**Not yet part of this repository.**
-
-Intended job: help turn **user-owned** reference material into a CAN Research-compatible,
-**validated** reference bundle for local import.
-
-Distinct from **can-signal-research**, which researches **unknown/proprietary** signals
-on live or stored CAN traffic.
+| Capability | Status |
+|------------|--------|
+| `reference import-dbc` | CLI stub — prints "not yet implemented" |
+| Reference bundle import | No finished bundle CLI |
+| Spreadsheet/CSV direct import | Future |
+| Automated OEM table ingest | Future — via conversion pipeline |
 
 ---
 
-## Provenance categories (do not collapse)
+## B. Existing DBC knowledge
+
+### Why DBCs matter
+
+```text
+existing tuned DBC
+    ↓
+identify already-known messages/signals
+    ↓
+compare against observed traffic
+    ↓
+proprietary research focuses only on unresolved traffic
+```
+
+A DBC encodes message IDs, signal boundaries, scaling, and units — often years of
+vendor or field tuning. Reusing DBC knowledge avoids rediscovering what is already known.
+
+### DBC sources
+
+| Source | Typical role |
+|--------|--------------|
+| OEM / supplier DBC | Factory definitions |
+| User-created DBC | Workshop tuning |
+| Previously tuned DBC | Field-refined scaling |
+| `<asset>_standard.dbc` | CAN Research output — **reference-backed** standard knowledge |
+| `<asset>_research.dbc` | CAN Research output — **CLI-confirmed** proprietary knowledge |
+
+### Standard vs research — never merge silently
+
+| File | Contents | Trust level |
+|------|----------|-------------|
+| `<asset>_standard.dbc` | Reference-backed / J1939 standard signals from sessions | Reference-backed |
+| `<asset>_research.dbc` | Human-confirmed proprietary signals only | Confirmed research |
+
+Load both in viewers; no combined DBC is generated by CAN Research.
+
+### Implemented today
+
+**Generate standard DBC from session + reference catalogue:**
+
+```powershell
+uv run canresearch session dbc <session-id> --asset <asset-key>
+```
+
+**Generate confirmed research DBC (after CLI candidate confirm):**
+
+```powershell
+uv run canresearch research dbc <asset-key>
+```
+
+**MCP preview (read-only):**
+
+- `build_session_dbc_preview` — standard/reference-backed preview from session
+- `preview_research_dbc` — confirmed research candidates only
+- `list_research_candidates` — inspect confirmed/candidate state
+
+**Skill behaviour:** may consult DBC files visible to the host environment as **hypothesis
+generators** with provenance — never silent copy. See Skill
+[knowledge-reuse.md](../skills/can-signal-research/references/knowledge-reuse.md).
+
+### Planned / not implemented today
+
+| Capability | Status |
+|------------|--------|
+| `reference import-dbc` | Not implemented |
+| Register/index user DBC library in core | Future application work |
+| MCP: list DBC files, inspect messages/signals | Future — see below |
+| Automated observed-traffic vs DBC coverage | Future |
+| Lookup signal by CAN ID from registered DBC set | Future |
+
+Until automated DBC onboarding exists: **retain DBC files locally**, document provenance,
+and use manual/Skill-assisted comparison against `analyze_session` / `decode_session`
+results.
+
+---
+
+## C. Supporting reference documents
+
+### Purpose
+
+Not all knowledge arrives as a clean PGN/SPN table or DBC. Operators often have:
+
+- PDF protocol specifications
+- OEM implementation manuals
+- Spreadsheets (XLSX) and CSV signal lists
+- Markdown or text documentation
+- Vendor release notes
+
+### Desired model
+
+```text
+original source document
+    ↓
+retained for provenance / human / generative consultation
+
+normalized machine-readable representation
+    ↓
+deterministic CAN Research use (catalogue, DBC, index)
+```
+
+**Do not discard originals after conversion.** Provenance and re-import depend on them.
+
+### Today
+
+- **Retain locally** in gitignored areas — see [Public vs private material](#public-vs-private-material)
+- **Structured import** today is primarily PDF → catalogue (J1939-71, ISOBUS DDI)
+- **Generative consultation** — Skill or operator may read documents in the host environment;
+  extracted fields must pass deterministic validation before import
+- **No core document index/search MCP tools yet**
+
+### Planned
+
+- Reference document registry (list, search, provenance metadata)
+- **can-reference-builder** Skill — conversion assistant (see below)
+- Validated import into reference catalogue or DBC knowledge store
+
+---
+
+## Public vs private material
+
+CAN Research must **not** distribute licensed SAE/ISO/OEM content without permission.
+
+| Class | Guidance |
+|-------|----------|
+| **Public / redistributable** | May be committed where licence explicitly permits |
+| **Private / licensed** | Keep **outside public Git history**; store locally only |
+
+### Practical storage (existing repo conventions)
+
+These paths are **gitignored** today — suitable for private material:
+
+| Path | Intended use |
+|------|--------------|
+| `data/` | Local config, SQLite catalogue, captures |
+| `references/private/` | Private reference extracts |
+| `docs/original_docs/` | Original licensed source documents |
+
+No application-managed “reference workspace” registry exists yet — operators choose a
+local layout under gitignored paths. A configurable reference workspace path is
+**future application work**.
+
+**Never commit:** licensed PDFs, full SAE databases, customer OEM packs, API keys.
+
+---
+
+## Provenance model
+
+Provenance categories must **never be silently collapsed**:
 
 | Category | Meaning |
 |----------|---------|
-| **Public / reference-backed** | Documented in your imported reference catalogue (PGN/SPN) |
-| **User-supplied reference** | Imported from your licensed PDF/DBC sources |
-| **Vendor / OEM-backed** | From OEM documentation you are authorised to use |
-| **Confirmed proprietary research** | CLI-confirmed entries in `<asset>_research.dbc` |
-| **Generative hypothesis** | AI/MCP inference — not confirmed, not reference fact |
+| **Public / reference-backed** | In imported catalogue from permitted public sources |
+| **SAE/ISO / user-supplied reference** | User imported licensed standard PDF into local DB |
+| **OEM / vendor-backed** | From vendor documentation user is authorised to use |
+| **User-supplied DBC** | External DBC file used as knowledge source |
+| **User-supplied reference document** | PDF/spreadsheet/manual — source retained |
+| **Confirmed proprietary research** | CLI-confirmed in `<asset>_research.dbc` |
+| **Generative hypothesis** | AI/Skill inference — not confirmed |
 
-The CAN Signal Research Skill must label these distinctly. MCP inference is **never**
-reference-backed fact until human CLI confirmation for proprietary candidates.
+### Desired provenance metadata (conceptual)
+
+Future imports should record where possible:
+
+- Source name and type
+- File / document path (local)
+- Version or date if known
+- Origin (OEM, SAE, internal, field trial)
+- Licensing / private status
+- Conversion method (manual, PDF importer, reference-builder)
+- Import date
+
+**Today:** `reference source list` and import warnings provide partial source tracking
+in the SQLite catalogue. Full provenance on every signal is **not yet implemented**.
 
 ---
 
-## Standard vs research DBC
+## Reference conversion architecture (target)
 
-Per asset:
+For formats not directly importable today:
 
-| File | Contents |
-|------|----------|
-| `<asset>_standard.dbc` | Reference-backed / standard signals from sessions |
-| `<asset>_research.dbc` | Human-confirmed proprietary signals only |
+```text
+user-owned source material (PDF, XLSX, CSV, DBC, Markdown, manual)
+        ↓
+generative conversion / can-reference-builder Skill
+        ↓
+deterministic validation (PGN, SPN, bits, endian, scale, overlaps, provenance)
+        ↓
+CAN Research reference contract
+        ↓
+local reference catalogue / DBC knowledge / source document index
+```
 
-No combined DBC is generated. Research candidates require explicit CLI review/confirm.
+**Core principle:**
+
+```text
+Generative AI interprets messy source material.
+Deterministic CAN Research validates what is imported.
+```
+
+### Potential input formats
+
+PDF · spreadsheet · CSV · DBC · Markdown · text/manual
+
+### Potential normalized fields
+
+PGN · SPN · message name · signal name · start bit · bit length · endian · signedness ·
+factor · offset · units · enum/value descriptions · provenance
+
+No irreversible public schema is defined yet — the durable interface should be a CAN
+Research reference contract usable by **any** generative system, not a single AI vendor.
 
 ---
 
-## MCP reference tools (read-only)
+## Planned Skill: can-reference-builder
+
+**Not implemented in this repository.** Do not install or package in this milestone.
+
+| Skill | Responsibility |
+|-------|----------------|
+| **can-reference-builder** (planned) | Convert user-owned CAN/J1939/ISOBUS/OEM material into validated CAN Research reference representation |
+| **can-signal-research** (implemented) | Research **unknown/proprietary** signals on live/stored traffic against a known baseline |
+
+Install **can-signal-research** after reference/DBC knowledge is as complete as practical:
+[SKILL_INSTALLATION.md](SKILL_INSTALLATION.md).
+
+The reference contract output should be consumable by ChatGPT, Codex, or other tools —
+not locked to one vendor.
+
+---
+
+## Future MCP / core capabilities (candidate — not existing)
+
+Based on Skill V2/V3 validation, likely useful **deterministic** capabilities for a
+future milestone:
+
+| Candidate capability | Purpose |
+|---------------------|---------|
+| List available DBC files / knowledge sets | Onboarding inventory |
+| Inspect DBC metadata | Source, asset, message count |
+| List DBC messages / signals | Coverage planning |
+| Lookup signal by CAN ID | Match traffic to known definitions |
+| Lookup signal by name | Cross-reference |
+| Observed-traffic coverage from DBC set | Known vs unknown quantification |
+| List available reference documents | Source index |
+| Search / index supporting documents | Operator + Skill retrieval |
+| Expose provenance per definition | Trust labelling |
+
+**None of the above are documented as available MCP tools today.** The current MCP surface
+is 32 tools — see README. Frame requests for new tools against this gap list.
+
+---
+
+## MCP reference tools (implemented today)
 
 | Tool | Purpose |
 |------|---------|
-| `lookup_pgn` | Reference catalogue PGN lookup |
-| `lookup_spn` | Reference catalogue SPN lookup |
-| `build_session_dbc_preview` | Preview standard DBC from session + reference |
+| `lookup_pgn` | PGN in local catalogue |
+| `lookup_spn` | SPN in local catalogue |
+| `build_session_dbc_preview` | Standard DBC preview from session + catalogue |
+| `preview_research_dbc` | Confirmed research DBC preview |
+| `list_research_candidates` | Candidate/evidence inspect |
+| `analyze_session` | J1939 classification vs catalogue |
+| `decode_session` | Reference-backed decode |
 
-MCP does not import reference data — import is CLI-only today.
+Import remains **CLI-only**.
 
 ---
 
 ## Related
 
-- [INSTALLATION.md](INSTALLATION.md) — setup
-- [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — can-signal-research Skill
-- [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) — known-first workflow
+- [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end new user path
+- [INSTALLATION.md](INSTALLATION.md) — software setup
+- [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — can-signal-research
+- [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) — known-first architecture

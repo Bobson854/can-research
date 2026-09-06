@@ -131,6 +131,7 @@ uv run canresearch config set-data-dir D:\CANResearch\workshop-data
 | Step | Document |
 |------|----------|
 | Connect CANsub.2 | [CANSUB_SETUP.md](CANSUB_SETUP.md) |
+| Add your CAN knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) · [USER_ONBOARDING.md](USER_ONBOARDING.md) |
 | Start MCP + ChatGPT connector | [MCP_SETUP.md](MCP_SETUP.md) |
 | Install CAN Signal Research Skill | [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
 | Provide J1939/ISOBUS reference data | [REFERENCE_DATA.md](REFERENCE_DATA.md) |

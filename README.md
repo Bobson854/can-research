@@ -124,10 +124,16 @@ Safety boundaries unchanged: **passive / no CAN TX**, **32-tool MCP substrate**,
 **Do not commit** SAE J1939, ISO 11783, or other licensed standards content.
 
 Full policy and import options: [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md).
+Onboarding: [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md).
 
 Parsed reference data built from your own licensed sources belongs under `references/private/` or `data/` (both gitignored). This repository ships **no** comprehensive J1939/ISOBUS database.
 
 ## Getting started
+
+**New user?** Start here → **[docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md)** (install +
+CANsub + **your existing knowledge** + Skill + known-first research).
+
+**Bringing DBCs / reference material?** → **[docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md)**
 
 CAN Research has three layers: **deterministic core** → **MCP (32 tools)** →
 **CAN Signal Research Skill** (generative orchestration in ChatGPT).
@@ -146,18 +152,17 @@ ChatGPT / Codex / other MCP client
 CAN Signal Research Skill
 ```
 
-### Installation path (new user)
+### Installation path (summary)
+
+Full 14-step onboarding: **[docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md)**
 
 | Step | Action | Details |
 |------|--------|---------|
 | 1 | Install CAN Research | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
-| 2 | Configure CANsub.2 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) |
-| 3 | Configure local instance | `data/config.toml` — [INSTALLATION.md](docs/INSTALLATION.md) |
-| 4 | Start MCP | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) |
-| 5 | Connect ChatGPT / MCP client | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) |
-| 6 | Install CAN Signal Research Skill | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) |
-| 7 | Configure reference data | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
-| 8 | First passive validation | Preflight below |
+| 2–4 | Instance, CANsub, validate traffic | [CANSUB_SETUP.md](docs/CANSUB_SETUP.md) |
+| 5–10 | **Add your CAN knowledge** | [REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
+| 11 | MCP + Skill | [MCP_SETUP.md](docs/MCP_SETUP.md) · [SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) |
+| 12–14 | Asset, known-first, research remainder | [USER_ONBOARDING.md](docs/USER_ONBOARDING.md) |
 
 **Already installed?** After reboot, restart only MCP + tunnel — [MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot).
 
@@ -456,11 +461,12 @@ scripts/              MCP HTTP verification helper
 
 | Document | Description |
 |----------|-------------|
+| [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) | **End-to-end new user path** — install, knowledge intake, known-first research |
+| [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, DBCs, documents, provenance, future tools |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Clone, uv, config, first-run smoke test |
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
 | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | CAN Signal Research Skill install/update |
-| [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | Reference data policy and import options |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Decision guide for common failures |
 
