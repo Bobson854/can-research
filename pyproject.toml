@@ -1,6 +1,6 @@
 [project]
 name = "can-research"
-version = "0.1.0"
+version = "0.1.1"
 description = "Windows-first CLI CAN research tool for CSS Electronics CANsub.2, J1939/ISOBUS, and MCP-assisted analysis"
 readme = "README.md"
 license = { text = "MIT" }
