@@ -55,7 +55,7 @@ Open a **new** terminal after installing uv.
 Extract to a permanent folder, for example:
 
 ```text
-C:\CAN Research\CAN-Research-v0.1.0\
+C:\CAN Research\CAN-Research-v<version>\
 ```
 
 The ZIP contains a single top-level folder `CAN-Research-v<version>\`. Open it and read
@@ -69,7 +69,7 @@ long-term (captures and reference data will grow under `data\`).
 Double-click **`setup.cmd`** or from Command Prompt:
 
 ```cmd
-cd /d "C:\CAN Research\CAN-Research-v0.1.0"
+cd /d "C:\CAN Research\CAN-Research-v<version>"
 setup.cmd
 ```
 
@@ -97,13 +97,13 @@ uv run canresearch config set-host your-device-id-usb.local
 
 ### 5. Start CAN Research
 
-Run **`start-can-research.cmd`** — leaves MCP listening at:
+Run **`start-can-research.cmd`** — starts local MCP and the OpenAI tunnel (if not already running). MCP listens at:
 
 ```text
 http://127.0.0.1:8765/mcp
 ```
 
-Leave that window open while using AI. Health check: **`status.cmd`**
+Leave any started service windows open while using AI. Health check: **`status.cmd`**
 
 ### 6. Connect AI and install bundled Skills
 

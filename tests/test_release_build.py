@@ -44,3 +44,18 @@ def test_release_includes_skill_packages(release_zip: Path) -> None:
         with zipfile.ZipFile(release_zip) as outer:
             inner = zipfile.ZipFile(io.BytesIO(outer.read(path)))
             assert f"{skill}/SKILL.md" in inner.namelist()
+
+
+def test_release_includes_runtime_scripts(release_zip: Path) -> None:
+    """setup.cmd and start-can-research.cmd require these scripts in the ZIP."""
+    required = (
+        "scripts/mcp_verify_http.py",
+        "scripts/package_skill.py",
+        "scripts/tunnel_windows.py",
+    )
+    with zipfile.ZipFile(release_zip) as zf:
+        names = [n.replace("\\", "/") for n in zf.namelist()]
+        for suffix in required:
+            matches = [n for n in names if n.endswith(suffix)]
+            assert len(matches) == 1, f"expected one {suffix}, found {matches}"
+            assert zf.getinfo(matches[0]).file_size > 0

@@ -54,6 +54,7 @@ COPY_DIRS = (
 RELEASE_SCRIPT_FILES = (
     "mcp_verify_http.py",
     "package_skill.py",
+    "tunnel_windows.py",
 )
 
 # Paths that must never appear inside the release artifact.
@@ -87,6 +88,7 @@ REQUIRED_ZIP_SUFFIXES = (
     "docs/CANSUB_SETUP.md",
     "scripts/mcp_verify_http.py",
     "scripts/package_skill.py",
+    "scripts/tunnel_windows.py",
     "skills/dist/can-onboarding.skill.zip",
     "skills/dist/can-reference-builder.skill.zip",
     "skills/dist/can-signal-research.skill.zip",

@@ -63,7 +63,7 @@ It does **not** modify your local `data/` or `data/config.toml`.
 
 ## Recommended publish path (semi-automatic)
 
-From **`main`** with a **clean working tree**:
+From **`main`** with a **clean working tree** and **CAN Research MCP stopped**:
 
 ```powershell
 ./scripts/publish-release.ps1 -Version X.Y.Z
@@ -89,26 +89,30 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 
 
 The script:
 
-1. Validates semver and branch (`main`)
-2. Fetches `origin` and refuses if local `main` is behind `origin/main`
-3. Refuses if tag `vX.Y.Z` already exists locally or on `origin`
-4. Refuses if `pyproject.toml` already equals the requested version
-5. Updates **`[project].version`** in `pyproject.toml` only
-6. Runs `uv lock`
-7. Runs `./scripts/build-release.ps1`
-8. Runs `uv run pytest tests/test_release_build.py -q`
-9. Verifies `dist/releases/CAN-Research-vX.Y.Z-windows.zip` exists
-10. Shows a release summary and requires Enter before irreversible Git operations
-11. Commits `Release vX.Y.Z`, creates annotated tag `vX.Y.Z`, pushes `main` and the tag
+1. Verifies **git** and **uv** are on PATH
+2. **Refuses if `canresearch.exe` is running** — checked **before** any version bump or `uv.lock` change. Stop MCP / close `start-can-research.cmd` windows first. A running CAN Research server can hold files or process state during release work; aborting early avoids partial release edits.
+3. Validates semver format
+4. Requires branch **`main`**
+5. Requires a **clean working tree** (or `-AllowDirty`)
+6. Fetches **`origin`** and refuses if local `main` is behind **`origin/main`**
+7. Refuses if tag **`vX.Y.Z`** already exists locally or on **`origin`**
+8. Refuses if **`pyproject.toml`** already equals the requested version
+9. Updates **`[project].version`** in `pyproject.toml` only
+10. Runs **`uv lock`**
+11. Runs **`./scripts/build-release.ps1`**
+12. Runs **`uv run pytest tests/test_release_build.py -q`**
+13. Verifies **`dist/releases/CAN-Research-vX.Y.Z-windows.zip`** exists
+14. Shows a release summary and requires **Enter** before irreversible Git operations
+15. Commits **`Release vX.Y.Z`**, creates annotated tag **`vX.Y.Z`**, pushes **`main`** and the tag
 
 **Tag ↔ version must match:**
 
 ```toml
-version = "0.1.1"
+version = "X.Y.Z"
 ```
 
 ```text
-git tag v0.1.1
+git tag vX.Y.Z
 ```
 
 Pushing `v*` triggers GitHub Actions (see below). The script does **not** call the GitHub API or embed tokens.
@@ -121,14 +125,15 @@ Office quick reference: [Commands_Register.md](Commands_Register.md)
 
 ## Manual publish path
 
-1. Edit `[project].version` in `pyproject.toml`
-2. Run `uv lock` if the lockfile needs refreshing
-3. `./scripts/build-release.ps1`
-4. `uv run pytest tests/test_release_build.py -q`
-5. Commit: `Release vX.Y.Z`
-6. Annotated tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
-7. `git push origin main`
-8. `git push origin vX.Y.Z`
+1. Stop CAN Research MCP (`canresearch.exe` / `start-can-research.cmd` windows)
+2. Edit `[project].version` in `pyproject.toml`
+3. Run `uv lock` if the lockfile needs refreshing
+4. `./scripts/build-release.ps1`
+5. `uv run pytest tests/test_release_build.py -q`
+6. Commit: `Release vX.Y.Z`
+7. Annotated tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+8. `git push origin main`
+9. `git push origin vX.Y.Z`
 
 GitHub Actions publishes the Release asset when the tag arrives.
 
@@ -181,12 +186,12 @@ And requires root runtime files, core docs, and all three Skill packages.
 
 File: `.github/workflows/release.yml`
 
-**Trigger:** push a version tag matching `v*` (e.g. `v0.1.0`)
+**Trigger:** push a version tag matching `v*` (e.g. `vX.Y.Z`)
 
 **Steps:** checkout → install uv → `uv sync --extra dev` → `build-release.ps1` → verify artifact →
 `pytest tests/test_release_build.py` → upload `dist/releases/CAN-Research-v*-windows.zip` to GitHub Release.
 
-Tag naming must match `pyproject.toml` version (`v0.1.0` ↔ `version = "0.1.0"`).
+Tag naming must match `pyproject.toml` version (`vX.Y.Z` ↔ `version = "X.Y.Z"`).
 
 Maintainer entry point: `./scripts/publish-release.ps1 -Version X.Y.Z` (see above).
 
@@ -207,7 +212,7 @@ and attaching the ZIP to a release yourself.
 | `src/` | CAN Research application source |
 | `docs/` | User and operator documentation |
 | `skills/` | Skill source + `skills/dist/*.skill.zip` |
-| `scripts/` | `mcp_verify_http.py`, `package_skill.py` only |
+| `scripts/` | `mcp_verify_http.py`, `package_skill.py`, `tunnel_windows.py` |
 | `schemas/` | Reference bundle JSON schema |
 | `config/examples/` | Multi-instance config examples |
 
@@ -222,7 +227,7 @@ and attaching the ZIP to a release yourself.
 - `dist/` from developer builds (release output is rebuilt fresh)
 - `docs/original_docs/`, licensed/private reference material
 - `scripts/build_release.py`, `scripts/build-release.ps1`, `scripts/publish_release.py`, `scripts/publish-release.ps1` (maintainer-only)
-- OpenAI tunnel client (ChatGPT-specific — see [MCP_SETUP.md](MCP_SETUP.md))
+- OpenAI **`tunnel-client.exe`** binary (not bundled — installed to `%LOCALAPPDATA%\CAN Research\tunnel-client\` via `setup.cmd`; see [MCP_SETUP.md](MCP_SETUP.md)). **`scripts/tunnel_windows.py` is included** in the release ZIP as a runtime helper.
 - Pre-built `skills/*/skill.zip` dev artifacts (release uses `skills/dist/` only)
 
 ---

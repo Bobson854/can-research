@@ -147,26 +147,26 @@ Dev dependencies: `uv sync --extra dev`
 
 ## Release / packaging
 
-**Version source of truth:** `pyproject.toml` → `[project].version` (e.g. `0.1.0` ↔ tag `v0.1.0`)
+**Version source of truth:** `pyproject.toml` → `[project].version` (e.g. `X.Y.Z` ↔ tag `vX.Y.Z`)
 
 ### Recommended — semi-automatic publish
 
-From repo root on `main`, clean tree:
+From repo root on `main`, clean tree, **with `canresearch.exe` stopped** (close `start-can-research.cmd` windows):
 
 ```powershell
-./scripts/publish-release.ps1 -Version 0.1.1
+./scripts/publish-release.ps1 -Version X.Y.Z
 ```
 
 Dry run (validate + print Git steps, no commit/tag/push):
 
 ```powershell
-./scripts/publish-release.ps1 -Version 0.1.1 -DryRun
+./scripts/publish-release.ps1 -Version X.Y.Z -DryRun
 ```
 
 From **Command Prompt**, invoke PowerShell explicitly:
 
 ```cmd
-powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version 0.1.1 -DryRun
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version X.Y.Z -DryRun
 ```
 
 Pushing the `v*` tag triggers [`.github/workflows/release.yml`](../.github/workflows/release.yml) to build and upload the GitHub Release asset.

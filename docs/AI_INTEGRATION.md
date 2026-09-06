@@ -19,9 +19,9 @@ as a **developer-oriented** MCP client only.
 ## Before connecting AI
 
 1. Complete software setup — [INSTALLATION.md](INSTALLATION.md)
-2. Start the local MCP service:
-   - **Windows (release install):** `start-can-research.cmd`
-   - **Developer:** `uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp`
+2. Start services:
+   - **Windows:** `start-can-research.cmd` — starts MCP and the OpenAI tunnel (after one-time tunnel/connector setup in [MCP_SETUP.md](MCP_SETUP.md))
+   - **Developer (MCP only):** `uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp`
 3. Confirm health: `status.cmd` or `uv run python scripts/mcp_verify_http.py`
 
 Default local endpoint:
@@ -56,10 +56,9 @@ Full tunnel and connector setup: [MCP_SETUP.md](MCP_SETUP.md).
 
 Summary:
 
-1. Run `start-can-research.cmd` (or equivalent MCP serve command)
-2. Configure OpenAI tunnel client → `http://127.0.0.1:8765/mcp`
-3. Create/enable ChatGPT MCP connector for your instance
-4. Verify `get_instance_info` in a fresh chat
+1. **Daily / after reboot:** Run `start-can-research.cmd` — reuse the **existing** ChatGPT connector
+2. **First-time only:** Configure OpenAI tunnel profile and ChatGPT MCP connector — [MCP_SETUP.md](MCP_SETUP.md) (`http://127.0.0.1:8765/mcp`)
+3. Verify `get_instance_info` in a fresh chat
 
 ### Install Skills
 
