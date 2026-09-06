@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLISH_SCRIPT = ROOT / "scripts" / "publish_release.py"
+PUBLISH_PS1 = ROOT / "scripts" / "publish-release.ps1"
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import publish_release as pr  # noqa: E402
@@ -110,13 +112,30 @@ def test_bump_version_rejects_same_version(tmp_path: Path) -> None:
 
 
 def test_dry_run_script_includes_guarded_git_steps() -> None:
-    publish_ps1 = ROOT / "scripts" / "publish-release.ps1"
-    assert publish_ps1.is_file()
-    text = publish_ps1.read_text(encoding="utf-8")
+    assert PUBLISH_PS1.is_file()
+    text = PUBLISH_PS1.read_text(encoding="utf-8-sig")
     assert "$DryRun" in text
     assert "git push origin" in text
     assert "build-release.ps1" in text
     assert "DRY RUN" in text
+
+
+def test_publish_powershell_is_ascii_only() -> None:
+    text = PUBLISH_PS1.read_text(encoding="utf-8-sig")
+    assert all(ord(ch) < 128 for ch in text), "publish-release.ps1 must stay ASCII-safe for Windows PowerShell 5.1"
+
+
+def test_publish_powershell_parses_when_windows_powershell_available() -> None:
+    powershell = shutil.which("powershell") or shutil.which("powershell.exe")
+    if powershell is None:
+        pytest.skip("Windows PowerShell is not available on this test host")
+    command = (
+        "$e=$null; "
+        f"[System.Management.Automation.Language.Parser]::ParseFile('{PUBLISH_PS1.as_posix()}',[ref]$null,[ref]$e) | Out-Null; "
+        "if($e.Count -ne 0){$e | ForEach-Object {$_.ToString()}; exit 1}"
+    )
+    result = subprocess.run([powershell, "-NoProfile", "-Command", command], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_tag_for_version_cli() -> None:
