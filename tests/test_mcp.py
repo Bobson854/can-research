@@ -22,13 +22,14 @@ def test_mcp_serve_is_callable() -> None:
 
 
 def test_read_only_tool_registry() -> None:
-    assert len(READ_ONLY_TOOL_NAMES) == 19
+    assert len(READ_ONLY_TOOL_NAMES) == 24
     assert len(LIVE_TOOL_NAMES) == 7
     assert len(SIGNAL_RESEARCH_TOOL_NAMES) == 6
-    assert len(list_tool_names()) == 32
+    assert len(list_tool_names()) == 37
     assert "get_instance_info" in READ_ONLY_TOOL_NAMES
     assert "analyze_session" in READ_ONLY_TOOL_NAMES
     assert "build_session_dbc_preview" in READ_ONLY_TOOL_NAMES
+    assert "analyze_dbc_coverage" in READ_ONLY_TOOL_NAMES
     assert "start_live_capture" in LIVE_TOOL_NAMES
 
 

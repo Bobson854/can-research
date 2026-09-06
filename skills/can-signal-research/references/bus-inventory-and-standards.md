@@ -27,6 +27,9 @@ After preflight and capture (or on stored session):
 | Node / address picture | `list_session_nodes`, `inspect_transport` if needed |
 | Reference decode | `decode_session`, `lookup_pgn`, `lookup_spn` |
 | Standard DBC preview | `build_session_dbc_preview` |
+| **Registered DBC library** | `list_dbc_sources` — manifest + asset `*_standard.dbc` / `*_research.dbc` |
+| **DBC session coverage** | `analyze_dbc_coverage` — covered / partial / unknown + `known_first` lists |
+| DBC message lookup | `lookup_dbc_message`, `lookup_dbc_signal` |
 | Confirmed proprietary | `list_research_candidates`, `preview_research_dbc` |
 | Activity on unknown IDs | `analyze_can_id_activity` |
 
@@ -38,7 +41,8 @@ Produce a concise bus picture:
 |--------|---------|
 | Total observed messages / unique CAN IDs | Bus size |
 | Standards-backed messages | Matched reference catalogue (PGN/SPN) |
-| Locally recognised messages | Confirmed DBC / prior research / layout match |
+| Locally recognised messages | Registered DBC exact match + confirmed research / layout match |
+| Partially recognised | DBC PGN address-variant, DLC mismatch, or conflicting definitions |
 | Unknown / proprietary messages | Research targets |
 | High-value unknowns | Periodic, stable layout, operator intent, experiment potential |
 

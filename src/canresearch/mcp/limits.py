@@ -48,3 +48,19 @@ MAX_LIST_SESSION_EVENTS = 200
 
 DEFAULT_CANDIDATE_VALUE_PREVIEW = 50
 MAX_CANDIDATE_VALUE_PREVIEW = 200
+
+DEFAULT_DBC_INSPECT_MESSAGES = 50
+MAX_DBC_INSPECT_MESSAGES = 200
+DEFAULT_DBC_INSPECT_SIGNALS = 32
+MAX_DBC_INSPECT_SIGNALS = 64
+DEFAULT_DBC_COVERAGE_ROWS = 100
+MAX_DBC_COVERAGE_ROWS = 500
+MAX_LIST_DBC_SOURCES = 100
+
+
+def clamp_limit(value: int | None, default: int, maximum: int) -> int:
+    if value is None:
+        return default
+    if value <= 0:
+        return default
+    return min(value, maximum)

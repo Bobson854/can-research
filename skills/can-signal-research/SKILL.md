@@ -42,7 +42,7 @@ not necessarily a perfect autonomous DBC. Technicians refine naming/scaling afte
 3. INSPECT ASSETS          list_assets / get_asset; list_sessions if relevant
 4. SYSTEM CONTEXT          minimal questions — [system-context-and-assets.md](references/system-context-and-assets.md)
 5. ESTABLISH ASSET SCOPE   propose asset_key; CLI if create needed
-6. BUS INVENTORY           standards + nodes + coverage summary — [bus-inventory-and-standards.md](references/bus-inventory-and-standards.md)
+6. BUS INVENTORY           standards + nodes + DBC coverage — [bus-inventory-and-standards.md](references/bus-inventory-and-standards.md)
 7. REUSE LOCAL KNOWLEDGE   DBC fingerprints, prior research — [knowledge-reuse.md](references/knowledge-reuse.md)
 8. PASSIVE INFERENCE       whole-field + cross-field reasoning — [contextual-reasoning.md](references/contextual-reasoning.md)
 9. VALIDATE                preview_candidate_values; field-width caution — [field-analysis.md](references/field-analysis.md)
@@ -84,9 +84,9 @@ High structure + medium exact meaning is a **valid success**.
 | Phase | Tools |
 |-------|-------|
 | Identity / live | `get_instance_info`, `get_cansub_*`, `observe_live_traffic`, capture/events |
-| Bus inventory | `analyze_session`, `decode_session`, `list_session_nodes`, `lookup_pgn`/`lookup_spn`, `build_session_dbc_preview` |
+| Bus inventory | `analyze_session`, `decode_session`, `list_session_nodes`, `lookup_pgn`/`lookup_spn`, `build_session_dbc_preview`, **`list_dbc_sources`**, **`analyze_dbc_coverage`** |
 | Research | `preview_candidate_values`, `rank_signal_candidates`, `analyze_can_id_activity`, `correlate_candidate_field`, `compare_experiment_windows`, `detect_counters`/`checksums` |
-| Knowledge | `list_research_candidates`, `preview_research_dbc`, `list_assets`, `get_asset` |
+| Knowledge | `list_research_candidates`, `preview_research_dbc`, `list_assets`, `get_asset`, **`inspect_dbc`**, **`lookup_dbc_message`** |
 
 Full list: project README.
 
@@ -104,7 +104,8 @@ Full list: project README.
 ## Self-evaluation checklist
 
 - [ ] Backend + preflight + frames verified
-- [ ] Bus inventory: standards vs local vs unknown summarised
+- [ ] Registered DBC sources listed; `analyze_dbc_coverage` run when DBCs exist
+- [ ] Bus inventory: standards vs DBC-known vs unknown summarised
 - [ ] Local/DBC knowledge searched before “unknown” research
 - [ ] Passive + contextual reasoning before physical action
 - [ ] Field widths not over-shrunk; static messages considered

@@ -65,6 +65,11 @@ EXPECTED_TOOLS = frozenset(
         "preview_research_dbc",
         "list_session_events",
         "preview_candidate_values",
+        "list_dbc_sources",
+        "inspect_dbc",
+        "lookup_dbc_message",
+        "lookup_dbc_signal",
+        "analyze_dbc_coverage",
     }
 )
 

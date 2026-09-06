@@ -81,7 +81,7 @@ No GUI in V1. No bundled SAE J1939 database.
 | Assets | Registry of tractor/implement/controller devices with session links |
 | Capture | Session metadata in SQLite; raw frames in JSONL under `{data_dir}/sessions/` |
 | Configuration | TOML at `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
-| MCP | 32 tools: stored/offline analysis, passive live CANsub research, signal research, instance identity |
+| MCP | 37 tools: stored/offline analysis, DBC library/coverage, passive live CANsub, signal research |
 | AI Skill | `can-signal-research` — guided proprietary discovery via ChatGPT + MCP (portable across installations) |
 | Storage | SQLite for metadata, references, candidates, findings; frames outside SQLite |
 
@@ -135,7 +135,7 @@ CANsub + **your existing knowledge** + Skill + known-first research).
 
 **Bringing DBCs / reference material?** → **[docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md)**
 
-CAN Research has three layers: **deterministic core** → **MCP (32 tools)** →
+CAN Research has three layers: **deterministic core** → **MCP (37 tools)** →
 **CAN Signal Research Skill** (generative orchestration in ChatGPT).
 
 ```text
@@ -258,13 +258,17 @@ uv run canresearch research candidate reject <candidate-id> [--notes "..."]
 uv run canresearch research candidate evidence <candidate-id>
 uv run canresearch research dbc <asset-key> [--output path]
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
+uv run canresearch session dbc-coverage <session-id> [--source <key> ...] [--asset <key>] [--limit N]
+uv run canresearch reference dbc register --key <key> <path> [--name ...] [--type user_supplied|oem|...] [--asset <key>]
+uv run canresearch reference dbc list [--asset <key>]
+uv run canresearch reference dbc inspect <key>
 uv run canresearch reference import-j1939 ...
 uv run canresearch mcp tools
 ```
 
 ### MCP serving
 
-Both transports use the **same tool registry** (32 tools). Stdio is for desktop MCP
+Both transports use the **same tool registry** (37 tools). Stdio is for desktop MCP
 clients; streamable HTTP is for OpenAI tunnel / ChatGPT connector deployment.
 
 **Stdio (Cursor, Claude Desktop, etc.):**
@@ -301,11 +305,11 @@ uv run python scripts/mcp_verify_http.py
 
 → [Normal startup after reboot](docs/MCP_SETUP.md#normal-startup-after-reboot)
 
-### MCP tool surface (32 total)
+### MCP tool surface (37 total)
 
 | Group | Count | Purpose |
 |-------|-------|---------|
-| Read-only | 19 | Sessions, references, assets, candidates, DBC preview, instance identity |
+| Read-only | 24 | Sessions, references, assets, candidates, DBC preview, **DBC library/coverage**, instance identity |
 | Live / passive | 7 | CANsub status, capture, events, bounded live observation |
 | Signal research | 6 | Candidate evidence (rank, activity, counters, checksums, correlation) |
 
@@ -314,7 +318,8 @@ uv run python scripts/mcp_verify_http.py
 `list_assets`, `get_asset`, `list_asset_nodes`, `lookup_pgn`, `lookup_spn`,
 `build_session_dbc_preview`, `list_research_candidates`, `get_research_candidate`,
 `list_candidate_evidence`, `preview_research_dbc`, `list_session_events`,
-`preview_candidate_values`.
+`preview_candidate_values`, `list_dbc_sources`, `inspect_dbc`, `lookup_dbc_message`,
+`lookup_dbc_signal`, `analyze_dbc_coverage`.
 
 **Live tools (passive):** `get_cansub_device_status`, `get_cansub_channel_status`,
 `start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
@@ -328,6 +333,8 @@ uv run python scripts/mcp_verify_http.py
 
 - Inspect references, sessions, assets, nodes, candidates, and evidence
 - Preview standard and research DBCs in memory
+- List, inspect, and look up registered DBC knowledge sources
+- Analyze session coverage against registered DBCs (known-first output)
 - Identify which CAN Research backend instance is connected (`get_instance_info`)
 - Observe live traffic, start/stop passive capture, mark experiment events
 - Compare experiment windows and run deterministic signal research

@@ -42,7 +42,7 @@ If yes → plan to add them during steps 5–10 below. Details: [REFERENCE_DATA.
 | 4 | Validate CAN traffic | [CANSUB_SETUP.md](CANSUB_SETUP.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | 5 | Inventory existing CAN knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) — three categories below |
 | 6 | Add/import structured reference data | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **implemented** import paths |
-| 7 | Add existing DBC files | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **partial / planned** automation |
+| 7 | Add existing DBC files | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **`reference dbc register`** |
 | 8 | Add supporting reference documents | [REFERENCE_DATA.md](REFERENCE_DATA.md) — retention model |
 | 9 | Convert unsupported formats (if needed) | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **planned** `can-reference-builder` |
 | 10 | Validate local reference knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) — `reference validate` |
@@ -71,10 +71,16 @@ J1939, ISOBUS, OEM PGN/SPN tables — normalized into the local reference catalo
 
 Supplier, OEM, user-created, tuned, `<asset>_standard.dbc`, confirmed `<asset>_research.dbc`.
 
-**Today:** generate/preview standard DBC from sessions + reference catalogue; confirmed
-research DBC from CLI-confirmed candidates. **Automated DBC import/inspection is not yet
-implemented** — retain files locally and use Skill/host consultation until core support
-exists.
+**Today:** register DBCs into the local library, inspect them, and run session coverage
+analysis. Generate/preview `<asset>_standard.dbc` from sessions + reference catalogue;
+confirmed research DBC from CLI-confirmed candidates. Asset-scoped `*_standard.dbc` /
+`*_research.dbc` in the working directory are auto-discovered when listed.
+
+```powershell
+uv run canresearch reference dbc register --key supplier_baseline path\to\file.dbc
+uv run canresearch reference dbc list
+uv run canresearch session dbc-coverage <session-id>
+```
 
 ### 3. Supporting reference documents
 
@@ -115,17 +121,32 @@ uv run canresearch reference validate
 uv run canresearch reference stats
 ```
 
-### DBC files (today)
+### DBC files (implemented)
 
-- Keep DBCs in a **local private area** (not in public Git) — see [REFERENCE_DATA.md](REFERENCE_DATA.md)
+- Keep originals in a **local private area** (not in public Git) — see [REFERENCE_DATA.md](REFERENCE_DATA.md)
+- Register into the bounded DBC library:
+
+```powershell
+uv run canresearch reference dbc register --key my_dbc path\to\file.dbc `
+  --name "Supplier baseline" --type user_supplied [--asset my_tractor]
+uv run canresearch reference dbc list [--asset my_tractor]
+uv run canresearch reference dbc inspect my_dbc
+```
+
+- Compare a stored session against registered DBCs:
+
+```powershell
+uv run canresearch session dbc-coverage <session-id> [--source my_dbc] [--asset my_tractor]
+```
+
+- MCP (Skill KNOWN-FIRST): `list_dbc_sources`, `inspect_dbc`, `analyze_dbc_coverage`
 - Generate reference-backed standard DBC from a capture:
 
 ```powershell
 uv run canresearch session dbc <session-id> --asset <asset-key>
 ```
 
-- Preview via MCP: `build_session_dbc_preview`, `preview_research_dbc`
-- **`reference import-dbc` is not implemented yet** — do not assume automated DBC ingest
+- **`reference import-dbc`** (catalogue import) is not implemented — use **`reference dbc register`** for the DBC library
 
 ### Supporting documents (today)
 
@@ -168,17 +189,24 @@ live/stored CAN traffic
         +
 reference catalogue
         +
-existing DBCs (manual / future automated)
+registered DBC library (+ asset *_standard.dbc / *_research.dbc)
         +
 relevant supporting documents
         ↓
-known baseline
+known baseline (reference + DBC coverage)
         ↓
 unknown / proprietary remainder
         ↓
 CAN Signal Research Skill
         ↓
 confirmed research knowledge (CLI)
+```
+
+Workflow:
+
+```text
+existing DBC → register/discover → inspect → compare against session
+  → determine known coverage → research unknown remainder
 ```
 
 ### Known-first checklist (MCP / CLI)
@@ -190,8 +218,10 @@ confirmed research knowledge (CLI)
 | Decode reference-backed values | `decode_session`, `lookup_pgn`, `lookup_spn` |
 | List nodes | `list_session_nodes` |
 | Preview standard DBC | `build_session_dbc_preview` |
+| List registered DBC sources | `list_dbc_sources` |
+| Session vs DBC coverage | `session dbc-coverage` / `analyze_dbc_coverage` |
 | List confirmed proprietary | `list_research_candidates`, `preview_research_dbc` |
-| Isolate unknown IDs | Skill bus inventory — compare analysis to DBC/reference |
+| Isolate unknown IDs | Skill bus inventory — DBC coverage + reference analysis |
 | Research remainder | Skill passive inference → experiment if needed |
 
 **Do not** experimentally rediscover signals already in your reference catalogue or

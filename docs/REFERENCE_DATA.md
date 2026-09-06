@@ -158,23 +158,47 @@ uv run canresearch research dbc <asset-key>
 - `preview_research_dbc` — confirmed research candidates only
 - `list_research_candidates` — inspect confirmed/candidate state
 
-**Skill behaviour:** may consult DBC files visible to the host environment as **hypothesis
-generators** with provenance — never silent copy. See Skill
-[knowledge-reuse.md](../skills/can-signal-research/references/knowledge-reuse.md).
+**DBC library (register, inspect, coverage):**
+
+Register user-owned DBC files into a bounded local library (manifest + copy under
+`data/dbc/`):
+
+```powershell
+uv run canresearch reference dbc register --key my_oem_dbc path\to\file.dbc `
+  --name "OEM baseline" --type user_supplied [--asset my_tractor]
+uv run canresearch reference dbc list [--asset my_tractor]
+uv run canresearch reference dbc inspect my_oem_dbc
+uv run canresearch session dbc-coverage <session-id> [--source my_oem_dbc] [--asset my_tractor]
+```
+
+**MCP (read-only, bounded source keys — no arbitrary paths):**
+
+- `list_dbc_sources` — registered DBC knowledge sources (+ asset `*_standard.dbc` / `*_research.dbc` in CWD when present)
+- `inspect_dbc` — messages, signals, counts for one source key
+- `lookup_dbc_message` / `lookup_dbc_signal` — exact CAN ID or name lookup
+- `analyze_dbc_coverage` — session vs registered DBCs; returns `known_first` {known, partial, unknown}
+
+Coverage classes: **covered** (exact ID match), **partially_covered** (conflicting definitions,
+payload exceeds DLC, or J1939 PGN address-variant match), **unknown** (no DBC message).
+
+Unique-ID and frame-weighted coverage percentages are reported separately.
+
+**Skill behaviour:** use MCP DBC coverage during KNOWN-FIRST before proprietary research.
+Local DBC files on disk remain hypothesis generators with provenance — never silent copy.
+See Skill [knowledge-reuse.md](../skills/can-signal-research/references/knowledge-reuse.md).
 
 ### Planned / not implemented today
 
 | Capability | Status |
 |------------|--------|
-| `reference import-dbc` | Not implemented |
-| Register/index user DBC library in core | Future application work |
-| MCP: list DBC files, inspect messages/signals | Future — see below |
-| Automated observed-traffic vs DBC coverage | Future |
-| Lookup signal by CAN ID from registered DBC set | Future |
+| `reference import-dbc` (catalogue import) | Not implemented — use `reference dbc register` for library |
+| Generic DBC import/transformation pipeline | Future |
+| Reference bundle contract | Future |
+| Document index/search MCP tools | Future |
+| Mask/SavvyCAN-style filter-aware DBC adaptation | Future (PGN address-variant matching is partial) |
 
-Until automated DBC onboarding exists: **retain DBC files locally**, document provenance,
-and use manual/Skill-assisted comparison against `analyze_session` / `decode_session`
-results.
+Until catalogue import exists: **retain DBC files locally**, register via CLI, and run
+`session dbc-coverage` or MCP `analyze_dbc_coverage` against stored sessions.
 
 ---
 
@@ -334,23 +358,18 @@ not locked to one vendor.
 
 ## Future MCP / core capabilities (candidate — not existing)
 
-Based on Skill V2/V3 validation, likely useful **deterministic** capabilities for a
-future milestone:
+Based on Skill validation, likely useful **deterministic** capabilities for a future milestone:
 
 | Candidate capability | Purpose |
 |---------------------|---------|
-| List available DBC files / knowledge sets | Onboarding inventory |
-| Inspect DBC metadata | Source, asset, message count |
-| List DBC messages / signals | Coverage planning |
-| Lookup signal by CAN ID | Match traffic to known definitions |
-| Lookup signal by name | Cross-reference |
-| Observed-traffic coverage from DBC set | Known vs unknown quantification |
 | List available reference documents | Source index |
 | Search / index supporting documents | Operator + Skill retrieval |
 | Expose provenance per definition | Trust labelling |
+| Mask/filter-aware DBC adaptation | SavvyCAN-style address families |
 
-**None of the above are documented as available MCP tools today.** The current MCP surface
-is 32 tools — see README. Frame requests for new tools against this gap list.
+**Implemented in this milestone:** DBC library register/list/inspect, lookup by CAN ID/name,
+and session DBC coverage (`list_dbc_sources`, `inspect_dbc`, `lookup_dbc_message`,
+`lookup_dbc_signal`, `analyze_dbc_coverage`). The current MCP surface is **37 tools** — see README.
 
 ---
 
@@ -365,6 +384,10 @@ is 32 tools — see README. Frame requests for new tools against this gap list.
 | `list_research_candidates` | Candidate/evidence inspect |
 | `analyze_session` | J1939 classification vs catalogue |
 | `decode_session` | Reference-backed decode |
+| `list_dbc_sources` | Registered DBC knowledge sources |
+| `inspect_dbc` | Message/signal inventory for one source |
+| `lookup_dbc_message` / `lookup_dbc_signal` | Exact ID or name lookup |
+| `analyze_dbc_coverage` | Session vs DBC known-first summary |
 
 Import remains **CLI-only**.
 

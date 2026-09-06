@@ -61,7 +61,7 @@ The generative agent should:
 └───────────────────────────────┬─────────────────────────────────┘
                                 │ calls MCP tools
 ┌───────────────────────────────▼─────────────────────────────────┐
-│ MCP (32 tools — stable substrate)                               │
+│ MCP (37 tools — stable substrate)                               │
 │  bounded access to deterministic capabilities                   │
 └───────────────────────────────┬─────────────────────────────────┘
                                 │ thin handlers
@@ -140,7 +140,8 @@ Only request a physical experiment when it is expected to **materially reduce am
 | OBSERVE TRAFFIC | `observe_live_traffic`, `start_live_capture` / `stop_live_capture` | Decide duration; avoid raw dumps to user |
 | APPLY REFERENCE | `lookup_pgn`, `lookup_spn`, `analyze_session`, `decode_session` | Map documented traffic; exclude from proprietary search |
 | APPLY CONFIRMED KNOWLEDGE | `list_research_candidates`, `preview_research_dbc`, asset DBC on disk | Exclude confirmed `(can_id, start_bit, …)` from search |
-| BUILD KNOWN BASELINE | `build_session_dbc_preview` → `<asset>_standard.dbc` concept | Explain what is already explained |
+| APPLY DBC LIBRARY | `list_dbc_sources`, `inspect_dbc`, `analyze_dbc_coverage`, `lookup_dbc_message` | Known-first: quantify covered / partial / unknown IDs before proprietary work |
+| BUILD KNOWN BASELINE | `build_session_dbc_preview`, DBC coverage summary | Explain what is already explained |
 | INVENTORY UNKNOWN | `analyze_session`, `rank_signal_candidates`, proprietary PGN/ID lists | Prioritize unknown remainder |
 | USER REQUEST | — | Classify intent; passive inference before experiment plan |
 | PASSIVE INFERENCE | `observe_live_traffic`, payload inspection, contextual hints | Rank hypotheses; avoid unnecessary operator actions |
@@ -418,7 +419,7 @@ the **architecture direction** — not a finished autonomous reverse-engineering
 | Host OS | Windows |
 | CANsub.2 | Channel 1 (Ethernet bench) |
 | ChatGPT | `can-signal-research` Skill installed and available |
-| MCP | CAN Research connector live; **32 tools** exposed |
+| MCP | CAN Research connector live; **37 tools** exposed |
 | Mode | Passive observation only |
 | CAN TX | None |
 | Candidate confirmation | Not via MCP (CLI boundary preserved) |

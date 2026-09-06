@@ -700,6 +700,71 @@ def session_dbc(
     _print_session_dbc(summary, output_path)
 
 
+@session_group.command("dbc-coverage")
+@click.argument("session_id")
+@click.option("--source", "source_keys", multiple=True, help="DBC source key (repeatable).")
+@click.option(
+    "--asset",
+    "asset_key",
+    default=None,
+    help="Include asset standard/research DBC files.",
+)
+@click.option("--limit", default=100, show_default=True, help="Maximum coverage rows to print.")
+def session_dbc_coverage(
+    session_id: str,
+    source_keys: tuple[str, ...],
+    asset_key: str | None,
+    limit: int,
+) -> None:
+    """Analyze session CAN ID coverage against registered DBC knowledge sources."""
+    from canresearch.core.dbc_coverage import analyze_dbc_coverage
+    from canresearch.core.dbc_knowledge import DbcKnowledgeError
+
+    keys = source_keys if source_keys else None
+    try:
+        summary = analyze_dbc_coverage(
+            session_id,
+            source_keys=keys,
+            asset_key=asset_key,
+            row_limit=limit,
+        )
+    except DbcKnowledgeError as exc:
+        raise SystemExit(str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo(f"session: {summary.session_id}")
+    click.echo(f"dbc_sources: {', '.join(summary.dbc_sources)}")
+    click.echo(
+        f"unique_ids: observed={summary.unique_ids_observed} "
+        f"covered={summary.unique_ids_covered} "
+        f"partial={summary.unique_ids_partially_covered} "
+        f"unknown={summary.unique_ids_unknown}"
+    )
+    click.echo(
+        f"frames: observed={summary.frames_observed} "
+        f"covered={summary.frames_covered} "
+        f"partial={summary.frames_partially_covered} "
+        f"unknown={summary.frames_unknown}"
+    )
+    click.echo(
+        f"coverage_pct: unique_ids={summary.unique_id_coverage_pct}% "
+        f"frames={summary.frame_coverage_pct}%"
+    )
+    click.echo("known_first:")
+    click.echo(f"  known: {', '.join(summary.known_can_ids) or '(none)'}")
+    click.echo(f"  partial: {', '.join(summary.partially_covered_can_ids) or '(none)'}")
+    click.echo(f"  unknown: {', '.join(summary.unknown_can_ids) or '(none)'}")
+    for row in summary.rows:
+        can_hex = f"0x{row.can_id:08X}" if row.is_extended else f"0x{row.can_id:03X}"
+        click.echo(
+            f"  {can_hex} [{row.classification}] frames={row.frame_count} "
+            f"reason={row.reason} message={row.message_name or '-'}"
+        )
+
+
 @session_group.command("tp")
 @click.argument("session_id")
 @click.option("--pgn", type=int, default=None, help="Filter completed transported PGN.")
@@ -1774,11 +1839,100 @@ def reference_group() -> None:
     """Import and manage local PGN/SPN reference data."""
 
 
+@reference_group.group("dbc")
+def reference_dbc_group() -> None:
+    """Register and inspect user-owned DBC knowledge sources."""
+
+
+@reference_dbc_group.command("register")
+@click.option("--key", "source_key", required=True, help="Stable DBC source key.")
+@click.argument("dbc_path", type=click.Path(exists=True, dir_okay=False))
+@click.option("--name", "display_name", default=None, help="Human display name.")
+@click.option(
+    "--type",
+    "source_type",
+    default="user_supplied",
+    type=click.Choice(
+        sorted({"user_supplied", "oem", "supplier", "standard", "confirmed_research"}),
+    ),
+    show_default=True,
+)
+@click.option("--asset", "asset_key", default=None, help="Optional associated asset key.")
+def reference_dbc_register(
+    source_key: str,
+    dbc_path: str,
+    display_name: str | None,
+    source_type: str,
+    asset_key: str | None,
+) -> None:
+    """Register a DBC file in the local DBC knowledge library."""
+    from pathlib import Path
+
+    from canresearch.core.dbc_knowledge import DbcKnowledgeError
+    from canresearch.core.dbc_registry import register_dbc_source
+
+    try:
+        entry = register_dbc_source(
+            key=source_key,
+            path=Path(dbc_path),
+            display_name=display_name,
+            source_type=source_type,
+            asset_key=asset_key,
+        )
+    except DbcKnowledgeError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"registered: {entry.key}")
+    click.echo(f"path: {entry.path}")
+    click.echo(f"type: {entry.source_type}")
+
+
+@reference_dbc_group.command("list")
+@click.option("--asset", "asset_key", default=None, help="Include asset DBC files when present.")
+def reference_dbc_list(asset_key: str | None) -> None:
+    """List registered DBC knowledge sources."""
+    from canresearch.core.dbc_registry import list_dbc_source_meta
+
+    metas = list_dbc_source_meta(asset_key=asset_key)
+    if not metas:
+        click.echo("No DBC sources registered.")
+        return
+    for meta in metas:
+        click.echo(
+            f"{meta.key}\t{meta.source_type}\t{meta.display_name}\t{meta.path}"
+        )
+
+
+@reference_dbc_group.command("inspect")
+@click.argument("source_key")
+def reference_dbc_inspect(source_key: str) -> None:
+    """Inspect one registered DBC knowledge source."""
+    from canresearch.core.dbc_knowledge import DbcKnowledgeError
+    from canresearch.core.dbc_registry import inspect_dbc_source
+
+    try:
+        loaded = inspect_dbc_source(source_key)
+    except DbcKnowledgeError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"key: {loaded.meta.key}")
+    click.echo(f"display_name: {loaded.meta.display_name}")
+    click.echo(f"path: {loaded.meta.path}")
+    click.echo(f"type: {loaded.meta.source_type}")
+    click.echo(f"messages: {loaded.meta.message_count}")
+    click.echo(f"signals: {loaded.meta.signal_count}")
+    for warning in loaded.warnings[:20]:
+        click.echo(f"warning: [{warning.category}] {warning.message}")
+    for message in loaded.database.messages[:50]:
+        ext = message.dbc_frame_id >= 0x80000000 or message.can_id > 0x7FF
+        can_hex = f"0x{message.can_id:08X}" if ext else f"0x{message.can_id:03X}"
+        click.echo(f"  {can_hex} {message.name} dlc={message.dlc} signals={len(message.signals)}")
+
+
 @reference_group.command("import-dbc")
 @click.argument("dbc_path", type=click.Path(exists=False))
 def reference_import_dbc(dbc_path: str) -> None:
     """Import PGN/message definitions from a user-provided DBC file."""
-    click.echo("Reference import-dbc is not yet implemented.")
+    click.echo("Reference import-dbc (catalogue import) is not yet implemented.")
+    click.echo("Use: uv run canresearch reference dbc register --key <key> <path>")
     click.echo(f"  dbc_path: {dbc_path}")
     click.echo("Note: only import DBCs you are licensed to use.")
 

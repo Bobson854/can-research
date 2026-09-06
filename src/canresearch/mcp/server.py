@@ -9,6 +9,7 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from canresearch.mcp import (
+    dbc_handlers,
     handlers,
     live_handlers,
     research_candidate_handlers,
@@ -176,6 +177,44 @@ READ_ONLY_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
             "stored session. Analysis only — does not persist or confirm candidates."
         ),
         handler=handlers.handle_preview_candidate_values,
+    ),
+    _ToolBinding(
+        name="list_dbc_sources",
+        description=(
+            "List registered DBC knowledge sources (read-only). "
+            "Optional asset_key includes asset standard/research DBC files when present."
+        ),
+        handler=dbc_handlers.handle_list_dbc_sources,
+    ),
+    _ToolBinding(
+        name="inspect_dbc",
+        description=(
+            "Inspect one registered DBC source: messages, signals, counts (read-only). "
+            "Bounded output; does not mutate DBC files."
+        ),
+        handler=dbc_handlers.handle_inspect_dbc,
+    ),
+    _ToolBinding(
+        name="lookup_dbc_message",
+        description=(
+            "Look up DBC message definitions by CAN ID or message name across registered sources."
+        ),
+        handler=dbc_handlers.handle_lookup_dbc_message,
+    ),
+    _ToolBinding(
+        name="lookup_dbc_signal",
+        description=(
+            "Look up DBC signal definitions by signal name or CAN ID across registered sources."
+        ),
+        handler=dbc_handlers.handle_lookup_dbc_signal,
+    ),
+    _ToolBinding(
+        name="analyze_dbc_coverage",
+        description=(
+            "Analyze stored session traffic coverage against registered DBC knowledge sources. "
+            "Returns covered/partially_covered/unknown IDs and known-first summary."
+        ),
+        handler=dbc_handlers.handle_analyze_dbc_coverage,
     ),
 )
 
@@ -527,6 +566,72 @@ def create_server() -> MCPServer:
             factor=factor,
             offset=offset,
             limit=limit,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[19].description)
+    def list_dbc_sources(asset_key: str | None = None) -> dict[str, Any]:
+        return _invoke(dbc_handlers.handle_list_dbc_sources, asset_key=asset_key)
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[20].description)
+    def inspect_dbc(
+        source_key: str,
+        message_limit: int | None = None,
+        signals_per_message: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            dbc_handlers.handle_inspect_dbc,
+            source_key=source_key,
+            message_limit=message_limit,
+            signals_per_message=signals_per_message,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[21].description)
+    def lookup_dbc_message(
+        source_keys: list[str] | None = None,
+        asset_key: str | None = None,
+        can_id: int | None = None,
+        is_extended: bool | None = None,
+        message_name: str | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            dbc_handlers.handle_lookup_dbc_message,
+            source_keys=source_keys,
+            asset_key=asset_key,
+            can_id=can_id,
+            is_extended=is_extended,
+            message_name=message_name,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[22].description)
+    def lookup_dbc_signal(
+        source_keys: list[str] | None = None,
+        asset_key: str | None = None,
+        signal_name: str | None = None,
+        can_id: int | None = None,
+        is_extended: bool | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            dbc_handlers.handle_lookup_dbc_signal,
+            source_keys=source_keys,
+            asset_key=asset_key,
+            signal_name=signal_name,
+            can_id=can_id,
+            is_extended=is_extended,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[23].description)
+    def analyze_dbc_coverage(
+        session_id: str,
+        source_keys: list[str] | None = None,
+        asset_key: str | None = None,
+        row_limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            dbc_handlers.handle_analyze_dbc_coverage,
+            session_id=session_id,
+            source_keys=source_keys,
+            asset_key=asset_key,
+            row_limit=row_limit,
         )
 
     @server.tool(description=LIVE_TOOL_BINDINGS[0].description)
