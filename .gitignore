@@ -69,7 +69,9 @@ references/private/
 *.generated.dbc
 output/
 
-# Generated ChatGPT Skill deployment packages
+# Release build output (local artifacts — not committed)
+dist/releases/
+dist/release-staging/
 # Skill source under skills/<name>/ is canonical; build skill.zip locally with
 # scripts/package_skill.py before uploading to ChatGPT.
 skills/*/skill.zip

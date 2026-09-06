@@ -1,29 +1,28 @@
 CAN Research - First Run
 ========================
 
-You do not need Git or a developer IDE to use CAN Research on Windows.
+You do not need Git, Cursor, or a developer IDE.
 
-1. Run setup.cmd
-   Installs dependencies and creates default configuration.
+1. If needed, install uv
+   https://docs.astral.sh/uv/getting-started/installation/
+   Windows (PowerShell): irm https://astral.sh/uv/install.ps1 | iex
 
-2. Connect CANsub.2
-   See docs\CANSUB_SETUP.md - set your device hostname in data\config.toml.
+2. Run setup.cmd
 
-3. Run start-can-research.cmd
-   Starts the local MCP service. Leave that window open.
+3. Connect CANsub.2 — docs\CANSUB_SETUP.md
 
-4. Open docs\AI_INTEGRATION.md
-   Connect your preferred AI frontend (ChatGPT, Claude Desktop, etc.).
+4. Run start-can-research.cmd  (leave that window open)
 
-5. Follow the instructions for your AI frontend
-   Install CAN Research Skills where supported - docs\SKILL_INSTALLATION.md
+5. Open docs\AI_INTEGRATION.md — connect your AI frontend
 
-6. Start the CAN Research onboarding workflow
-   Use the can-onboarding Skill or docs\USER_ONBOARDING.md
+6. Install bundled Skills from skills\dist\
+   - can-onboarding.skill.zip  (install first)
+   - can-reference-builder.skill.zip
+   - can-signal-research.skill.zip
+   Details: docs\SKILL_INSTALLATION.md
 
-Quick health check: status.cmd
+7. Start can-onboarding in ChatGPT
 
-Developers (git clone, uv, tests):
-   See docs\INSTALLATION.md
-
-Product overview: README.md
+Health check: status.cmd
+Overview: README.md
+Developers: docs\INSTALLATION.md

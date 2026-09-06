@@ -35,36 +35,47 @@ end-user path is **Windows + CANsub.2**.
 
 ## Release ZIP installation (recommended for users)
 
-Intended flow for someone who downloaded a release archive (no Git).
+Download the latest **`CAN-Research-v<version>-windows.zip`** from
+[GitHub Releases](https://github.com/Bobson854/can-research/releases) (when published)
+or use a ZIP built locally — [RELEASING.md](RELEASING.md).
 
-### 1. Extract
+### 1. Prerequisites
 
-Extract the ZIP to a permanent folder, for example:
+Install **[uv](https://docs.astral.sh/uv/)** once per machine (CAN Research does not
+bundle uv). Windows PowerShell:
 
-```text
-C:\CAN Research\can-research
+```powershell
+irm https://astral.sh/uv/install.ps1 | iex
 ```
 
-Open that folder. Read `README-FIRST.txt` at the top level.
+Open a **new** terminal after installing uv.
 
-### 2. Run setup
+### 2. Extract
+
+Extract to a permanent folder, for example:
+
+```text
+C:\CAN Research\CAN-Research-v0.1.0\
+```
+
+The ZIP contains a single top-level folder `CAN-Research-v<version>\`. Open it and read
+**`README-FIRST.txt`**.
+
+Recommended location: a dedicated folder under `C:\CAN Research\` — not inside Downloads
+long-term (captures and reference data will grow under `data\`).
+
+### 3. Run setup
 
 Double-click **`setup.cmd`** or from Command Prompt:
 
 ```cmd
-cd /d C:\CAN Research\can-research
+cd /d "C:\CAN Research\CAN-Research-v0.1.0"
 setup.cmd
 ```
 
-`setup.cmd` will:
+Replace the path with your extracted folder name.
 
-- Verify `uv` is on PATH
-- Run `uv sync`
-- Create `data\config.toml` from `config.toml.example` if missing
-- Verify `uv run canresearch` works
-- Print next steps
-
-### 3. Configure (first run)
+### 4. Configure (first run)
 
 Edit `data\config.toml`:
 
@@ -84,7 +95,7 @@ uv run canresearch config set-instance --key workshop --name "CAN Research - Wor
 uv run canresearch config set-host your-device-id-usb.local
 ```
 
-### 4. Start CAN Research
+### 5. Start CAN Research
 
 Run **`start-can-research.cmd`** — leaves MCP listening at:
 
@@ -94,9 +105,12 @@ http://127.0.0.1:8765/mcp
 
 Leave that window open while using AI. Health check: **`status.cmd`**
 
-### 5. Connect AI and Skills
+### 6. Connect AI and install bundled Skills
 
-[AI_INTEGRATION.md](AI_INTEGRATION.md) · [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) · [USER_ONBOARDING.md](USER_ONBOARDING.md)
+[AI_INTEGRATION.md](AI_INTEGRATION.md) · Install pre-built Skills from **`skills\dist\`**
+— [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) · [USER_ONBOARDING.md](USER_ONBOARDING.md)
+
+ChatGPT tunnel setup (if used): [MCP_SETUP.md](MCP_SETUP.md) — not included in the ZIP.
 
 ---
 
@@ -186,12 +200,15 @@ Multi-instance examples: `config/examples/workshop.toml.example`, `config/exampl
 ### Release ZIP install
 
 1. Stop MCP (close `start-can-research.cmd` window)
-2. Extract the **new release** over your install folder **or** extract beside the old folder and copy `data\` across
-3. Run **`setup.cmd`** again (`uv sync`)
-4. Run **`status.cmd`**
-5. Reconnect AI client if needed; Skills may need reinstall per [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md)
+2. Extract the new **`CAN-Research-v<version>-windows.zip`**
+3. **Copy your existing `data\` folder** into the new install directory (preserves config,
+   captures, reference sources, and SQLite catalogues)
+4. Run **`setup.cmd`** in the new folder
+5. Run **`status.cmd`**
+6. Reinstall ChatGPT Skills from `skills\dist\` if release notes say to
 
-Preserve **`data\`** — it holds config, captures, and reference knowledge.
+Do **not** overwrite `data\` with an empty folder from an old install backup unless
+intentional.
 
 ### Developer install
 

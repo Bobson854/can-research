@@ -14,12 +14,15 @@ if errorlevel 1 (
     echo [FAIL] uv is not installed or not on PATH.
     echo.
     echo CAN Research uses uv to manage Python and dependencies.
-    echo Install uv first, then run setup.cmd again:
+    echo.
+    echo Install uv, then run setup.cmd again:
     echo   https://docs.astral.sh/uv/getting-started/installation/
     echo.
-    echo Python 3.11 or newer is required. uv can install a suitable
-    echo Python automatically on the first successful sync.
+    echo Windows PowerShell one-liner:
+    echo   irm https://astral.sh/uv/install.ps1 ^| iex
+    echo   Then open a NEW terminal and run setup.cmd again.
     echo.
+    echo Python 3.11+ is required. uv installs it automatically on first sync.
     echo Full prerequisites: docs\INSTALLATION.md
     exit /b 1
 )
@@ -71,8 +74,8 @@ echo   1. Connect CANsub.2  - see docs\CANSUB_SETUP.md
 echo   2. Edit data\config.toml if needed (CANsub hostname, instance name)
 echo   3. Run start-can-research.cmd to start the MCP service
 echo   4. Open docs\AI_INTEGRATION.md and connect your AI frontend
-echo   5. Install CAN Research Skills and start can-onboarding
-echo        - docs\SKILL_INSTALLATION.md
+echo   5. Install bundled Skills from skills\dist\ — docs\SKILL_INSTALLATION.md
+echo   6. Start can-onboarding in ChatGPT
 echo.
 echo Quick health check anytime: status.cmd
 echo Developer details: docs\INSTALLATION.md

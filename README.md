@@ -192,22 +192,19 @@ ships **no** comprehensive J1939/ISOBUS database.
 
 No Git or IDE required. **Cursor is not needed** for normal use.
 
+Download **`CAN-Research-v<version>-windows.zip`** from
+[GitHub Releases](https://github.com/Bobson854/can-research/releases) when published.
+
 ```text
-Download release ZIP
-   → extract to a folder (e.g. C:\CAN Research\can-research)
-   → run setup.cmd
-   → connect CANsub.2 (docs/CANSUB_SETUP.md)
-   → run start-can-research.cmd
-   → connect your AI frontend (docs/AI_INTEGRATION.md)
-   → install Skills and start can-onboarding
+Install uv (once) → extract ZIP → setup.cmd → connect CANsub.2
+   → start-can-research.cmd → docs/AI_INTEGRATION.md
+   → install Skills from skills\dist\ → can-onboarding
 ```
 
-See **`README-FIRST.txt`** in the install folder. Health check: **`status.cmd`**.
+See **`README-FIRST.txt`** in the extracted folder. Health check: **`status.cmd`**.
 
-Install details: [docs/INSTALLATION.md](docs/INSTALLATION.md) · AI connection:
-[docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md) · Skills:
-[docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) · Guided workflow:
-[docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) or **can-onboarding**.
+[docs/INSTALLATION.md](docs/INSTALLATION.md) · [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) ·
+[docs/AI_INTEGRATION.md](docs/AI_INTEGRATION.md)
 
 ### Developer install
 
@@ -492,6 +489,7 @@ scripts/              MCP HTTP verification helper
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
 | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | All three Skills — package and install |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |
+| [docs/RELEASING.md](docs/RELEASING.md) | Release build (maintainers) |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Decision guide for common failures |
 
 ### Architecture and research

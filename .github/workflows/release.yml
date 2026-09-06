@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Build release ZIP
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1
+
+      - name: Verify artifact exists
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pyproject.toml -Pattern '^version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $artifact = "dist/releases/CAN-Research-v$version-windows.zip"
+          if (-not (Test-Path $artifact)) {
+            throw "Expected release artifact not found: $artifact"
+          }
+          Get-Item $artifact | Format-List FullName, Length
+
+      - name: Validate release ZIP (pytest)
+        run: uv run pytest tests/test_release_build.py -q
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/releases/CAN-Research-v*-windows.zip
+          generate_release_notes: true

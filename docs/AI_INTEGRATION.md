@@ -63,7 +63,9 @@ Summary:
 
 ### Install Skills
 
-[SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — package from repo source (developers) or use pre-built archives if your release includes them.
+Release ZIPs include pre-built packages under **`skills/dist/`** — no packaging required.
+
+[SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — upload `.skill.zip` files to ChatGPT Skills.
 
 Recommended order:
 
