@@ -481,6 +481,7 @@ scripts/              MCP HTTP verification helper
 
 | Document | Description |
 |----------|-------------|
+| [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) | **Why CAN Research exists** — differentiation, user value, complementary tooling |
 | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) | AI + MCP + Skill workflow for proprietary signal discovery |
 | [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | ChatGPT Skill source (canonical) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
