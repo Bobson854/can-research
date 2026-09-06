@@ -1,131 +1,137 @@
-# CAN Signal Research Skill — installation
+# CAN Research Skills — installation
 
-Install and update the **can-signal-research** Skill in ChatGPT (or compatible hosts).
+Install and update the CAN Research Skills in ChatGPT (or compatible hosts).
 
-## Three artifacts (keep roles separate)
+## Canonical source vs deployment package
 
-| Artifact | Role |
-|----------|------|
-| `skills/can-signal-research/` (repo) | **Source of truth** — edit here |
-| `skills/can-signal-research/skill.zip` | **Deployment package** — upload to ChatGPT |
-| Installed ChatGPT Skill | **Deployed copy** — runtime in ChatGPT |
-
-Rule:
+The repository stores **Skill source only**. Generated `skill.zip` files are local deployment artifacts and are gitignored.
 
 ```text
-repo Skill source  →  rebuild skill.zip  →  replace installed Skill in ChatGPT
+repo Skill source
+  → package locally
+  → upload skill.zip to ChatGPT
+  → installed Skill
 ```
 
-Git history is the version history. Keep the Skill name stable (`can-signal-research`) —
-do not create `v2` / `v3` copies in ChatGPT.
+Git history is the version history. Keep Skill names stable; do not create `v2` / `v3` copies in ChatGPT.
 
-## What the Skill does
+Current Skills:
 
-The Skill is the **generative orchestration layer** above CAN Research MCP:
+| Skill | Purpose |
+|------|---------|
+| `can-onboarding` | Fresh-machine setup, CANsub, MCP, Skills, reference onboarding, smoke tests |
+| `can-reference-builder` | Convert user-owned CAN manuals/tables into Reference Bundle V1 JSON |
+| `can-signal-research` | Known-first proprietary CAN signal research |
 
-- Confirms backend via `get_instance_info`
-- Runs live preflight before capture
-- Establishes system/asset context with minimal questions
-- Applies known/reference-backed knowledge first
-- Validates passive hypotheses with `preview_candidate_values`
-- Requests physical experiments only when needed
-- Separates encoding vs semantic confidence
-- Stops at CLI-only candidate confirmation
+## Build skill.zip locally
 
-It is **portable** across installations (office, workshop, laptop, travel). It must **not**
-assume a specific backend name — always confirm with `get_instance_info`.
+From the repository root, use the repo packaging script:
 
-Full methodology: [skills/can-signal-research/SKILL.md](../skills/can-signal-research/SKILL.md).
+```powershell
+uv run python scripts/package_skill.py skills/can-onboarding
+uv run python scripts/package_skill.py skills/can-reference-builder
+uv run python scripts/package_skill.py skills/can-signal-research
+```
 
-Architecture: [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md).
+Or build all three in one command:
 
-## Prerequisites
+```powershell
+uv run python scripts/package_skill.py skills/can-onboarding skills/can-reference-builder skills/can-signal-research
+```
 
-1. CAN Research installed and configured — [INSTALLATION.md](INSTALLATION.md)
-2. CANsub connected — [CANSUB_SETUP.md](CANSUB_SETUP.md)
-3. MCP server running and reachable from ChatGPT — [MCP_SETUP.md](MCP_SETUP.md)
-4. ChatGPT MCP connector attached for **your** CAN Research instance
+Each command writes:
+
+```text
+skills/<skill-name>/skill.zip
+```
+
+The script:
+
+- verifies `SKILL.md` exists
+- verifies `agents/openai.yaml` exists
+- checks the Skill directory name matches frontmatter `name`
+- packages exactly one top-level Skill folder
+- excludes generated/local hidden files
+- runs ZIP CRC/integrity validation
+- checks required archive members
+- enforces the 25 MiB upload limit
+- prints SHA-256 for the finished archive
+
+`skill.zip` is ignored by Git. If it disappears after a fresh clone, rebuild it locally; that is expected.
 
 ## Install in ChatGPT
 
-1. Ensure `skills/can-signal-research/skill.zip` is up to date (see rebuild below)
-2. In ChatGPT, go to **`/skills`**
-3. Upload **`skill.zip`**
-4. Do **not** manually unzip before upload
-5. Enable the Skill in your workspace/chat as required by the UI
+1. Build the required `skill.zip` locally.
+2. Open ChatGPT **Skills** (`/skills`).
+3. Upload **one `skill.zip` at a time**.
+4. Do not manually unzip it first.
+5. Enable the Skill as required by the UI.
 
-On **update**, remove or replace the previous `can-signal-research` Skill when the UI
-requires it, then upload the new `skill.zip`.
+For an update, replace/reinstall the existing Skill using a newly built archive.
 
-## Rebuild skill.zip (from repo root)
-
-After editing repo Skill source:
-
-```powershell
-cd skills\can-signal-research
-Remove-Item skill.zip -ErrorAction SilentlyContinue
-Compress-Archive -Path SKILL.md, agents, references -DestinationPath skill.zip
-```
-
-Expected archive contents:
+## Fresh laptop recommended order
 
 ```text
-SKILL.md
-agents/openai.yaml
-references/bus-inventory-and-standards.md
-references/contextual-reasoning.md
-references/evidence-and-confidence.md
-references/experiment-evidence.md
-references/experiment-patterns.md
-references/field-analysis.md
-references/knowledge-reuse.md
-references/research-output-and-dbc.md
-references/system-context-and-assets.md
+1. git clone / git pull
+2. uv sync
+3. build can-onboarding skill.zip
+4. install can-onboarding
+5. follow onboarding flow
+6. build/install can-reference-builder when reference material is ready
+7. build/install can-signal-research before research
 ```
 
-No Skill packaging validator exists in this repository today — verify file list manually
-or compare SHA-256 hashes against source files.
+## Verification after install
+
+### `can-onboarding`
+
+Ask it to continue setup from the current machine state. It should verify rather than assume and should distinguish PowerShell vs CMD where relevant.
+
+### `can-reference-builder`
+
+Give it a user-owned CAN reference document and a registered `source_key`. It should produce Reference Bundle V1-compatible structured output while preserving provenance and uncertainty.
+
+### `can-signal-research`
+
+With the CAN Research MCP connector attached, it should confirm backend identity, run live preflight, inventory known references/DBCs first, and isolate the proprietary remainder before experiments.
+
+## MCP version check
+
+Do not treat a historical tool count in documentation as permanent. Verify the current local registry with:
+
+```powershell
+uv run canresearch mcp tools
+```
+
+Then confirm the ChatGPT connector exposes the same intended surface.
 
 ## Update workflow
 
 ```text
-benchmark / observed weakness
+observed weakness / new capability
   ↓
-edit repo Skill source (skills/can-signal-research/)
+edit canonical source under skills/<name>/
   ↓
-validate references and SKILL.md consistency
+review references and SKILL.md
   ↓
-rebuild skill.zip
+package locally with scripts/package_skill.py
   ↓
-replace installed Skill in ChatGPT (/skills)
+ZIP integrity check passes
   ↓
-verify installed Skill behaviour
+replace installed Skill in ChatGPT
   ↓
-run next benchmark
+benchmark again
 ```
 
-## Verify after install
+## Private/reference material
 
-1. **MCP connected** — ChatGPT shows your CAN Research connector enabled
-2. **`get_instance_info`** — returns your `instance_key`, schema v8, 32 tools
-3. **Skill active** — ask for a passive traffic check; Skill should preflight before capture
-4. **Spot-check** — confirm V2 behaviours are present (preflight, `channel_rx_in_use`
-   handling, encoding/semantic confidence language)
-
-Optional: compare ChatGPT Skill behaviour against checklist in
-[SKILL.md — Self-evaluation](../skills/can-signal-research/SKILL.md).
-
-## Distinction: signal research vs reference builder
-
-| Skill | Purpose | Status |
-|-------|---------|--------|
-| **can-signal-research** | Proprietary signal discovery on live/stored CAN data | In repo |
-| **can-reference-builder** (planned) | Turn user-owned reference material into validated import bundles | **Not yet in repo** |
-
-Do not confuse the two. Reference data policy: [REFERENCE_DATA.md](REFERENCE_DATA.md).
+Do not bundle SAE/ISO/OEM licensed source documents into Skills. Skills may contain public instructions/schema snapshots, but private/licensed originals stay in the configured local CAN Research reference-source area.
 
 ## Related
 
+- [INSTALLATION.md](INSTALLATION.md) — clone, uv, config
 - [MCP_SETUP.md](MCP_SETUP.md) — MCP + tunnel + connector
+- [REFERENCE_DATA.md](REFERENCE_DATA.md) — reference-source and bundle model
+- [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end new-user path
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — connector and channel issues
-- [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) — same Skill, many machines
+- [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md) — independent installations
