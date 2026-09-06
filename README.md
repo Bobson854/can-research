@@ -47,6 +47,88 @@ Three Skills ship as source under `skills/` (package locally — see
 | **can-reference-builder** | Messy PDF/XLSX/CSV/manual → Reference Bundle V1 JSON |
 | **can-signal-research** | Known-first proprietary signal research |
 
+## AI-guided workflows
+
+CAN Research is designed to be operated **with generative AI** — not as a replacement for
+deterministic measurement, but as the interactive layer that helps you navigate setup,
+reference intake, and research without memorizing every command and document first.
+
+```text
+CAN Research core  →  MCP  →  Skills  →  AI (ChatGPT / compatible host)
+```
+
+| Layer | Role |
+|-------|------|
+| **CAN Research core** | Deterministic CAN capabilities — capture, sessions, reference import, DBC library, coverage, evidence |
+| **MCP** | Exposes those capabilities to AI clients (bounded, passive; no CAN TX) |
+| **Skills** | Guided workflows, domain reasoning, and orchestration for multi-step tasks |
+| **AI** | Interactive operator layer — adapts steps to your machine, answers, and prior context |
+
+**Use each layer for what it does best:**
+
+- **Documentation** stores stable instructions
+- **Deterministic core** verifies facts
+- **MCP** exposes bounded capabilities
+- **AI** adapts workflow to the user
+- **Specialist Skills** guide higher-level tasks
+
+Skills are the **recommended interface for complex workflows** — onboarding, reference
+ingestion, proprietary signal research. They are not a novelty or demo layer. The **CLI**
+and **MCP** remain fully available for direct, manual, scripted, or automated use when you
+know exactly what you need.
+
+You do **not** need to understand the entire system before beginning. Install
+**can-onboarding**, connect MCP, and work through its checkpoints — it verifies each stage,
+skips what is already proven, and hands off to specialist Skills where appropriate.
+
+### Specialist Skills
+
+Source under `skills/` — package locally: [SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md).
+
+**can-onboarding**
+
+- First-time installation guidance
+- CANsub.2 setup
+- MCP / tunnel / connector setup
+- Skill installation
+- DBC and reference onboarding verification
+- Smoke testing
+- Troubleshooting common setup issues
+- Handoff to research Skills
+
+**can-reference-builder**
+
+- Converts OEM manuals, PDFs, spreadsheets, DBCs, CSV, text, and other source material into normalized CAN reference knowledge
+- Preserves provenance and uncertainty
+- Guides validate/import (CAN Research core performs deterministic import)
+
+**can-signal-research**
+
+- Standards-first / known-first analysis
+- DBC coverage
+- Passive inference
+- Controlled experiments
+- Proprietary signal research
+- Evidence and confidence reporting
+
+### Typical new-user path
+
+```text
+New user
+   ↓
+Install CAN Research
+   ↓
+Start can-onboarding
+   ↓
+Verify CANsub.2 + MCP
+   ↓
+Import existing DBC / reference knowledge
+   ↓
+Begin CAN research (can-signal-research)
+```
+
+Architecture detail: [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
+
 ## Where to start
 
 | Goal | Start here |
@@ -103,8 +185,11 @@ ships **no** comprehensive J1939/ISOBUS database.
 
 ## Getting started
 
-**Recommended:** follow [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) or install
-**can-onboarding** and work through its checkpoints.
+**New users:** install the recommended Skills before beginning setup — see
+[SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md). They are intended to reduce onboarding
+friction and guide verification at each stage, rather than requiring you to manually
+interpret every setup document. Then start **can-onboarding** or follow
+[USER_ONBOARDING.md](docs/USER_ONBOARDING.md).
 
 Quick software install: [docs/INSTALLATION.md](docs/INSTALLATION.md) · CANsub:
 [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) · MCP:
