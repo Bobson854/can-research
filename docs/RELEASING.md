@@ -61,6 +61,79 @@ It does **not** modify your local `data/` or `data/config.toml`.
 
 ---
 
+## Recommended publish path (semi-automatic)
+
+From **`main`** with a **clean working tree**:
+
+```powershell
+./scripts/publish-release.ps1 -Version X.Y.Z
+```
+
+From Command Prompt:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version X.Y.Z
+```
+
+Preview without committing, tagging, or pushing:
+
+```powershell
+./scripts/publish-release.ps1 -Version X.Y.Z -DryRun
+```
+
+From Command Prompt:
+
+```cmd
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -Version X.Y.Z -DryRun
+```
+
+The script:
+
+1. Validates semver and branch (`main`)
+2. Fetches `origin` and refuses if local `main` is behind `origin/main`
+3. Refuses if tag `vX.Y.Z` already exists locally or on `origin`
+4. Refuses if `pyproject.toml` already equals the requested version
+5. Updates **`[project].version`** in `pyproject.toml` only
+6. Runs `uv lock`
+7. Runs `./scripts/build-release.ps1`
+8. Runs `uv run pytest tests/test_release_build.py -q`
+9. Verifies `dist/releases/CAN-Research-vX.Y.Z-windows.zip` exists
+10. Shows a release summary and requires Enter before irreversible Git operations
+11. Commits `Release vX.Y.Z`, creates annotated tag `vX.Y.Z`, pushes `main` and the tag
+
+**Tag ↔ version must match:**
+
+```toml
+version = "0.1.1"
+```
+
+```text
+git tag v0.1.1
+```
+
+Pushing `v*` triggers GitHub Actions (see below). The script does **not** call the GitHub API or embed tokens.
+
+Override dirty tree (emergency only): `-AllowDirty`
+
+Office quick reference: [Commands_Register.md](Commands_Register.md)
+
+---
+
+## Manual publish path
+
+1. Edit `[project].version` in `pyproject.toml`
+2. Run `uv lock` if the lockfile needs refreshing
+3. `./scripts/build-release.ps1`
+4. `uv run pytest tests/test_release_build.py -q`
+5. Commit: `Release vX.Y.Z`
+6. Annotated tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+7. `git push origin main`
+8. `git push origin vX.Y.Z`
+
+GitHub Actions publishes the Release asset when the tag arrives.
+
+---
+
 ## Skill packaging
 
 Skills are built with `scripts/package_skill.py` during release staging.
@@ -82,8 +155,10 @@ Each inner archive contains `{skill-name}/SKILL.md`, `agents/openai.yaml`, and r
 Automated:
 
 ```powershell
-uv run pytest tests/test_release_build.py -q
+uv run pytest tests/test_publish_release.py tests/test_release_build.py -q
 ```
+
+The publish tests include a Windows PowerShell parser check when `powershell.exe` is available, and require `publish-release.ps1` to remain ASCII-safe.
 
 Manual checklist before publishing:
 
@@ -108,10 +183,12 @@ File: `.github/workflows/release.yml`
 
 **Trigger:** push a version tag matching `v*` (e.g. `v0.1.0`)
 
-**Steps:** checkout → install uv → `build-release.ps1` → pytest validation → upload
-`dist/releases/CAN-Research-v*-windows.zip` to GitHub Release.
+**Steps:** checkout → install uv → `uv sync --extra dev` → `build-release.ps1` → verify artifact →
+`pytest tests/test_release_build.py` → upload `dist/releases/CAN-Research-v*-windows.zip` to GitHub Release.
 
-Tag naming should match `pyproject.toml` version (`v0.1.0` ↔ `version = "0.1.0"`).
+Tag naming must match `pyproject.toml` version (`v0.1.0` ↔ `version = "0.1.0"`).
+
+Maintainer entry point: `./scripts/publish-release.ps1 -Version X.Y.Z` (see above).
 
 You can build and publish manually without GitHub Actions by running the local build
 and attaching the ZIP to a release yourself.
@@ -144,7 +221,7 @@ and attaching the ZIP to a release yourself.
 - `data/` (runtime — created by `setup.cmd`)
 - `dist/` from developer builds (release output is rebuilt fresh)
 - `docs/original_docs/`, licensed/private reference material
-- `scripts/build_release.py`, `scripts/build-release.ps1` (maintainer-only)
+- `scripts/build_release.py`, `scripts/build-release.ps1`, `scripts/publish_release.py`, `scripts/publish-release.ps1` (maintainer-only)
 - OpenAI tunnel client (ChatGPT-specific — see [MCP_SETUP.md](MCP_SETUP.md))
 - Pre-built `skills/*/skill.zip` dev artifacts (release uses `skills/dist/` only)
 
