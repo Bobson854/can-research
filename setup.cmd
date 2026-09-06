@@ -85,12 +85,12 @@ echo.
 echo Next steps:
 echo   1. Edit data\config.toml if needed (instance, CANsub, tunnel profile)
 echo   2. Ensure the OpenAI tunnel profile and CONTROL_PLANE_API_KEY already exist
-necho   3. Run start-can-research.cmd - it starts BOTH MCP and the OpenAI tunnel
-necho   4. Run status.cmd for an end-to-end local/tunnel health check
-necho   5. Use the existing ChatGPT connector; do NOT recreate it after reboot
-necho   6. Install bundled Skills from skills\dist\ if not already installed
-necho.
+echo   3. Run start-can-research.cmd - it starts BOTH MCP and the OpenAI tunnel
+echo   4. Run status.cmd for an end-to-end local/tunnel health check
+echo   5. Use the existing ChatGPT connector; do NOT recreate it after reboot
+echo   6. Install bundled Skills from skills\dist\ if not already installed
+echo.
 echo OpenAI tunnel setup: docs\MCP_SETUP.md
-necho Quick health check anytime: status.cmd
-necho.
+echo Quick health check anytime: status.cmd
+echo.
 exit /b 0
