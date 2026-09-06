@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "source_key": "smartec_mownet_synthetic",
+  "generated_by": "test-fixture",
+  "generated_at": "2026-03-06T00:00:00Z",
+  "notes": "Synthetic bundle representing J1939-like MowNet document shape only.",
+  "enums": {
+    "dcm_mode": [
+      {"value": 0, "name": "Off"},
+      {"value": 1, "name": "Manual"},
+      {"value": 2, "name": "Auto"}
+    ]
+  },
+  "messages": [
+    {
+      "key": "dcm_control_sa8a",
+      "name": "DCM Control",
+      "protocol": "j1939",
+      "can_id": "0x18FF3C8A",
+      "is_extended": true,
+      "pgn": 65340,
+      "source_address": 138,
+      "dlc": 8,
+      "period_ms": 100,
+      "priority": 6,
+      "description": "DCM control command",
+      "source_location": {"page": 13, "section": "6.2 PGN Definition"},
+      "signals": [
+        {
+          "key": "target_rpm",
+          "name": "TargetRPM",
+          "start_bit": 0,
+          "bit_length": 16,
+          "byte_order": 1,
+          "signedness": "unsigned",
+          "factor": 0.5,
+          "offset": 0,
+          "unit": "rpm",
+          "source_location": {"page": 13, "section": "6.2.1 Signals"}
+        },
+        {
+          "key": "dcm_mode",
+          "name": "DCMMode",
+          "start_bit": 16,
+          "bit_length": 2,
+          "byte_order": 1,
+          "signedness": "unsigned",
+          "enum_key": "dcm_mode",
+          "source_location": {"page": 13, "section": "6.2.1 Signals"}
+        }
+      ]
+    },
+    {
+      "key": "dcm_status_sa8b",
+      "name": "DCM Status",
+      "protocol": "j1939",
+      "can_id": "0x18FF748B",
+      "is_extended": true,
+      "pgn": 65396,
+      "source_address": 139,
+      "dlc": 8,
+      "period_ms": 100,
+      "description": "DCM status feedback",
+      "source_location": {"page": 26, "section": "10.2 Status Data"},
+      "signals": [
+        {
+          "key": "actual_rpm",
+          "name": "ActualRPM",
+          "start_bit": 0,
+          "bit_length": 16,
+          "byte_order": 1,
+          "signedness": "signed",
+          "factor": 0.5,
+          "unit": "rpm"
+        }
+      ]
+    }
+  ],
+  "fault_codes": [
+    {
+      "key": "overtemp",
+      "value": "0x01",
+      "name": "OverTemperature",
+      "description": "Motor over temperature",
+      "source_location": {"page": 30, "section": "Fault Codes"}
+    }
+  ],
+  "protocol_notes": [
+    {
+      "key": "bitrate",
+      "category": "bitrate",
+      "value": "250000",
+      "unit": "bps",
+      "description": "Nominal bus bitrate"
+    },
+    {
+      "key": "control_timeout",
+      "category": "timeout",
+      "value": "500",
+      "unit": "ms",
+      "description": "Control message timeout"
+    }
+  ]
+}

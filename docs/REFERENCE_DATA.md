@@ -81,7 +81,7 @@ uv run canresearch reference import-isobus-pdf path\to\your-licensed-isobus-ddi.
 ```powershell
 uv run canresearch reference validate
 uv run canresearch reference stats
-uv run canresearch reference source list
+uv run canresearch reference source catalogue
 uv run canresearch reference pgn 61444
 uv run canresearch reference spn 190
 uv run canresearch reference warnings
@@ -95,10 +95,65 @@ MCP does **not** import reference data — import is CLI-only today.
 
 | Capability | Status |
 |------------|--------|
-| `reference import-dbc` | CLI stub — prints "not yet implemented" |
-| Reference bundle import | No finished bundle CLI |
-| Spreadsheet/CSV direct import | Future |
-| Automated OEM table ingest | Future — via conversion pipeline |
+| `reference import-dbc` | CLI stub — use `reference dbc register` for DBC library |
+| Spreadsheet/CSV direct import | Future — convert via bundle format |
+| Automated in-core PDF parsing (non-J1939) | Future — use external can-reference-builder |
+
+---
+
+## A2. Reference source registry + normalized bundles
+
+### What it is
+
+Original reference documents (PDFs, manuals, spreadsheets) registered in a **file-backed
+registry** under `{data_dir}/reference_sources/` with `public/` and `private/` storage.
+Generative tools (e.g. **can-reference-builder**, external) produce **normalized JSON
+bundles**; CAN Research validates and imports deterministic knowledge into SQLite.
+
+```text
+reference source add  →  external conversion  →  bundle validate  →  bundle import
+```
+
+Full contract: [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md)
+
+### Implemented today
+
+**Register original sources:**
+
+```powershell
+uv run canresearch reference source add path\to\manual.pdf `
+  --key motor_driver_manual --type oem --visibility private [--vendor ...]
+uv run canresearch reference source list
+uv run canresearch reference source inspect motor_driver_manual
+```
+
+**Validate and import normalized bundles:**
+
+```powershell
+uv run canresearch reference bundle validate motor_driver_reference.json
+uv run canresearch reference bundle import motor_driver_reference.json
+uv run canresearch reference search "motor speed"
+```
+
+**MCP (read-only, metadata/bounded):** `list_reference_sources`, `inspect_reference_source`,
+`search_reference_knowledge`, `lookup_reference_message`
+
+**Visibility:** `public`, `private`, `licensed` (metadata — default **private**). Licensed
+material must never be committed or exposed via MCP raw download.
+
+### External / separate
+
+| Capability | Status |
+|------------|--------|
+| **can-reference-builder** Skill | Developed separately — outputs bundle JSON |
+
+### Planned later
+
+| Capability | Status |
+|------------|--------|
+| Vector/semantic document search | Future |
+| Automatic PDF parsing inside CAN Research | Not planned for V1 |
+| Mask-aware address-family DBC adaptation | Future |
 
 ---
 

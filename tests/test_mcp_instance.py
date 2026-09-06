@@ -32,10 +32,10 @@ def instance_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def test_get_instance_info_registered() -> None:
     assert "get_instance_info" in READ_ONLY_TOOL_NAMES
-    assert len(READ_ONLY_TOOL_NAMES) == 24
+    assert len(READ_ONLY_TOOL_NAMES) == 28
     assert len(LIVE_TOOL_NAMES) == 7
     assert len(SIGNAL_RESEARCH_TOOL_NAMES) == 6
-    assert len(list_tool_names()) == 37
+    assert len(list_tool_names()) == 41
 
 
 def test_get_instance_info_returns_configured_identity(instance_env: Path) -> None:
@@ -44,9 +44,9 @@ def test_get_instance_info_returns_configured_identity(instance_env: Path) -> No
     assert result["display_name"] == "CAN Research - Workshop"
     assert result["version"] == __version__
     assert result["schema_version"] == SCHEMA_VERSION
-    assert result["mcp_tool_count"] == 37
+    assert result["mcp_tool_count"] == 41
     assert result["capabilities"] == {
-        "read_only_tools": 24,
+        "read_only_tools": 28,
         "live_tools": 7,
         "signal_research_tools": 6,
         "can_tx": False,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -392,6 +392,154 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_research_candidates_asset_status
             ON research_candidates(asset_id, status);
     """,
+    9: """
+        CREATE TABLE IF NOT EXISTS reference_knowledge_imports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            bundle_schema_version INTEGER NOT NULL,
+            generated_by TEXT,
+            generated_at TEXT,
+            fingerprint TEXT NOT NULL,
+            imported_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, fingerprint)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            object_key TEXT NOT NULL,
+            name TEXT,
+            protocol TEXT,
+            can_id INTEGER,
+            is_extended INTEGER,
+            pgn INTEGER,
+            source_address INTEGER,
+            destination_address INTEGER,
+            dlc INTEGER,
+            period_ms INTEGER,
+            priority INTEGER,
+            description TEXT,
+            source_location_json TEXT,
+            confidence TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, object_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_signals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            message_object_key TEXT NOT NULL,
+            signal_key TEXT NOT NULL,
+            name TEXT,
+            start_bit INTEGER,
+            bit_length INTEGER,
+            byte_order TEXT,
+            signedness TEXT,
+            factor REAL,
+            offset REAL,
+            unit TEXT,
+            minimum REAL,
+            maximum REAL,
+            description TEXT,
+            enum_key TEXT,
+            source_location_json TEXT,
+            confidence TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, message_object_key, signal_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_message_families (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            object_key TEXT NOT NULL,
+            name TEXT,
+            pattern INTEGER NOT NULL,
+            mask INTEGER NOT NULL,
+            variable_field TEXT,
+            variable_role TEXT,
+            description TEXT,
+            source_location_json TEXT,
+            confidence TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, object_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_registers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            object_key TEXT NOT NULL,
+            address TEXT,
+            name TEXT,
+            width INTEGER,
+            signedness TEXT,
+            factor REAL,
+            offset REAL,
+            unit TEXT,
+            access TEXT,
+            minimum REAL,
+            maximum REAL,
+            default_value TEXT,
+            description TEXT,
+            enum_key TEXT,
+            source_location_json TEXT,
+            confidence TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, object_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_fault_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            object_key TEXT NOT NULL,
+            value TEXT,
+            name TEXT,
+            description TEXT,
+            source_location_json TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, object_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_protocol_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            object_key TEXT NOT NULL,
+            category TEXT,
+            name TEXT,
+            value TEXT,
+            unit TEXT,
+            description TEXT,
+            source_location_json TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, object_key)
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_knowledge_enums (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_key TEXT NOT NULL,
+            enum_key TEXT NOT NULL,
+            values_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE (source_key, enum_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_ref_knowledge_messages_can
+            ON reference_knowledge_messages(can_id, is_extended);
+        CREATE INDEX IF NOT EXISTS idx_ref_knowledge_messages_pgn
+            ON reference_knowledge_messages(pgn);
+        CREATE INDEX IF NOT EXISTS idx_ref_knowledge_messages_source
+            ON reference_knowledge_messages(source_key);
+        CREATE INDEX IF NOT EXISTS idx_ref_knowledge_signals_source
+            ON reference_knowledge_signals(source_key);
+        CREATE INDEX IF NOT EXISTS idx_ref_knowledge_families_source
+            ON reference_knowledge_message_families(source_key);
+    """,
 }
 
 
@@ -437,6 +585,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v7(conn)
         elif version == 8:
             _migrate_v8(conn)
+        elif version == 9:
+            _migrate_v9(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -507,6 +657,13 @@ def _migrate_v8(conn: sqlite3.Connection) -> None:
     if row is not None:
         return
     conn.executescript(MIGRATIONS[8])
+
+
+def _migrate_v9(conn: sqlite3.Connection) -> None:
+    """Add normalized reference bundle knowledge tables."""
+    if _table_exists(conn, "reference_knowledge_messages"):
+        return
+    conn.executescript(MIGRATIONS[9])
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:

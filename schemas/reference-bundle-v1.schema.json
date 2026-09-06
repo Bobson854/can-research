@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://can-research.local/schemas/reference-bundle-v1.schema.json",
+  "title": "CAN Research Reference Bundle V1",
+  "type": "object",
+  "required": ["schema_version", "source_key"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "source_key": { "type": "string", "minLength": 1 },
+    "generated_by": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "notes": { "type": "string" },
+    "enums": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "value": {},
+            "name": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/message" }
+    },
+    "message_families": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/message_family" }
+    },
+    "registers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/register" }
+    },
+    "fault_codes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fault_code" }
+    },
+    "protocol_notes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/protocol_note" }
+    }
+  },
+  "$defs": {
+    "source_location": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "properties": {
+            "page": { "type": ["integer", "string"] },
+            "section": { "type": "string" },
+            "table": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "signal": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "start_bit": { "type": "integer" },
+        "bit_length": { "type": "integer" },
+        "byte_order": {},
+        "signedness": { "type": "string" },
+        "factor": { "type": "number" },
+        "offset": { "type": "number" },
+        "unit": { "type": "string" },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "description": { "type": "string" },
+        "enum_key": { "type": "string" },
+        "source_location": { "$ref": "#/$defs/source_location" },
+        "confidence": { "type": "string" }
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["key"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "protocol": { "type": "string" },
+        "can_id": {},
+        "is_extended": { "type": "boolean" },
+        "pgn": { "type": "integer" },
+        "source_address": { "type": "integer" },
+        "destination_address": { "type": "integer" },
+        "dlc": { "type": "integer" },
+        "period_ms": { "type": "integer" },
+        "priority": { "type": "integer" },
+        "description": { "type": "string" },
+        "source_location": { "$ref": "#/$defs/source_location" },
+        "confidence": { "type": "string" },
+        "signals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/signal" }
+        }
+      }
+    },
+    "message_family": {
+      "type": "object",
+      "required": ["key", "pattern", "mask"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "pattern": {},
+        "mask": {},
+        "variable_field": { "type": "string" },
+        "variable_role": { "type": "string" },
+        "description": { "type": "string" },
+        "source_location": { "$ref": "#/$defs/source_location" },
+        "confidence": { "type": "string" }
+      }
+    },
+    "register": {
+      "type": "object",
+      "required": ["key"],
+      "properties": {
+        "key": { "type": "string" },
+        "address": {},
+        "name": { "type": "string" },
+        "width": { "type": "integer" },
+        "signedness": { "type": "string" },
+        "factor": { "type": "number" },
+        "offset": { "type": "number" },
+        "unit": { "type": "string" },
+        "access": { "type": "string" },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "default": {},
+        "description": { "type": "string" },
+        "enum_key": { "type": "string" },
+        "source_location": { "$ref": "#/$defs/source_location" },
+        "confidence": { "type": "string" }
+      }
+    },
+    "fault_code": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "value": {},
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "source_location": { "$ref": "#/$defs/source_location" }
+      }
+    },
+    "protocol_note": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "category": { "type": "string" },
+        "name": { "type": "string" },
+        "value": { "type": "string" },
+        "unit": { "type": "string" },
+        "description": { "type": "string" },
+        "source_location": { "$ref": "#/$defs/source_location" }
+      }
+    }
+  }
+}

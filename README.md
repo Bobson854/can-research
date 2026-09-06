@@ -81,7 +81,7 @@ No GUI in V1. No bundled SAE J1939 database.
 | Assets | Registry of tractor/implement/controller devices with session links |
 | Capture | Session metadata in SQLite; raw frames in JSONL under `{data_dir}/sessions/` |
 | Configuration | TOML at `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
-| MCP | 37 tools: stored/offline analysis, DBC library/coverage, passive live CANsub, signal research |
+| MCP | 41 tools: stored/offline analysis, reference bundles, DBC library/coverage, passive live CANsub, signal research |
 | AI Skill | `can-signal-research` — guided proprietary discovery via ChatGPT + MCP (portable across installations) |
 | Storage | SQLite for metadata, references, candidates, findings; frames outside SQLite |
 
@@ -135,7 +135,7 @@ CANsub + **your existing knowledge** + Skill + known-first research).
 
 **Bringing DBCs / reference material?** → **[docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md)**
 
-CAN Research has three layers: **deterministic core** → **MCP (37 tools)** →
+CAN Research has three layers: **deterministic core** → **MCP (41 tools)** →
 **CAN Signal Research Skill** (generative orchestration in ChatGPT).
 
 ```text
@@ -259,6 +259,12 @@ uv run canresearch research candidate evidence <candidate-id>
 uv run canresearch research dbc <asset-key> [--output path]
 uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
 uv run canresearch session dbc-coverage <session-id> [--source <key> ...] [--asset <key>] [--limit N]
+uv run canresearch reference source add <path> --key <key> [--visibility private|public|licensed] ...
+uv run canresearch reference source list
+uv run canresearch reference source inspect <key>
+uv run canresearch reference bundle validate <bundle.json>
+uv run canresearch reference bundle import <bundle.json>
+uv run canresearch reference search "<query>"
 uv run canresearch reference dbc register --key <key> <path> [--name ...] [--type user_supplied|oem|...] [--asset <key>]
 uv run canresearch reference dbc list [--asset <key>]
 uv run canresearch reference dbc inspect <key>
@@ -268,7 +274,7 @@ uv run canresearch mcp tools
 
 ### MCP serving
 
-Both transports use the **same tool registry** (37 tools). Stdio is for desktop MCP
+Both transports use the **same tool registry** (41 tools). Stdio is for desktop MCP
 clients; streamable HTTP is for OpenAI tunnel / ChatGPT connector deployment.
 
 **Stdio (Cursor, Claude Desktop, etc.):**
@@ -305,11 +311,11 @@ uv run python scripts/mcp_verify_http.py
 
 → [Normal startup after reboot](docs/MCP_SETUP.md#normal-startup-after-reboot)
 
-### MCP tool surface (37 total)
+### MCP tool surface (41 total)
 
 | Group | Count | Purpose |
 |-------|-------|---------|
-| Read-only | 24 | Sessions, references, assets, candidates, DBC preview, **DBC library/coverage**, instance identity |
+| Read-only | 28 | Sessions, references, assets, bundles, DBC library/coverage, instance identity |
 | Live / passive | 7 | CANsub status, capture, events, bounded live observation |
 | Signal research | 6 | Candidate evidence (rank, activity, counters, checksums, correlation) |
 
@@ -319,7 +325,8 @@ uv run python scripts/mcp_verify_http.py
 `build_session_dbc_preview`, `list_research_candidates`, `get_research_candidate`,
 `list_candidate_evidence`, `preview_research_dbc`, `list_session_events`,
 `preview_candidate_values`, `list_dbc_sources`, `inspect_dbc`, `lookup_dbc_message`,
-`lookup_dbc_signal`, `analyze_dbc_coverage`.
+`lookup_dbc_signal`, `analyze_dbc_coverage`, `list_reference_sources`,
+`inspect_reference_source`, `search_reference_knowledge`, `lookup_reference_message`.
 
 **Live tools (passive):** `get_cansub_device_status`, `get_cansub_channel_status`,
 `start_live_capture`, `stop_live_capture`, `observe_live_traffic`,
@@ -469,7 +476,7 @@ scripts/              MCP HTTP verification helper
 | Document | Description |
 |----------|-------------|
 | [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) | **End-to-end new user path** — install, knowledge intake, known-first research |
-| [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, DBCs, documents, provenance, future tools |
+| [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, sources, bundles, DBCs, provenance |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Clone, uv, config, first-run smoke test |
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |

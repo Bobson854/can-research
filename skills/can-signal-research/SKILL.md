@@ -84,7 +84,7 @@ High structure + medium exact meaning is a **valid success**.
 | Phase | Tools |
 |-------|-------|
 | Identity / live | `get_instance_info`, `get_cansub_*`, `observe_live_traffic`, capture/events |
-| Bus inventory | `analyze_session`, `decode_session`, `list_session_nodes`, `lookup_pgn`/`lookup_spn`, `build_session_dbc_preview`, **`list_dbc_sources`**, **`analyze_dbc_coverage`** |
+| Bus inventory | `analyze_session`, `decode_session`, `list_session_nodes`, `lookup_pgn`/`lookup_spn`, `build_session_dbc_preview`, `list_reference_sources`, `search_reference_knowledge`, `list_dbc_sources`, `analyze_dbc_coverage` |
 | Research | `preview_candidate_values`, `rank_signal_candidates`, `analyze_can_id_activity`, `correlate_candidate_field`, `compare_experiment_windows`, `detect_counters`/`checksums` |
 | Knowledge | `list_research_candidates`, `preview_research_dbc`, `list_assets`, `get_asset`, **`inspect_dbc`**, **`lookup_dbc_message`** |
 

@@ -12,6 +12,7 @@ from canresearch.mcp import (
     dbc_handlers,
     handlers,
     live_handlers,
+    reference_handlers,
     research_candidate_handlers,
     signal_research_handlers,
 )
@@ -215,6 +216,37 @@ READ_ONLY_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
             "Returns covered/partially_covered/unknown IDs and known-first summary."
         ),
         handler=dbc_handlers.handle_analyze_dbc_coverage,
+    ),
+    _ToolBinding(
+        name="list_reference_sources",
+        description=(
+            "List registered original reference source documents (metadata only, read-only). "
+            "Does not expose raw private file contents."
+        ),
+        handler=reference_handlers.handle_list_reference_sources,
+    ),
+    _ToolBinding(
+        name="inspect_reference_source",
+        description=(
+            "Inspect one registered reference source: metadata and imported knowledge counts."
+        ),
+        handler=reference_handlers.handle_inspect_reference_source,
+    ),
+    _ToolBinding(
+        name="search_reference_knowledge",
+        description=(
+            "Deterministic text search over imported normalized reference knowledge "
+            "(messages, signals, families, registers, faults, notes)."
+        ),
+        handler=reference_handlers.handle_search_reference_knowledge,
+    ),
+    _ToolBinding(
+        name="lookup_reference_message",
+        description=(
+            "Look up imported reference messages by exact CAN ID or PGN, including "
+            "message-family pattern matches."
+        ),
+        handler=reference_handlers.handle_lookup_reference_message,
     ),
 )
 
@@ -632,6 +664,42 @@ def create_server() -> MCPServer:
             source_keys=source_keys,
             asset_key=asset_key,
             row_limit=row_limit,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[24].description)
+    def list_reference_sources() -> dict[str, Any]:
+        return _invoke(reference_handlers.handle_list_reference_sources)
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[25].description)
+    def inspect_reference_source(source_key: str) -> dict[str, Any]:
+        return _invoke(reference_handlers.handle_inspect_reference_source, source_key=source_key)
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[26].description)
+    def search_reference_knowledge(
+        query: str,
+        source_key: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            reference_handlers.handle_search_reference_knowledge,
+            query=query,
+            source_key=source_key,
+            limit=limit,
+        )
+
+    @server.tool(description=READ_ONLY_TOOL_BINDINGS[27].description)
+    def lookup_reference_message(
+        can_id: int | None = None,
+        is_extended: bool | None = None,
+        pgn: int | None = None,
+        source_key: str | None = None,
+    ) -> dict[str, Any]:
+        return _invoke(
+            reference_handlers.handle_lookup_reference_message,
+            can_id=can_id,
+            is_extended=is_extended,
+            pgn=pgn,
+            source_key=source_key,
         )
 
     @server.tool(description=LIVE_TOOL_BINDINGS[0].description)

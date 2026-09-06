@@ -2185,10 +2185,126 @@ def reference_ddi(number: int, db_path: str | None) -> None:
 
 @reference_group.group("source")
 def reference_source_group() -> None:
-    """List imported reference sources."""
+    """Register and inspect original reference source documents."""
+
+
+@reference_source_group.command("add")
+@click.argument("source_path", type=click.Path(exists=True, dir_okay=False))
+@click.option("--key", "source_key", required=True, help="Stable source key.")
+@click.option("--name", "display_name", default=None, help="Human display name.")
+@click.option(
+    "--type",
+    "source_type",
+    default="user_document",
+    type=click.Choice(
+        sorted({"standard", "oem", "supplier", "user_dbc", "user_document", "research", "other"}),
+    ),
+    show_default=True,
+)
+@click.option(
+    "--visibility",
+    default="private",
+    type=click.Choice(sorted({"public", "private", "licensed"})),
+    show_default=True,
+    help="public/private/licensed classification (default private).",
+)
+@click.option("--vendor", default=None, help="Vendor/manufacturer.")
+@click.option("--version", "doc_version", default=None, help="Document version.")
+@click.option("--date", "document_date", default=None, help="Document date.")
+@click.option("--notes", default=None, help="Free-form notes.")
+def reference_source_add(
+    source_path: str,
+    source_key: str,
+    display_name: str | None,
+    source_type: str,
+    visibility: str,
+    vendor: str | None,
+    doc_version: str | None,
+    document_date: str | None,
+    notes: str | None,
+) -> None:
+    """Register an original reference source (PDF, manual, spreadsheet, etc.)."""
+    from pathlib import Path
+
+    from canresearch.references.source_registry import (
+        ReferenceSourceRegistryError,
+        register_reference_source,
+    )
+
+    try:
+        record = register_reference_source(
+            key=source_key,
+            path=Path(source_path),
+            display_name=display_name,
+            source_type=source_type,
+            visibility=visibility,
+            vendor=vendor,
+            version=doc_version,
+            document_date=document_date,
+            notes=notes,
+        )
+    except ReferenceSourceRegistryError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"registered: {record.key}")
+    click.echo(f"visibility: {record.visibility}")
+    click.echo(f"stored_path: {record.stored_path}")
 
 
 @reference_source_group.command("list")
+def reference_source_list_cmd() -> None:
+    """List registered original reference sources."""
+    from canresearch.references.source_registry import list_reference_sources
+
+    records = list_reference_sources()
+    if not records:
+        click.echo("No reference sources registered.")
+        return
+    for record in records:
+        click.echo(
+            f"{record.key}\t{record.visibility}\t{record.source_type}\t{record.display_name}"
+        )
+
+
+@reference_source_group.command("inspect")
+@click.argument("source_key")
+def reference_source_inspect(source_key: str) -> None:
+    """Inspect one registered reference source."""
+    from canresearch.references.bundle_knowledge import knowledge_stats
+    from canresearch.references.source_registry import (
+        ReferenceSourceNotFoundError,
+        get_reference_source,
+    )
+    from canresearch.storage.database import default_db_path, initialize
+
+    try:
+        record = get_reference_source(source_key)
+    except ReferenceSourceNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+    click.echo(f"key: {record.key}")
+    click.echo(f"display_name: {record.display_name}")
+    click.echo(f"type: {record.source_type}")
+    click.echo(f"visibility: {record.visibility}")
+    click.echo(f"original_filename: {record.original_filename}")
+    click.echo(f"stored_path: {record.stored_path}")
+    if record.vendor:
+        click.echo(f"vendor: {record.vendor}")
+    if record.version:
+        click.echo(f"version: {record.version}")
+    if record.document_date:
+        click.echo(f"document_date: {record.document_date}")
+    if record.notes:
+        click.echo(f"notes: {record.notes}")
+    conn = initialize(default_db_path())
+    try:
+        stats = knowledge_stats(conn, source_key=source_key)
+    finally:
+        conn.close()
+    click.echo("imported_knowledge:")
+    for name, count in stats.items():
+        click.echo(f"  {name}: {count}")
+
+
+@reference_source_group.command("catalogue")
 @click.option(
     "--db",
     "db_path",
@@ -2196,8 +2312,8 @@ def reference_source_group() -> None:
     default=None,
     help="Reference database path (default: data/references/canresearch.db).",
 )
-def reference_source_list(db_path: str | None) -> None:
-    """List imported reference sources."""
+def reference_source_catalogue(db_path: str | None) -> None:
+    """List imported catalogue sources (J1939/ISOBUS PDF imports in SQLite)."""
     from pathlib import Path
 
     from canresearch.references.service import ReferenceService
@@ -2208,13 +2324,125 @@ def reference_source_list(db_path: str | None) -> None:
     sources = ReferenceService(conn).list_sources()
     conn.close()
     if not sources:
-        click.echo("No reference sources imported.")
+        click.echo("No catalogue sources imported.")
         return
     for source in sources:
         click.echo(
             f"{source['id']:>3}  {source['source_key']:<24}  "
             f"{source['origin']:<18}  {source['title']}"
         )
+
+
+@reference_group.group("bundle")
+def reference_bundle_group() -> None:
+    """Validate and import normalized reference bundles."""
+
+
+@reference_bundle_group.command("validate")
+@click.argument("bundle_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--allow-unregistered",
+    is_flag=True,
+    default=False,
+    help="Allow source_key not yet registered via reference source add.",
+)
+def reference_bundle_validate(bundle_path: str, allow_unregistered: bool) -> None:
+    """Validate a normalized reference bundle JSON file."""
+    from pathlib import Path
+
+    from canresearch.references.bundle_common import BundleFormatError, load_bundle_json
+    from canresearch.references.bundle_validate import validate_reference_bundle
+
+    try:
+        payload = load_bundle_json(Path(bundle_path))
+    except BundleFormatError as exc:
+        raise SystemExit(str(exc)) from exc
+    report = validate_reference_bundle(
+        payload,
+        require_registered_source=not allow_unregistered,
+    )
+    for issue in report.errors:
+        click.echo(f"ERROR [{issue.category}] {issue.path}: {issue.message}")
+    for issue in report.warnings:
+        click.echo(f"WARN  [{issue.category}] {issue.path}: {issue.message}")
+    if report.valid:
+        click.echo("Validation passed.")
+    else:
+        raise SystemExit(f"Validation failed ({len(report.errors)} error(s)).")
+
+
+@reference_bundle_group.command("import")
+@click.argument("bundle_path", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_bundle_import(bundle_path: str, db_path: str | None) -> None:
+    """Import a validated normalized reference bundle."""
+    from pathlib import Path
+
+    from canresearch.references.bundle_knowledge import import_bundle_file
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    try:
+        report, validation = import_bundle_file(conn, Path(bundle_path))
+    except ValueError as exc:
+        conn.close()
+        raise SystemExit(str(exc)) from exc
+    conn.close()
+    if validation:
+        for issue in validation.warnings:
+            click.echo(f"WARN  [{issue.category}] {issue.path}: {issue.message}")
+    click.echo(f"imported source_key={report.source_key}")
+    click.echo(
+        f"messages={report.messages} signals={report.signals} "
+        f"families={report.message_families} registers={report.registers} "
+        f"fault_codes={report.fault_codes} notes={report.protocol_notes}"
+    )
+
+
+@reference_group.command("search")
+@click.argument("query")
+@click.option("--source", "source_key", default=None, help="Limit to one source key.")
+@click.option("--limit", default=25, show_default=True, help="Maximum rows per category.")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(),
+    default=None,
+    help="Reference database path (default: data/references/canresearch.db).",
+)
+def reference_search(query: str, source_key: str | None, limit: int, db_path: str | None) -> None:
+    """Search imported normalized reference knowledge."""
+    from pathlib import Path
+
+    from canresearch.references.bundle_knowledge import search_reference_knowledge
+    from canresearch.storage.database import default_db_path, initialize
+
+    db = Path(db_path) if db_path else default_db_path()
+    conn = initialize(db)
+    try:
+        result = search_reference_knowledge(
+            conn,
+            query=query,
+            source_key=source_key,
+            limit=limit,
+        )
+    finally:
+        conn.close()
+    click.echo(f"query: {result['query']}  total={result['total']}")
+    for bucket, rows in result["results"].items():
+        if not rows:
+            continue
+        click.echo(f"[{bucket}]")
+        for row in rows:
+            label = row.get("name") or row.get("object_key") or row.get("signal_key")
+            click.echo(f"  {row.get('source_key')}  {label}")
 
 
 @reference_group.command("warnings")

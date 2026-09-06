@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "source_key": "db_series_driver_synthetic",
+  "generated_by": "test-fixture",
+  "generated_at": "2026-03-06T00:00:00Z",
+  "notes": "Synthetic bundle representing DB Series brushless driver manual shape only.",
+  "message_families": [
+    {
+      "key": "running_status",
+      "name": "Running Status",
+      "pattern": "0x18705500",
+      "mask": "0xFFFFFF00",
+      "variable_field": "node_id",
+      "variable_role": "destination",
+      "description": "Running status frame family 0x187055??",
+      "source_location": {"page": 12, "section": "CAN Protocol"}
+    },
+    {
+      "key": "status_reply",
+      "name": "Status Reply",
+      "pattern": "0x18700055",
+      "mask": "0xFFFF00FF",
+      "variable_field": "node_id",
+      "variable_role": "source",
+      "description": "Status family 0x1870??55",
+      "source_location": {"page": 12, "section": "CAN Protocol"}
+    },
+    {
+      "key": "register_write",
+      "name": "Register Write",
+      "pattern": "0x18715500",
+      "mask": "0xFFFFFF00",
+      "variable_field": "node_id",
+      "description": "Register write 0x187155??"
+    },
+    {
+      "key": "register_read",
+      "name": "Register Read",
+      "pattern": "0x18725500",
+      "mask": "0xFFFFFF00",
+      "variable_field": "node_id",
+      "description": "Register read 0x187255??"
+    },
+    {
+      "key": "register_reply",
+      "name": "Register Reply",
+      "pattern": "0x18720055",
+      "mask": "0xFFFF00FF",
+      "variable_field": "node_id",
+      "description": "Register reply 0x1872??55"
+    }
+  ],
+  "messages": [
+    {
+      "key": "running_example_node3",
+      "name": "Running Status Example",
+      "protocol": "proprietary",
+      "can_id": "0x18705503",
+      "is_extended": true,
+      "dlc": 8,
+      "description": "Example resolved ID for node 3",
+      "signals": [
+        {
+          "key": "target_speed",
+          "name": "TargetSpeed",
+          "start_bit": 0,
+          "bit_length": 16,
+          "byte_order": 1,
+          "signedness": "unsigned",
+          "description": "Target speed setpoint"
+        },
+        {
+          "key": "direction",
+          "name": "Direction",
+          "start_bit": 16,
+          "bit_length": 1,
+          "byte_order": 1,
+          "signedness": "unsigned"
+        },
+        {
+          "key": "heartbeat",
+          "name": "Heartbeat",
+          "start_bit": 24,
+          "bit_length": 8,
+          "byte_order": 1,
+          "signedness": "unsigned"
+        },
+        {
+          "key": "checksum",
+          "name": "Checksum",
+          "start_bit": 56,
+          "bit_length": 8,
+          "byte_order": 1,
+          "signedness": "unsigned"
+        }
+      ]
+    }
+  ],
+  "registers": [
+    {
+      "key": "max_speed",
+      "address": "0x2001",
+      "name": "MaxSpeed",
+      "width": 16,
+      "signedness": "unsigned",
+      "factor": 1,
+      "unit": "rpm",
+      "access": "read_write",
+      "description": "Maximum speed limit",
+      "source_location": {"page": 18, "section": "Register Table"}
+    }
+  ],
+  "fault_codes": [
+    {
+      "key": "stall",
+      "value": "0x10",
+      "name": "MotorStall",
+      "description": "Motor stall detected"
+    }
+  ],
+  "protocol_notes": [
+    {
+      "key": "baud",
+      "category": "bitrate",
+      "value": "500000",
+      "unit": "bps"
+    },
+    {
+      "key": "heartbeat_period",
+      "category": "period",
+      "value": "100",
+      "unit": "ms",
+      "description": "Heartbeat update period"
+    }
+  ]
+}

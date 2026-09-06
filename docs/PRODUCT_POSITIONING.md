@@ -415,15 +415,18 @@ If not, prefer simplicity over novelty.
 - CLI-first capture, sessions (SQLite + JSONL), J1939/ISOBUS reference catalogue
 - Asset registry, session linking, node / NAME mapping
 - Standard DBC from sessions; research DBC from **CLI-confirmed** candidates
+- Reference source registry: register originals (public/private/licensed metadata)
+- Normalized bundle validate/import/search; MCP reference knowledge tools
 - DBC library: register, list, inspect, lookup, session coverage analysis
-- MCP: 37 tools — offline analysis, DBC library, passive live CANsub, signal research
+- MCP: 41 tools — offline analysis, reference bundles, DBC library, passive live CANsub
 - CAN Signal Research Skill — known-first workflow orchestration
 - Passive-only — no CAN TX tools
 
 ## Direction and planned (summary)
 
 - Richer asset knowledge dashboard and cross-session change detection
-- Reference document registry, search, and **can-reference-builder** Skill
+- Reference document registry (file-backed sources + bundle import) — **implemented**
+- **can-reference-builder** Skill (external generative conversion output)
 - Catalogue-level `reference import-dbc` (distinct from library register)
 - Mask / filter-aware address-family DBC adaptation
 - Optional future active probing as separate capability — not core monolith

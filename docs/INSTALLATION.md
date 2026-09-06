@@ -165,6 +165,12 @@ observe_live_traffic
 Confirm frames are present before starting research capture. This aligns with the
 [CAN Signal Research Skill](../skills/can-signal-research/SKILL.md) V2 preflight.
 
+## 6. Reference onboarding (second laptop)
+
+After install, follow the **laptop smoke test** in [USER_ONBOARDING.md](USER_ONBOARDING.md)
+(register private PDF → validate/import bundle → MCP verify). Bundle format:
+[REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md).
+
 ## Future: active / TX research
 
 Current CAN Research live tools are **passive RX only** — no CAN transmission through MCP.

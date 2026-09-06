@@ -148,14 +148,19 @@ uv run canresearch session dbc <session-id> --asset <asset-key>
 
 - **`reference import-dbc`** (catalogue import) is not implemented — use **`reference dbc register`** for the DBC library
 
-### Supporting documents (today)
+### Supporting documents (implemented registry + bundle import)
 
-- Retain originals locally for provenance (`references/private/`, `docs/original_docs/`, or
-  your own ignored folder — all gitignored patterns in `.gitignore`)
-- Use generative tools (future **can-reference-builder** Skill) or manual import paths for
-  structured extraction
+Register originals, convert externally, import normalized JSON:
 
-Full detail: [REFERENCE_DATA.md](REFERENCE_DATA.md).
+```powershell
+uv run canresearch reference source add path\to\manual.pdf --key my_manual --visibility private
+# … produce my_manual.json via can-reference-builder or manual conversion …
+uv run canresearch reference bundle validate my_manual.json
+uv run canresearch reference bundle import my_manual.json
+```
+
+See [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md). Retain originals locally
+(gitignored) — see [REFERENCE_DATA.md](REFERENCE_DATA.md).
 
 ---
 
@@ -218,6 +223,9 @@ existing DBC → register/discover → inspect → compare against session
 | Decode reference-backed values | `decode_session`, `lookup_pgn`, `lookup_spn` |
 | List nodes | `list_session_nodes` |
 | Preview standard DBC | `build_session_dbc_preview` |
+| List registered reference sources | `list_reference_sources` |
+| Search imported reference knowledge | `reference search` / `search_reference_knowledge` |
+| Lookup reference message | `lookup_reference_message` |
 | List registered DBC sources | `list_dbc_sources` |
 | Session vs DBC coverage | `session dbc-coverage` / `analyze_dbc_coverage` |
 | List confirmed proprietary | `list_research_candidates`, `preview_research_dbc` |
@@ -228,6 +236,29 @@ existing DBC → register/discover → inspect → compare against session
 confirmed DBC.
 
 Passive preflight before capture is required — see Skill V2/V3 workflow.
+
+---
+
+## Laptop onboarding smoke test (manual)
+
+Use this checklist on a **fresh second laptop** today:
+
+| Step | Action |
+|------|--------|
+| A | Clone repo, `uv sync`, copy `config.toml.example` → `data/config.toml`, set `instance_key` |
+| B | `uv run canresearch config show` — confirm `resolved_data_dir` |
+| C | `uv run canresearch reference source add path\to\private.pdf --key trial_manual --visibility private` |
+| D | `uv run canresearch reference source list` and `reference source inspect trial_manual` |
+| E | Copy or create a bundle from [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md) (or synthetic fixture) with matching `source_key` |
+| F | `uv run canresearch reference bundle validate trial_manual.json` |
+| G | `uv run canresearch reference bundle import trial_manual.json` |
+| H | `uv run canresearch reference search "<signal name>"` |
+| I | `uv run canresearch reference dbc register --key trial_dbc path\to\file.dbc` |
+| J | `uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp` |
+| K | MCP: `list_reference_sources`, `search_reference_knowledge`, `list_dbc_sources` |
+| L | CANsub connect + known-first: `analyze_session`, `analyze_dbc_coverage`, Skill workflow |
+
+Do **not** commit private PDFs or proprietary bundle content.
 
 ---
 

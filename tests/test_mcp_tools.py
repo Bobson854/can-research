@@ -70,6 +70,10 @@ EXPECTED_TOOLS = frozenset(
         "lookup_dbc_message",
         "lookup_dbc_signal",
         "analyze_dbc_coverage",
+        "list_reference_sources",
+        "inspect_reference_source",
+        "search_reference_knowledge",
+        "lookup_reference_message",
     }
 )
 
