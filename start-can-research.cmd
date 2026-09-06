@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions
 cd /d "%~dp0"
 
 where uv >nul 2>&1
@@ -34,17 +34,8 @@ uv run python scripts\mcp_verify_http.py >nul 2>&1
 if errorlevel 1 (
     echo [INFO] Starting CAN Research MCP in a new window...
     start "CAN Research MCP" /D "%CD%" cmd /k uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
-    set MCP_READY=0
-    for /L %%I in (1,1,12) do (
-        timeout /t 1 /nobreak >nul
-        uv run python scripts\mcp_verify_http.py >nul 2>&1
-        if not errorlevel 1 (
-            set MCP_READY=1
-            goto :mcp_ready
-        )
-    )
-    :mcp_ready
-    if "!MCP_READY!"=="0" (
+    call :wait_mcp
+    if errorlevel 1 (
         echo [FAIL] MCP did not become healthy within 12 seconds.
         echo        Check the "CAN Research MCP" window.
         exit /b 1
@@ -73,18 +64,8 @@ if errorlevel 1 (
 
     echo [INFO] Starting OpenAI tunnel in a new window...
     start "OpenAI Tunnel - %TUNNEL_PROFILE%" /D "%TUNNEL_DIR%" cmd /k tunnel-client.exe run --profile "%TUNNEL_PROFILE%" --health.listen-addr %TUNNEL_HEALTH_HOST%:%TUNNEL_HEALTH_PORT%
-
-    set TUNNEL_READY=0
-    for /L %%I in (1,1,12) do (
-        timeout /t 1 /nobreak >nul
-        uv run python scripts\tunnel_windows.py status >nul 2>&1
-        if not errorlevel 1 (
-            set TUNNEL_READY=1
-            goto :tunnel_ready
-        )
-    )
-    :tunnel_ready
-    if "!TUNNEL_READY!"=="0" (
+    call :wait_tunnel
+    if errorlevel 1 (
         echo [FAIL] Tunnel health listener did not become reachable within 12 seconds.
         echo        Check the "OpenAI Tunnel" window.
         exit /b 1
@@ -96,9 +77,25 @@ if errorlevel 1 (
 echo.
 echo ============================================================
 echo   CAN Research is ready for ChatGPT
-necho ============================================================
+echo ============================================================
 echo   Use the EXISTING ChatGPT connector for %TUNNEL_PROFILE%.
 echo   Do not recreate the connector after reboot.
 echo   Run status.cmd any time for diagnostics.
 echo.
 exit /b 0
+
+:wait_mcp
+for /L %%I in (1,1,12) do (
+    timeout /t 1 /nobreak >nul
+    uv run python scripts\mcp_verify_http.py >nul 2>&1
+    if not errorlevel 1 exit /b 0
+)
+exit /b 1
+
+:wait_tunnel
+for /L %%I in (1,1,12) do (
+    timeout /t 1 /nobreak >nul
+    uv run python scripts\tunnel_windows.py status >nul 2>&1
+    if not errorlevel 1 exit /b 0
+)
+exit /b 1
