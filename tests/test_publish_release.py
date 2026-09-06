@@ -120,6 +120,14 @@ def test_dry_run_script_includes_guarded_git_steps() -> None:
     assert "DRY RUN" in text
 
 
+def test_publish_script_checks_canresearch_process_before_version_bump() -> None:
+    text = PUBLISH_PS1.read_text(encoding="utf-8-sig")
+    assert 'Get-Process -Name "canresearch"' in text
+    assert "Test-CanResearchNotRunning" in text
+    assert "No release files have been modified." in text
+    assert text.index("Test-CanResearchNotRunning") < text.index("bump-version --version $Version")
+
+
 def test_publish_powershell_is_ascii_only() -> None:
     text = PUBLISH_PS1.read_text(encoding="utf-8-sig")
     assert all(ord(ch) < 128 for ch in text), (

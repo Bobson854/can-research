@@ -54,6 +54,14 @@ function Test-UvAvailable {
     }
 }
 
+function Test-CanResearchNotRunning {
+    $processes = @(Get-Process -Name "canresearch" -ErrorAction SilentlyContinue)
+    if ($processes.Count -gt 0) {
+        $pids = ($processes | ForEach-Object { $_.Id }) -join ", "
+        Fail "canresearch.exe is running (PID(s): $pids). Stop the CAN Research MCP/server before publishing, then retry. No release files have been modified."
+    }
+}
+
 function Get-CurrentVersion {
     $result = & uv run python scripts/publish_release.py read-version
     if ($LASTEXITCODE -ne 0) { Fail "Could not read current version from pyproject.toml." }
@@ -87,6 +95,7 @@ Write-Host ""
 
 Test-GitAvailable
 Test-UvAvailable
+Test-CanResearchNotRunning
 
 & uv run python scripts/publish_release.py validate-version --version $Version | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "Version must match semantic versioning X.Y.Z: $Version" }
