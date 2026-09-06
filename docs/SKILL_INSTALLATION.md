@@ -72,8 +72,14 @@ Expected archive contents:
 ```text
 SKILL.md
 agents/openai.yaml
+references/bus-inventory-and-standards.md
+references/contextual-reasoning.md
 references/evidence-and-confidence.md
+references/experiment-evidence.md
 references/experiment-patterns.md
+references/field-analysis.md
+references/knowledge-reuse.md
+references/research-output-and-dbc.md
 references/system-context-and-assets.md
 ```
 

@@ -3,7 +3,28 @@
 Language rules for reporting proprietary signal research. All **measurements** come from
 CAN Research MCP/core; all **confidence labels** are interpretive and must be honest.
 
-## Two confidence axes
+## Granular confidence dimensions
+
+Beyond encoding vs semantic, report **separate dimensions** when they diverge:
+
+| Dimension | Examples |
+|-----------|----------|
+| Field boundary | Start bit, length |
+| Byte order | Intel / Motorola |
+| Signedness | Signed / unsigned |
+| Factor / offset | Scale plausibility |
+| Unit | m, deg, rpm, L/ha |
+| Semantic class | altitude-like, RPM-like, rate-like |
+| Exact meaning | Fan_RPM vs Pump_RPM |
+
+Example:
+
+> Structure: **high** — 16-bit Intel unsigned, 0–2000 plausible.
+> Semantics: **medium** — rotational-speed-like; exact role not discriminated.
+
+A valid reverse-engineering outcome may have **high structure, medium exact meaning**.
+
+## Two confidence axes (summary)
 
 Split every candidate hypothesis into **encoding** and **semantic** confidence.
 
@@ -117,9 +138,16 @@ Keep operator-facing text concise — omit rejected candidates unless asked.
 | `<asset>_standard.dbc` | “Reference-backed standard signal” |
 | Confirmed research DBC | “Confirmed proprietary signal (CLI confirmed)” |
 | MCP candidate / inference | “Proposed candidate — not confirmed” |
-| Generative guess | “Hypothesis only — needs validation” |
+| Generative guess | Hypothesis only — needs validation |
+| External / web | External evidence — cite purpose |
+| AI inference | AI inference — not CAN-measured |
 
 Never merge these labels in prose.
+
+## Field width and ranker caution
+
+- Do not shrink field width because observed values fit a smaller type under current conditions.
+- Do not trust activity rankers alone after a clean controlled experiment — see [experiment-evidence.md](experiment-evidence.md).
 
 ## Inference guardrails
 

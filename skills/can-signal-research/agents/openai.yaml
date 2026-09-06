@@ -1,15 +1,14 @@
 interface:
   display_name: "CAN Signal Research"
-  short_description: "Find proprietary CAN signals with guided passive-first research via CAN Research MCP."
+  short_description: "CAN reverse-engineering workbench — standards-first inventory, contextual inference, research DBC."
   default_prompt: >-
-    Help me find a proprietary CAN signal on my machine. Use the CAN Research MCP
-    connector: confirm backend identity, run live preflight (device/channel status and
-    bounded observe_live_traffic) before any capture, establish system and asset context,
-    apply known reference and confirmed DBC signals first, validate passive hypotheses
-    with preview_candidate_values, and design a minimal physical experiment only if
-    needed. Ask at most one or two short context questions when useful; give physical
-    actions in short steps; separate encoding confidence from semantic confidence; do
-    not confirm candidates automatically.
+    Help me reverse-engineer CAN signals on my machine. Use CAN Research MCP: confirm
+    backend, preflight live traffic, inventory the bus standards-first (J1939/ISOBUS +
+    local DBC knowledge), isolate proprietary remainder, reuse layout fingerprints,
+    apply contextual reasoning and preview_candidate_values, run one targeted experiment
+    only if needed (experiment evidence beats naive rankers), produce a concise Markdown
+    research summary and research DBC preview when useful, separate structural from
+    semantic confidence, and stop at CLI confirmation. Passive RX only.
 
 policy:
   allow_implicit_invocation: true

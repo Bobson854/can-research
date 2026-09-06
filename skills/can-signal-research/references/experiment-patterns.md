@@ -154,6 +154,15 @@ settle → mark
 
 Compare windows around command vs idle; look for correlated response IDs (not assumed PGN).
 
+## Experiment-aware ranking
+
+After a controlled operator change, **experiment signature** beats raw activity rank:
+
+- Stable → exact requested change → return to baseline → no spurious neighbour changes
+
+See [experiment-evidence.md](experiment-evidence.md). Do not ask the operator to repeat
+when one clean cycle already proves causality.
+
 ## When two candidates remain
 
 Design the **smallest** test that splits them:
@@ -175,3 +184,4 @@ Design the **smallest** test that splits them:
 - Asking the operator to sweep every control at once.
 - Re-running full bus ranking when a targeted follow-up test would suffice.
 - Ignoring confirmed asset DBC and rediscovering known signals.
+- Trusting `rank_signal_candidates` over a clean experiment window on the target ID.

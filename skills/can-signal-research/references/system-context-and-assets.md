@@ -23,6 +23,9 @@ Ask **at most one or two at a time**. Prefer inference over interrogation.
 | Known make/model/family? | Narrows plausible signal sets (still not proof) |
 | Tractor and implement both present? | May require two asset scopes |
 | Machine state right now? | Interprets stationary vs motion-related fields |
+| Can you show HMI/controller (no DBC)? | Static setpoints, rates, RPM displays |
+| MQTT/API/serial snapshot available? | Cross-check without revealing decode |
+| Can you change one setpoint and hold it? | Minimal experiment (e.g. fan 1000→1200→1000) |
 
 ### Do not ask unless specifically relevant
 

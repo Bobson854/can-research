@@ -536,3 +536,26 @@ The benchmark methodology example (bench GNSS controller, proprietary IDs `0x186
 knowledge for other controllers.
 
 Skill self-evaluation checklist: see `skills/can-signal-research/SKILL.md` (self-evaluation section).
+
+---
+
+## CANsub.2 validation session — Skill V3 workbench behaviours
+
+A subsequent real-world validation session (September 2026) refined the Skill toward an
+**AI-assisted reverse-engineering workbench** — still passive-only, still CLI confirm boundary.
+
+Key behaviours now in `skills/can-signal-research/` references:
+
+| Theme | Skill guidance |
+|-------|----------------|
+| Standards-first | Bus inventory before proprietary bit-hunting; J1939/ISOBUS coverage summaries |
+| Knowledge reuse | DBC/layout fingerprints; hypotheses with provenance — never silent copy |
+| Contextual reasoning | Whole-field GNSS/sprayer interpretations; cross-field coherence; static setpoints |
+| Field width | Do not over-shrink (16-bit speed looked 8-bit when stationary) |
+| Granular confidence | Boundary, endian, signedness, class, exact meaning, factor — separate dimensions |
+| Experiment evidence | Controlled fan RPM change outranked noisy GNSS in ranker; one cycle often enough |
+| External research | Elevation, manuals, specs — labelled external evidence, purpose-driven only |
+| Outputs | Markdown research report + provisional research DBC for viewer validation loop |
+| Persistence | Confirmed catalogue as explicit workspace knowledge, not model memory |
+
+Deterministic MCP/core unchanged; generative layer adds reasoning the rankers alone do not provide.
