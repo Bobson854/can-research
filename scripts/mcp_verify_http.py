@@ -19,13 +19,21 @@ from canresearch.mcp.server import (
 
 async def _verify(url: str) -> int:
     expected = sorted(list_tool_names())
-    async with (
-        streamable_http_client(url) as (read, write),
-        ClientSession(read, write) as session,
-    ):
-        await session.initialize()
-        tools = await session.list_tools()
-        names = sorted(tool.name for tool in tools.tools)
+    try:
+        async with (
+            streamable_http_client(url) as (read, write),
+            ClientSession(read, write) as session,
+        ):
+            await session.initialize()
+            tools = await session.list_tools()
+            names = sorted(tool.name for tool in tools.tools)
+    except Exception as exc:
+        print(f"url: {url}")
+        print(f"error: MCP not reachable at {url}")
+        root = exc.exceptions[0] if isinstance(exc, BaseExceptionGroup) and exc.exceptions else exc
+        print(f"detail: {root.__class__.__name__}: {root}")
+        print("hint: Start MCP with start-can-research.cmd if it is not running")
+        return 1
 
     print(f"url: {url}")
     print(f"tool_count: {len(names)}")

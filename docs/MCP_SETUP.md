@@ -25,7 +25,7 @@ Once configured **once**, do **not** repeat full installation. Start only:
 
 ### Terminal 1 — CAN Research MCP
 
-From your repository or install root (or use **`start-can-research.cmd`** on Windows):
+From your CAN Research install folder (or use **`start-can-research.cmd`** on Windows):
 
 ```powershell
 uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp

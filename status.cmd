@@ -61,7 +61,7 @@ if errorlevel 1 (
 echo.
 echo ============================================================
 if %FAIL%==0 (
-    echo   Overall: checks passed (CANsub may still be unconfigured)
+    echo   Overall: checks passed — CANsub may still be unconfigured
 ) else (
     echo   Overall: one or more checks failed - see messages above
 )
