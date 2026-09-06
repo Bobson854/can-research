@@ -71,7 +71,7 @@ traffic, re-reading the same DBC, and re-explaining standard PGNs to an AI assis
 | J1939 / ISOBUS reference catalogue | **Implemented today** — PDF import, `lookup_pgn` / `lookup_spn`, session classify/decode |
 | Registered DBC library + session coverage | **Implemented today** — `reference dbc register`, `analyze_dbc_coverage` |
 | Confirmed research signals / `<asset>_research.dbc` | **Implemented today** — CLI confirm workflow |
-| OEM/vendor manuals and spreadsheets | **Direction** — retain locally; generative consultation; structured import **planned** |
+| OEM/vendor manuals and spreadsheets | **Implemented today** — source registry + **can-reference-builder** → Reference Bundle V1 import |
 | Asset/session history | **Implemented today** — SQLite sessions, assets, candidates |
 
 ```text
@@ -135,7 +135,7 @@ Generative AI (Skill / ChatGPT)
     interprets bounded results
     proposes next step (passive inference or experiment)
         ↓
-Deterministic core + MCP (37 tools)
+Deterministic core + MCP (41 tools baseline)
     measures facts from stored/live traffic
     returns reproducible, bounded payloads
         ↓
@@ -214,7 +214,7 @@ context; manuals lack observed behaviour.
 |--------|---------------------|--------|
 | Structured reference catalogue | PGN/SPN/DDI definitions, classify/decode | **Implemented today** |
 | DBC definitions | Bit layout, scaling, message names | **Implemented today** (library + generated previews) |
-| Supporting documents (PDF, CSV, manuals) | Semantics, limits, OEM naming | **Direction** — retain + consult; index/search **planned** |
+| Supporting documents (PDF, CSV, manuals) | Semantics, limits, OEM naming | **Implemented today** — source registry + bundle import; generative conversion via **can-reference-builder** |
 | Live / stored CAN traffic | What actually appears on this bus | **Implemented today** |
 
 Example fusion:
@@ -362,7 +362,7 @@ Honest comparison — conventional CAN viewers/workstations vs CAN Research.
 | Graphing | **Strong** | Not provided | Export DBC to viewer for plots |
 | Existing DBC reuse | Manual load/compare | **Register, inspect, coverage, lookup** | Quantified known vs unknown; less manual diff |
 | Asset knowledge | Usually manual/project-specific | **Registry, scoped DBCs, candidates** | Knowledge survives across sessions |
-| Reference documents | External to tool | Catalogue import + **planned** doc index | Standards-backed baseline in one place |
+| Reference documents | External to tool | Source registry + bundle import/search (**implemented**); vector search **planned** | Standards-backed baseline in one place |
 | Known-first filtering | Operator discipline | **Built into workflow + MCP** | Smaller proprietary search space |
 | AI role | External scripts / chat | **Orchestrator over MCP substrate** | Consistent evidence gathering |
 | Deterministic evidence | Depends on scripts | **Core + MCP** | Reproducible metrics and decode |
@@ -425,8 +425,8 @@ If not, prefer simplicity over novelty.
 ## Direction and planned (summary)
 
 - Richer asset knowledge dashboard and cross-session change detection
-- Reference document registry (file-backed sources + bundle import) — **implemented**
-- **can-reference-builder** Skill (external generative conversion output)
+- **can-reference-builder** Skill — **implemented** (generative conversion → Reference Bundle V1)
+- Vector/semantic search over retained reference documents
 - Catalogue-level `reference import-dbc` (distinct from library register)
 - Mask / filter-aware address-family DBC adaptation
 - Optional future active probing as separate capability — not core monolith

@@ -1,10 +1,11 @@
 # MCP Connector Install and Recovery Guide
 
-> **Public canonical guide:** [MCP_SETUP.md](MCP_SETUP.md) — installation, tunnel, reboot
-> startup, and portable conventions.
+> **Deployment record — not canonical installation instructions.**
 >
-> This document retains **verified Office deployment records**, detailed OpenAI tunnel
-> steps, and historical checklists from September 2026 bench validation.
+> This document records verified **Office** deployment steps from September 2026 and may
+> contain instance-specific paths or **historical tool counts** (32 at verification).
+> For current setup, see [MCP_SETUP.md](MCP_SETUP.md). Verify tool count with
+> `uv run canresearch mcp tools`.
 
 ## Purpose
 

@@ -1,9 +1,10 @@
 # CANsub.2 USB / Ethernet connection notes
 
-> **Public canonical guide:** [CANSUB_SETUP.md](CANSUB_SETUP.md)
+> **Deployment record — not canonical installation instructions.**
 >
 > This document retains **desk-unit bench history**, verified firmware/API versions, and
-> tested command output from development hardware.
+> tested command output from development hardware. For current CANsub setup, see
+> [CANSUB_SETUP.md](CANSUB_SETUP.md).
 
 Observed behaviour on the development desk unit (Device ID `7413f810`). This is
 **not** vendor-guaranteed documentation — it records what we have tested locally.
@@ -199,7 +200,9 @@ history and are not deleted automatically.
 
 ## Live MCP research (passive)
 
-The MCP server exposes **32 tools** (19 read-only, 7 live, 6 signal research).
+The MCP server exposed **32 tools** at Office verification (2026-09-05); current baseline
+is **41 tools** (28 read-only, 7 live, 6 signal research) — verify with
+`uv run canresearch mcp tools`. See [MCP_SETUP.md](MCP_SETUP.md).
 Live tools are **passive only** — no CAN transmission, no autonomous experimentation.
 
 | Tool | Purpose |

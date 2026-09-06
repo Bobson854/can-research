@@ -61,7 +61,7 @@ The generative agent should:
 └───────────────────────────────┬─────────────────────────────────┘
                                 │ calls MCP tools
 ┌───────────────────────────────▼─────────────────────────────────┐
-│ MCP (37 tools — stable substrate)                               │
+│ MCP (41 tools baseline — verify with `mcp tools`)               │
 │  bounded access to deterministic capabilities                   │
 └───────────────────────────────┬─────────────────────────────────┘
                                 │ thin handlers
@@ -419,7 +419,7 @@ the **architecture direction** — not a finished autonomous reverse-engineering
 | Host OS | Windows |
 | CANsub.2 | Channel 1 (Ethernet bench) |
 | ChatGPT | `can-signal-research` Skill installed and available |
-| MCP | CAN Research connector live; **37 tools** exposed |
+| MCP | CAN Research connector live; verify tool count with `mcp tools` (baseline **41**) |
 | Mode | Passive observation only |
 | CAN TX | None |
 | Candidate confirmation | Not via MCP (CLI boundary preserved) |

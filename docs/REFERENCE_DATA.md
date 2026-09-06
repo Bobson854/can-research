@@ -141,11 +141,15 @@ uv run canresearch reference search "motor speed"
 **Visibility:** `public`, `private`, `licensed` (metadata — default **private**). Licensed
 material must never be committed or exposed via MCP raw download.
 
-### External / separate
+### External conversion Skill
 
 | Capability | Status |
 |------------|--------|
-| **can-reference-builder** Skill | Developed separately — outputs bundle JSON |
+| **can-reference-builder** Skill | **Implemented** — source under `skills/can-reference-builder/`; outputs Reference Bundle V1 JSON |
+
+Package locally: `uv run python scripts/package_skill.py skills/can-reference-builder` —
+see [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md). CAN Research validates/imports bundles;
+it does not perform generative PDF/OCR conversion in-core.
 
 ### Planned later
 
@@ -248,8 +252,7 @@ See Skill [knowledge-reuse.md](../skills/can-signal-research/references/knowledg
 |------------|--------|
 | `reference import-dbc` (catalogue import) | Not implemented — use `reference dbc register` for library |
 | Generic DBC import/transformation pipeline | Future |
-| Reference bundle contract | Future |
-| Document index/search MCP tools | Future |
+| Vector/semantic document search MCP tools | Future |
 | Mask/SavvyCAN-style filter-aware DBC adaptation | Future (PGN address-variant matching is partial) |
 
 Until catalogue import exists: **retain DBC files locally**, register via CLI, and run
@@ -261,41 +264,39 @@ Until catalogue import exists: **retain DBC files locally**, register via CLI, a
 
 ### Purpose
 
-Not all knowledge arrives as a clean PGN/SPN table or DBC. Operators often have:
+Not all knowledge arrives as a clean PGN/SPN table or DBC. Operators often have PDF
+protocol specs, OEM manuals, spreadsheets, CSV signal lists, and Markdown notes.
 
-- PDF protocol specifications
-- OEM implementation manuals
-- Spreadsheets (XLSX) and CSV signal lists
-- Markdown or text documentation
-- Vendor release notes
-
-### Desired model
+### Implemented workflow
 
 ```text
-original source document
-    ↓
-retained for provenance / human / generative consultation
-
-normalized machine-readable representation
-    ↓
-deterministic CAN Research use (catalogue, DBC, index)
+reference source add (retain original, visibility metadata)
+        ↓
+can-reference-builder Skill (generative — messy → normalized JSON)
+        ↓
+reference bundle validate → reference bundle import (deterministic)
+        ↓
+search / lookup via CLI and MCP
 ```
 
 **Do not discard originals after conversion.** Provenance and re-import depend on them.
 
-### Today
+**Today:**
 
-- **Retain locally** in gitignored areas — see [Public vs private material](#public-vs-private-material)
-- **Structured import** today is primarily PDF → catalogue (J1939-71, ISOBUS DDI)
-- **Generative consultation** — Skill or operator may read documents in the host environment;
-  extracted fields must pass deterministic validation before import
-- **No core document index/search MCP tools yet**
+- **Source registry** — `{data_dir}/reference_sources/` with `public/` and `private/` storage
+- **Reference Bundle V1** — validated/imported per [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md)
+- **MCP (read-only):** `list_reference_sources`, `inspect_reference_source`,
+  `search_reference_knowledge`, `lookup_reference_message`
+- **Generative conversion** — **can-reference-builder** Skill; not in-core PDF parsing
+- **J1939/ISOBUS PDFs** — separate catalogue import path (section A), not bundle format
 
-### Planned
+### Future (not V1)
 
-- Reference document registry (list, search, provenance metadata)
-- **can-reference-builder** Skill — conversion assistant (see below)
-- Validated import into reference catalogue or DBC knowledge store
+| Capability | Status |
+|------------|--------|
+| Vector/semantic search over retained documents | Future |
+| Automatic in-core PDF parsing (non-J1939) | Not planned for V1 |
+| Full provenance metadata on every signal | Partial today |
 
 ---
 
@@ -308,21 +309,21 @@ CAN Research must **not** distribute licensed SAE/ISO/OEM content without permis
 | **Public / redistributable** | May be committed where licence explicitly permits |
 | **Private / licensed** | Keep **outside public Git history**; store locally only |
 
-### Practical storage (existing repo conventions)
+### Practical storage
 
-These paths are **gitignored** today — suitable for private material:
+These paths are **gitignored** — suitable for private material:
 
 | Path | Intended use |
 |------|--------------|
-| `data/` | Local config, SQLite catalogue, captures |
+| `data/` | Local config, SQLite catalogue, captures, reference source registry |
 | `references/private/` | Private reference extracts |
-| `docs/original_docs/` | Original licensed source documents |
+| `docs/original_docs/` | Original licensed source documents (never commit) |
 
-No application-managed “reference workspace” registry exists yet — operators choose a
-local layout under gitignored paths. A configurable reference workspace path is
-**future application work**.
+The **reference source registry** lives under `{data_dir}/reference_sources/` (see section A2).
+Register sources with `reference source add`; originals are copied or linked per visibility.
 
-**Never commit:** licensed PDFs, full SAE databases, customer OEM packs, API keys.
+**Never commit:** licensed PDFs, full SAE databases, customer OEM packs, API keys, bundle JSON
+containing proprietary signal definitions unless explicitly permitted.
 
 ---
 
@@ -357,57 +358,48 @@ in the SQLite catalogue. Full provenance on every signal is **not yet implemente
 
 ---
 
-## Reference conversion architecture (target)
+## Reference conversion architecture
 
-For formats not directly importable today:
+For formats not directly importable via J1939/ISOBUS PDF importers:
 
 ```text
 user-owned source material (PDF, XLSX, CSV, DBC, Markdown, manual)
         ↓
-generative conversion / can-reference-builder Skill
+can-reference-builder Skill (generative interpretation)
         ↓
-deterministic validation (PGN, SPN, bits, endian, scale, overlaps, provenance)
+Reference Bundle V1 JSON
         ↓
-CAN Research reference contract
+reference bundle validate → reference bundle import (deterministic)
         ↓
-local reference catalogue / DBC knowledge / source document index
+SQLite reference knowledge + MCP search/lookup
 ```
 
 **Core principle:**
 
 ```text
-Generative AI interprets messy source material.
-Deterministic CAN Research validates what is imported.
+Generative AI (can-reference-builder) interprets messy source material.
+Deterministic CAN Research validates and imports normalized bundles.
 ```
 
-### Potential input formats
+DBC knowledge remains a **separate first-class path** — register DBCs via
+`reference dbc register`, not via bundle import.
 
-PDF · spreadsheet · CSV · DBC · Markdown · text/manual
-
-### Potential normalized fields
-
-PGN · SPN · message name · signal name · start bit · bit length · endian · signedness ·
-factor · offset · units · enum/value descriptions · provenance
-
-No irreversible public schema is defined yet — the durable interface should be a CAN
-Research reference contract usable by **any** generative system, not a single AI vendor.
+Contract: [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md)
 
 ---
 
-## Planned Skill: can-reference-builder
+## CAN Research Skills (reference workflow)
 
-**Not implemented in this repository.** Do not install or package in this milestone.
+Three Skills ship as source under `skills/` (package locally — not committed as zip):
 
-| Skill | Responsibility |
-|-------|----------------|
-| **can-reference-builder** (planned) | Convert user-owned CAN/J1939/ISOBUS/OEM material into validated CAN Research reference representation |
-| **can-signal-research** (implemented) | Research **unknown/proprietary** signals on live/stored traffic against a known baseline |
+| Skill | Role |
+|-------|------|
+| **can-onboarding** | Install, validate, MCP/tunnel, knowledge intake checkpoints |
+| **can-reference-builder** | Messy manuals/tables → Reference Bundle V1 JSON |
+| **can-signal-research** | Known-first proprietary signal research on traffic remainder |
 
-Install **can-signal-research** after reference/DBC knowledge is as complete as practical:
-[SKILL_INSTALLATION.md](SKILL_INSTALLATION.md).
-
-The reference contract output should be consumable by ChatGPT, Codex, or other tools —
-not locked to one vendor.
+Install order for new users: onboarding → reference-builder (when material exists) →
+signal-research. See [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md).
 
 ---
 
@@ -417,14 +409,13 @@ Based on Skill validation, likely useful **deterministic** capabilities for a fu
 
 | Candidate capability | Purpose |
 |---------------------|---------|
-| List available reference documents | Source index |
-| Search / index supporting documents | Operator + Skill retrieval |
-| Expose provenance per definition | Trust labelling |
+| Vector/semantic document search | Operator + Skill retrieval over retained docs |
+| Expose full provenance per definition | Trust labelling |
 | Mask/filter-aware DBC adaptation | SavvyCAN-style address families |
 
-**Implemented in this milestone:** DBC library register/list/inspect, lookup by CAN ID/name,
-and session DBC coverage (`list_dbc_sources`, `inspect_dbc`, `lookup_dbc_message`,
-`lookup_dbc_signal`, `analyze_dbc_coverage`). The current MCP surface is **37 tools** — see README.
+**Implemented today:** DBC library, reference source registry, bundle import, session DBC
+coverage, and reference search/lookup MCP tools. Verify MCP count with
+`uv run canresearch mcp tools` — baseline **41 tools** (see README).
 
 ---
 
@@ -443,8 +434,12 @@ and session DBC coverage (`list_dbc_sources`, `inspect_dbc`, `lookup_dbc_message
 | `inspect_dbc` | Message/signal inventory for one source |
 | `lookup_dbc_message` / `lookup_dbc_signal` | Exact ID or name lookup |
 | `analyze_dbc_coverage` | Session vs DBC known-first summary |
+| `list_reference_sources` | Registered reference source metadata |
+| `inspect_reference_source` | One source — visibility, import status |
+| `search_reference_knowledge` | Bounded search over imported bundle knowledge |
+| `lookup_reference_message` | Exact message lookup from imported bundles |
 
-Import remains **CLI-only**.
+Import remains **CLI-only** (catalogue PDFs, source registration, bundle import, DBC register).
 
 ---
 
@@ -452,5 +447,5 @@ Import remains **CLI-only**.
 
 - [USER_ONBOARDING.md](USER_ONBOARDING.md) — end-to-end new user path
 - [INSTALLATION.md](INSTALLATION.md) — software setup
-- [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — can-signal-research
+- [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) — all three Skills
 - [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) — known-first architecture

@@ -1,5 +1,8 @@
 # V1 scope
 
+> **Milestone log** — records completed bench milestones with historical counts and dates.
+> For current V1 capabilities, see [README.md](../README.md) and [USER_ONBOARDING.md](USER_ONBOARDING.md).
+
 ## Completed (desk bench)
 
 - [x] CANsub.2 direct REST connection (configured hostname or Ethernet IP)

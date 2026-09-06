@@ -11,7 +11,7 @@ Public guide for exposing a local CAN Research MCP server to ChatGPT or other MC
 
 Before tools work in ChatGPT, all three must agree:
 
-1. **Local MCP server** — healthy, 32 tools, correct `get_instance_info`
+1. **Local MCP server** — healthy, current tool registry, correct `get_instance_info`
 2. **Tunnel client** (if using OpenAI Secure MCP) — healthy, points at local MCP
 3. **ChatGPT connector** — schema discovered, enabled in chat/workspace
 
@@ -72,7 +72,7 @@ Unless configuration was lost or deliberately changed:
 - Runtime API key
 - Tunnel-client profile
 - ChatGPT MCP connector
-- Installed **can-signal-research** Skill
+- Installed Skills (**can-onboarding**, **can-reference-builder**, **can-signal-research** as needed)
 
 Foreground terminals are the currently verified startup method.
 
@@ -94,7 +94,15 @@ uv run canresearch mcp tools
 uv run python scripts/mcp_verify_http.py
 ```
 
-Expected: **32 tools** (19 read-only / 7 live / 6 signal research).
+Expected baseline: **41 tools** (28 read-only / 7 live / 6 signal research).
+
+Verify the **current** count on your machine — do not treat documentation as immutable:
+
+```powershell
+uv run canresearch mcp tools
+```
+
+Same registry for stdio and streamable HTTP.
 
 Default endpoint convention:
 
@@ -116,7 +124,7 @@ For desktop MCP clients that use stdio:
 uv run canresearch mcp serve
 ```
 
-Same 32-tool registry as streamable HTTP.
+Same tool registry as streamable HTTP (verify with `uv run canresearch mcp tools`).
 
 ### 3. OpenAI Secure MCP tunnel (ChatGPT)
 
@@ -146,9 +154,10 @@ get_instance_info
 
 Confirm `instance_key` and `display_name` match `data/config.toml`.
 
-### 5. Install CAN Signal Research Skill
+### 5. Install Skills
 
-See [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md).
+See [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md). Typical order: **can-onboarding** →
+**can-reference-builder** (when reference material exists) → **can-signal-research**.
 
 ---
 
@@ -158,7 +167,8 @@ See [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md).
 |------|------------|
 | MCP URL | `http://127.0.0.1:8765/mcp` |
 | Transport | `streamable-http` |
-| Tool count | 32 |
+| Tool count (baseline) | 41 — verify with `uv run canresearch mcp tools` |
+| DB schema | v9 — reported by `get_instance_info` |
 | Tunnel profile | `can-research-<instance_key>` |
 | Backend identity | `get_instance_info` — never assume a specific installation name |
 
@@ -174,7 +184,7 @@ research evidence; preview DBCs; `get_instance_info`.
 
 **Cannot:** confirm candidates, write DBC files, transmit CAN.
 
-Full tool list: [README.md](../README.md#mcp-tool-surface-32-total).
+Full tool list: [README.md](../README.md#mcp-tool-surface-41-total) · verify locally with `uv run canresearch mcp tools`.
 
 ---
 

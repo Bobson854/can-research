@@ -67,8 +67,8 @@ Same CAN Research code + identical 32-tool MCP API
 | Item | Notes |
 |------|--------|
 | CAN Research repository and code | Same git tree |
-| MCP tool schema | 32 tools, identical names everywhere |
-| **can-signal-research** Skill package | Install in ChatGPT; confirm backend via `get_instance_info` |
+| MCP tool schema | 41 tools (baseline), identical names everywhere — verify with `mcp tools` |
+| **CAN Research Skills** | can-onboarding, can-reference-builder, can-signal-research — install as needed |
 | Operating methodology | [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) |
 
 The Skill must **not** hard-code Office backend identity. After connect, call
@@ -147,9 +147,9 @@ uv run canresearch config set-data-dir D:\CANResearch\workshop-data
 
 ## MCP API (identical everywhere)
 
-Every installation exposes the **same 32 tools** (19 read-only / 7 live / 6 signal
-research). Instance-specific details appear in **configuration and tool results**,
-not in tool names or schemas.
+Every installation exposes the **same tool schemas** (baseline **41 tools**: 28 read-only /
+7 live / 6 signal research). Verify on each machine with `uv run canresearch mcp tools`.
+Instance-specific details appear in **configuration and tool results**, not in tool names or schemas.
 
 Do **not** create per-instance tools such as `workshop_list_sessions`.
 
@@ -247,7 +247,7 @@ current model.
 
 1. `uv run canresearch config show` — correct `instance_key` / `display_name`
 2. `uv run canresearch mcp tools` — **32** tools
-3. `uv run python scripts/mcp_verify_http.py` — initialize + 32 tools
+3. `uv run python scripts/mcp_verify_http.py` — initialize + verify tool count (baseline 41)
 4. MCP `get_instance_info()` — matches configured identity
 5. Record values in [MCP_CONNECTION.md](MCP_CONNECTION.md) for that instance
 

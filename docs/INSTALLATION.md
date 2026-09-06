@@ -15,11 +15,11 @@ CANsub.2
    ↓
 CAN Research core          ← deterministic capture, parsing, reference lookup, evidence
    ↓
-MCP (32 tools)             ← bounded access to core capabilities
+MCP (41 tools — verify with `mcp tools`)  ← bounded access to core capabilities
    ↓
 ChatGPT / Codex / other MCP client
    ↓
-CAN Signal Research Skill  ← generative orchestration for proprietary research
+CAN Research Skills (onboarding, reference-builder, signal-research)
 ```
 
 Repo source is **canonical**. Installed ChatGPT Skills, tunnel profiles, and connector

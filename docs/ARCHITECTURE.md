@@ -40,7 +40,8 @@ Raw capture frames stay **outside** SQLite. Session rows hold metadata and a
 - **stdio** and **streamable-http** transports share one server/tool registry via a thin
   transport adapter in `serve()`; deployment endpoint is `/mcp` (port configurable;
   **8765** in project examples)
-- **32 tools total:** 19 read-only, 7 live (passive), 6 signal research
+- **41 tools total** (baseline — verify with `uv run canresearch mcp tools`): 28 read-only,
+  7 live (passive), 6 signal research
 
 ```text
 Human operator (scope, physical actions, safety, CLI confirmation)
@@ -49,7 +50,7 @@ Generative model (hypothesis, planning, interpretation — passive-first)
   ↓
 CAN Signal Research Skill (skills/can-signal-research/) — operational orchestration layer
   ↓ installed in ChatGPT; portable across Office / laptop / future installations
-MCP tool call (32-tool substrate — same schemas everywhere)
+MCP tool call (41-tool substrate — same schemas everywhere; verify locally)
   ↓
 thin MCP handlers (handlers.py, live_handlers.py, signal_research_handlers.py)
   ↓
@@ -93,7 +94,7 @@ Signal research MCP tools (evidence only): `rank_signal_candidates`,
 `detect_checksums`, `correlate_candidate_field`.
 
 **Candidate ≠ confirmed.** On-demand signal research tools do not modify DBC files.
-Persisted research candidates (introduced schema v7, current DB **schema v8**) follow:
+Persisted research candidates (introduced schema v7, current DB **schema v9**) follow:
 `candidate → reviewed → confirmed` (or `rejected`). Only confirmed candidates are
 eligible for `<asset_key>_research.dbc`. MCP candidate tools are read-only;
 confirmation is CLI-only (human approval boundary).
@@ -353,7 +354,7 @@ flowchart TB
     subgraph local [Local installation]
         HTTP["streamable-http /mcp :8765"]
         STDIO[stdio transport]
-        MCP[mcp/server — 32 tools]
+        MCP[mcp/server — 41 tools baseline]
         Core[core/]
         Store[(SQLite + JSONL)]
         CANsubHW[CANsub.2 local]

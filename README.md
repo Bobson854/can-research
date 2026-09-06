@@ -1,189 +1,124 @@
-# can-research
+# CAN Research
 
-Windows-first, CLI-first CAN research tool focused on **CSS Electronics CANsub.2**
-hardware, **J1939/ISOBUS** reference handling, capture/session analysis,
-machine-specific DBC generation, an **MCP server** for deterministic AI access, and a
-**CAN Signal Research Skill** for AI-guided proprietary signal discovery.
+CAN Research is a toolkit for **understanding, documenting, and researching real CAN
+networks**, built around [CSS Electronics CANsub.2](https://www.csselectronics.com/)
+hardware and a **passive, evidence-first** workflow.
 
-The project operates in **three layers**:
+It is for engineers and technicians working on tractors, implements, industrial
+controllers, and mixed J1939/proprietary buses — anyone who needs to move beyond ad-hoc
+scripts and scattered PDFs toward **persistent, asset-scoped machine knowledge**.
 
-1. **Deterministic CAN Research core** — parsing, capture, reference lookup, candidate evidence, DBC generation
-2. **CAN Research MCP interface** — stable 32-tool substrate (passive live + offline analysis)
-3. **CAN Signal Research Skill** — generative workflow orchestration above MCP (ChatGPT/Codex)
+## What problem it solves
 
-Basic J1939/ISOBUS decoding from the reference catalogue is **not** the differentiator.
-The value is making **asset-specific proprietary signal discovery** substantially easier
-than repeatedly writing one-off Python scripts.
+Real CAN reverse engineering usually scatters knowledge across log files, one-off Python
+scripts, DBC exports, and chat transcripts. CAN Research keeps capture, reference
+catalogues, registered DBCs, normalized manual knowledge, session analysis, and
+AI-guided research in **one operator-controlled workflow**.
 
-## Current status
+The guiding idea is **known-first**:
 
-The following milestones are **complete** on the development desk unit (Device ID
-`7413f810`, firmware **02.04.00**, API **04.00**).
+```text
+Use existing knowledge first.
+Research only what remains unknown.
+```
 
-| Milestone | Status |
-|-----------|--------|
-| Private J1939 reference catalogue (PDF import) | Done |
-| ISOBUS DDI import | Done |
-| CANsub direct REST connection | Done |
-| Persistent configurable host | Done |
-| Read-only channel status | Done |
-| WebSocket RX | Done |
-| Persistent capture sessions (JSONL + SQLite) | Done |
-| Real CAN bus capture (EDGE101 bench) | Done |
-| Offline J1939 session classification | Done |
-| Offline J1939 SPN value decode (known PGNs) | Done |
-| Base machine DBC from reference-backed sessions | Done |
-| Asset registry and session asset associations | Done |
-| Asset-specific DBC provenance | Done |
-| J1939 transport-protocol reassembly (BAM / RTS-CTS) | Done |
-| J1939 NAME / Address Claim → asset identity mapping | Done |
-| Read-only MCP session/research tools | Done |
-| Live CANsub.2 MCP research controls (passive) | Done |
-| Proprietary signal research primitives | Done |
-| Candidate review / confirmation workflow (CLI) | Done |
-| Asset research DBC generation (`<asset>_research.dbc`) | Done |
-| MCP analysis tools (`list_session_events`, `preview_candidate_values`) | Done |
-| Streamable HTTP MCP transport (`/mcp` on port 8765) | Done |
-| Multi-instance backend configuration (`instance_key`, `display_name`) | Done |
-| MCP instance identification (`get_instance_info`) | Done |
-| Office ChatGPT MCP connector (live, 32 tools) | Done |
-| CAN Signal Research Skill installed in ChatGPT (Office) | Done |
-| First passive AI-guided proprietary signal trial (Office bench) | Done |
+That means applying, in order: J1939/ISOBUS catalogue knowledge → normalized reference
+bundles → registered DBCs → confirmed local research — before treating traffic as
+proprietary.
 
-**Office installation validated:** The CAN Research MCP connector is live on the Office
-Windows host (`instance_key = office`), exposes **32 tools**, and the
-**can-signal-research** Skill has completed an initial **passive** live-analysis trial
-on CANsub.2 channel 1 — no CAN TX, no MCP candidate confirmation. This is an **early
-bench validation**, not a finished autonomous reverse-engineering product.
+## How the pieces fit together
 
-**Next milestone:** Asset-scoped guided research trial (register asset, known baseline,
-unknown remainder, passive-first inference, physical experiment only if needed, CLI
-confirm). See [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
+```text
+CAN bus  →  CANsub.2  →  CAN Research core  →  MCP  →  ChatGPT / Skills
+```
 
-Connection details: [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) (public) ·
-[docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) (bench record).
+| Layer | Role |
+|-------|------|
+| **CAN Research core** | Deterministic capture, sessions, reference import, DBC library, coverage, evidence |
+| **MCP server** | Bounded read-only API for AI clients (passive live observation; no CAN TX) |
+| **Skills** | Guided workflows: onboarding, reference conversion, signal research |
 
-## V1 goal
+Three Skills ship as source under `skills/` (package locally — see
+[SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md)):
 
-1. **Build or import** a parsed local PGN/SPN reference database (from user-owned sources).
-2. **Build a base tractor DBC** from a CANsub.2 logging session.
-3. **Expose** sessions, reference lookups, correlation analysis, and DBC refinement through MCP.
+| Skill | When to use |
+|-------|-------------|
+| **can-onboarding** | Fresh install, second laptop, post-reboot recovery |
+| **can-reference-builder** | Messy PDF/XLSX/CSV/manual → Reference Bundle V1 JSON |
+| **can-signal-research** | Known-first proprietary signal research |
 
-No GUI in V1. No bundled SAE J1939 database.
+## Where to start
+
+| Goal | Start here |
+|------|------------|
+| Install and validate a new machine | [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) · **can-onboarding** |
+| DBCs, manuals, licensing, reference model | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
+| Bundle schema / can-reference-builder handoff | [docs/REFERENCE_BUNDLE_FORMAT.md](docs/REFERENCE_BUNDLE_FORMAT.md) |
+| Proprietary signal research architecture | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) · **can-signal-research** |
+| Why CAN Research exists (positioning) | [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) |
+
+## Safety and trust boundaries
+
+- **Passive MCP** — no arbitrary CAN TX, replay, injection, or autonomous machine control
+- **CLI-only confirmation** — research candidates are not confirmed through MCP
+- **Separate knowledge classes** — reference-backed vs DBC vs confirmed research vs AI hypothesis
+- **Licensed material** — never commit SAE/ISO/OEM source documents; keep private originals local
+
+Details: [REFERENCE_DATA.md](docs/REFERENCE_DATA.md) · [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md)
+
+## V1 at a glance
+
+| Area | Current capability |
+|------|-------------------|
+| Hardware | CANsub.2 (USB mDNS hostname or Ethernet) |
+| Reference | J1939/ISOBUS PDF catalogue; source registry + Reference Bundle V1 import |
+| DBC | Library register/inspect/coverage; `<asset>_standard.dbc` / `<asset>_research.dbc` |
+| MCP | **41 tools** (28 read-only · 7 live/passive · 6 signal research) — verify with `uv run canresearch mcp tools` |
+| Database schema | **v9** (`get_instance_info` reports current version) |
+| GUI | None — CLI-first |
+
+Milestone history: [docs/V1_SCOPE.md](docs/V1_SCOPE.md). Bench/deployment records:
+[CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) · [MCP_CONNECTION.md](docs/MCP_CONNECTION.md).
 
 ## Features
 
 | Area | Description |
 |------|-------------|
-| Hardware | CANsub.2 via USB (configured hostname) or Ethernet |
-| Protocol | J1939/ISOBUS 29-bit identifier parsing and reference catalogue |
-| DBC | Generate `<asset>_standard.dbc` from sessions; `<asset>_research.dbc` from confirmed candidates |
-| Assets | Registry of tractor/implement/controller devices with session links |
-| Capture | Session metadata in SQLite; raw frames in JSONL under `{data_dir}/sessions/` |
-| Configuration | TOML at `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
-| MCP | 41 tools: stored/offline analysis, reference bundles, DBC library/coverage, passive live CANsub, signal research |
-| AI Skill | `can-signal-research` — guided proprietary discovery via ChatGPT + MCP (portable across installations) |
-| Storage | SQLite for metadata, references, candidates, findings; frames outside SQLite |
-
-## AI-guided proprietary signal research
-
-The main differentiation is **not** basic J1939/ISOBUS decoding from the reference
-catalogue. The intended workflow is:
-
-```text
-connect
-  → identify / scope asset
-  → apply reference-backed knowledge
-  → apply existing confirmed asset knowledge
-  → build known baseline (<asset>_standard.dbc)
-  → inventory proprietary / unknown remainder
-  → generative AI forms hypotheses (passive evidence first)
-  → MCP gathers deterministic evidence
-  → passive inference when sufficient
-  → physical experiment only when ambiguity remains
-  → propose candidate
-  → explicit human confirmation (CLI)
-  → research DBC (<asset>_research.dbc)
-```
-
-On the **Office** bench, the **can-signal-research** Skill is installed in ChatGPT,
-invokes the working CAN Research MCP connector, and has completed a first **passive**
-live trial (15 s observation, proprietary PDU1-style traffic, useful field-structure
-inferences without operator hardware manipulation). Inferences remain **research
-hypotheses** until CLI confirmation — not reference facts or confirmed DBC entries.
-
-Full design contract: [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
-Skill scaffold: [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md).
-
-Safety boundaries unchanged: **passive / no CAN TX**, **32-tool MCP substrate**,
-**CLI-only candidate confirmation**, strict **asset scope**, separate
-**standard vs research DBC** files.
+| Hardware | CANsub.2 via configured hostname or Ethernet |
+| Protocol | J1939/ISOBUS parsing, reference catalogue, bundle knowledge |
+| DBC | Registered library + generated standard/research asset DBCs |
+| Assets | Tractor/implement/controller registry with session links |
+| Capture | SQLite metadata + JSONL frames under `{data_dir}/sessions/` |
+| Configuration | `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
+| MCP | Passive analysis substrate for AI Skills |
+| Storage | SQLite schema v9; frames outside SQLite |
 
 ## Licensed / private data
 
 **Do not commit** SAE J1939, ISO 11783, or other licensed standards content.
 
-Full policy and import options: [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md).
-Onboarding: [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md).
-
-Parsed reference data built from your own licensed sources belongs under `references/private/` or `data/` (both gitignored). This repository ships **no** comprehensive J1939/ISOBUS database.
+Policy and workflows: [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md). This repository
+ships **no** comprehensive J1939/ISOBUS database.
 
 ## Getting started
 
-**New user?** Start here → **[docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md)** (install +
-CANsub + **your existing knowledge** + Skill + known-first research).
+**Recommended:** follow [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) or install
+**can-onboarding** and work through its checkpoints.
 
-**Bringing DBCs / reference material?** → **[docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md)**
-
-CAN Research has three layers: **deterministic core** → **MCP (41 tools)** →
-**CAN Signal Research Skill** (generative orchestration in ChatGPT).
-
-```text
-CAN bus
-   ↓
-CANsub.2
-   ↓
-CAN Research core
-   ↓
-MCP
-   ↓
-ChatGPT / Codex / other MCP client
-   ↓
-CAN Signal Research Skill
-```
-
-### Installation path (summary)
-
-Full 14-step onboarding: **[docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md)**
-
-| Step | Action | Details |
-|------|--------|---------|
-| 1 | Install CAN Research | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
-| 2–4 | Instance, CANsub, validate traffic | [CANSUB_SETUP.md](docs/CANSUB_SETUP.md) |
-| 5–10 | **Add your CAN knowledge** | [REFERENCE_DATA.md](docs/REFERENCE_DATA.md) |
-| 11 | MCP + Skill | [MCP_SETUP.md](docs/MCP_SETUP.md) · [SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) |
-| 12–14 | Asset, known-first, research remainder | [USER_ONBOARDING.md](docs/USER_ONBOARDING.md) |
-
-**Already installed?** After reboot, restart only MCP + tunnel — [MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot).
-
-**Multiple machines?** Each is self-contained — [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md).
-
-**Problems?** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
-
-### First-run smoke test
+Quick software install: [docs/INSTALLATION.md](docs/INSTALLATION.md) · CANsub:
+[docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) · MCP:
+[docs/MCP_SETUP.md](docs/MCP_SETUP.md).
 
 ```powershell
-uv run canresearch device info
-uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp
+uv sync
+uv run canresearch config show
+uv run canresearch --help
 ```
 
-With MCP connected in ChatGPT:
+**After reboot:** restart MCP + tunnel only — [MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot).
 
-```text
-get_instance_info → get_cansub_device_status → get_cansub_channel_status → observe_live_traffic
-```
-
-Confirm frames before research capture. Matches [Skill V2 preflight](skills/can-signal-research/SKILL.md).
+**Multiple machines:** [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) ·
+**Problems:** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ## Requirements
 
@@ -198,79 +133,38 @@ uv sync
 uv run canresearch config show
 uv run canresearch config set-host your-device-id-usb.local
 uv run canresearch device info
-uv run pytest
 ```
 
-For the full path see [Getting started](#getting-started) and [docs/INSTALLATION.md](docs/INSTALLATION.md).
-
-Development defaults work without setting an instance (`instance_key = local`).
-For a named deployment (workshop laptop, travel laptop, etc.):
+For named deployments:
 
 ```powershell
 uv run canresearch config set-instance --key workshop --name "CAN Research - Workshop"
 ```
 
-Repository examples use `uv run canresearch ...`, which runs the CLI inside the
-project's uv-managed environment. A bare `canresearch ...` command only works if
-the package has separately been installed on PATH.
+Use `uv run canresearch ...` so commands run in the project's uv-managed environment.
 
-## CLI commands
+## CLI
 
-```text
+The CLI is the operator interface for import, capture, assets, research confirmation, and
+MCP serving. **Canonical command discovery:**
+
+```powershell
 uv run canresearch --help
-uv run canresearch config show
-uv run canresearch config set-instance --key <key> --name "<display name>"
-uv run canresearch config set-host <hostname-or-ip>
-uv run canresearch config set-data-dir <path>
-uv run canresearch device info
-uv run canresearch device channel-info <channel>
-uv run canresearch device rx <channel>
-uv run canresearch capture start --channel <n>
-uv run canresearch capture stop [<session-id>]
-uv run canresearch session list
-uv run canresearch session summary <session-id>
-uv run canresearch session analyze <session-id>
-uv run canresearch session decode <session-id>
-uv run canresearch session tp <session-id>
-uv run canresearch session nodes <session-id> [--refresh] [--source-address 0x80] [--show-raw]
-uv run canresearch asset add --key <key> --type tractor --name "..."
-uv run canresearch asset list
-uv run canresearch asset show <asset-key>
-uv run canresearch asset node add <asset-key> <j1939-name>
-uv run canresearch asset node list <asset-key>
-uv run canresearch asset node remove <asset-key> <j1939-name>
-uv run canresearch session asset add <session-id> <asset-key> --role tractor
-uv run canresearch session asset list <session-id>
-uv run canresearch session event add <session-id> --label "baseline_start"
-uv run canresearch session event list <session-id>
-uv run canresearch session compare <session-id> --baseline-event baseline_start --action-event scv2_extend
-uv run canresearch session research rank <session-id> --baseline-event ... --action-event ...
-uv run canresearch session research id <session-id> <can-id> ...
-uv run canresearch session research counters <session-id> <can-id>
-uv run canresearch session research checksums <session-id> <can-id>
-uv run canresearch session research repeat <session-id> --baseline-events ... --action-events ...
-uv run canresearch research candidate add --asset <key> --session <id> --can-id 0x... --start-bit N --length N --byte-order intel
-uv run canresearch research candidate list [--asset <key>] [--status candidate|reviewed|confirmed|rejected]
-uv run canresearch research candidate show <candidate-id>
-uv run canresearch research candidate review <candidate-id>
-uv run canresearch research candidate confirm <candidate-id> --name ... --factor ... --offset ... --unsigned
-uv run canresearch research candidate reject <candidate-id> [--notes "..."]
-uv run canresearch research candidate evidence <candidate-id>
-uv run canresearch research dbc <asset-key> [--output path]
-uv run canresearch session dbc <session-id> --asset <asset-key> [--source-address 0x00]
-uv run canresearch session dbc-coverage <session-id> [--source <key> ...] [--asset <key>] [--limit N]
-uv run canresearch reference source add <path> --key <key> [--visibility private|public|licensed] ...
-uv run canresearch reference source list
-uv run canresearch reference source inspect <key>
+uv run canresearch reference --help
+uv run canresearch session --help
+```
+
+Reference onboarding commands (summary):
+
+```powershell
+uv run canresearch reference source add <path> --key <key> --visibility private
 uv run canresearch reference bundle validate <bundle.json>
 uv run canresearch reference bundle import <bundle.json>
-uv run canresearch reference search "<query>"
-uv run canresearch reference dbc register --key <key> <path> [--name ...] [--type user_supplied|oem|...] [--asset <key>]
-uv run canresearch reference dbc list [--asset <key>]
-uv run canresearch reference dbc inspect <key>
-uv run canresearch reference import-j1939 ...
-uv run canresearch mcp tools
+uv run canresearch reference dbc register --key <key> <path>
+uv run canresearch session dbc-coverage <session-id>
 ```
+
+Full onboarding sequence: [USER_ONBOARDING.md](docs/USER_ONBOARDING.md).
 
 ### MCP serving
 
@@ -422,7 +316,7 @@ Frame identity for candidates and research DBC grouping is `(is_extended, can_id
 ### Multi-instance model
 
 Each laptop/backend is an **independent installation** with the same code and identical
-32-tool MCP schemas. There is **no central routing or shared backend** yet.
+41-tool MCP schemas. There is **no central routing or shared backend** yet.
 
 | Concept | Meaning |
 |---------|---------|
@@ -465,7 +359,7 @@ src/canresearch/
   mcp/                MCP server (stdio + streamable-http)
   storage/            SQLite metadata and migrations
 config/examples/      Workshop/travel deployment examples
-skills/               AI Skill scaffolds (e.g. can-signal-research)
+skills/               AI Skills source (can-onboarding, can-reference-builder, can-signal-research)
 scripts/              MCP HTTP verification helper
 ```
 
@@ -480,7 +374,7 @@ scripts/              MCP HTTP verification helper
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Clone, uv, config, first-run smoke test |
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
-| [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | CAN Signal Research Skill install/update |
+| [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | All three Skills — package and install |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Decision guide for common failures |
 
@@ -490,9 +384,11 @@ scripts/              MCP HTTP verification helper
 |----------|-------------|
 | [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) | **Why CAN Research exists** — differentiation, user value, complementary tooling |
 | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) | AI + MCP + Skill workflow for proprietary signal discovery |
-| [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | ChatGPT Skill source (canonical) |
+| [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | Signal research Skill source |
+| [skills/can-onboarding/SKILL.md](skills/can-onboarding/SKILL.md) | Onboarding Skill source |
+| [skills/can-reference-builder/SKILL.md](skills/can-reference-builder/SKILL.md) | Reference bundle conversion Skill source |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module boundaries, data flows, MCP and storage design |
-| [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope |
+| [docs/REFERENCE_BUNDLE_FORMAT.md](docs/REFERENCE_BUNDLE_FORMAT.md) | Reference Bundle V1 schema and validation contract |
 
 ### Bench records (historical / deployment-specific)
 
@@ -501,6 +397,7 @@ scripts/              MCP HTTP verification helper
 | [docs/CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) | Desk-unit bench notes and verified commands |
 | [docs/MCP_CONNECTOR_INSTALL_GUIDE.md](docs/MCP_CONNECTOR_INSTALL_GUIDE.md) | Office MCP/tunnel verified deployment |
 | [docs/MCP_CONNECTION.md](docs/MCP_CONNECTION.md) | Per-instance connector verification state |
+| [docs/V1_SCOPE.md](docs/V1_SCOPE.md) | Completed vs remaining V1 scope (milestone log) |
 | [docs/strict_dbc_compatibility_reference.md](docs/strict_dbc_compatibility_reference.md) | Strict DBC / webCAN compatibility target |
 
 ## License

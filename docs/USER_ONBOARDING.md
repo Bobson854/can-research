@@ -3,6 +3,9 @@
 End-to-end guide for a new CAN Research installation — from software setup through
 **establishing your existing CAN knowledge** to researching only what remains unknown.
 
+**Recommended:** install the **can-onboarding** Skill and follow its checkpoints. This
+document is the canonical human-readable sequence if you prefer not to use the Skill.
+
 **Principle:**
 
 ```text
@@ -36,30 +39,31 @@ If yes → plan to add them during steps 5–10 below. Details: [REFERENCE_DATA.
 
 | Step | Task | Guide |
 |------|------|-------|
+| 0 | Guided setup (optional) | **can-onboarding** Skill — [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
 | 1 | Install CAN Research | [INSTALLATION.md](INSTALLATION.md) |
 | 2 | Configure local instance | [INSTALLATION.md](INSTALLATION.md) — `data/config.toml`, `instance_key` |
 | 3 | Connect CANsub.2 | [CANSUB_SETUP.md](CANSUB_SETUP.md) |
 | 4 | Validate CAN traffic | [CANSUB_SETUP.md](CANSUB_SETUP.md) · [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
-| 5 | Inventory existing CAN knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) — three categories below |
-| 6 | Add/import structured reference data | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **implemented** import paths |
+| 5 | Inventory existing CAN knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) — three knowledge paths |
+| 6 | Add/import structured reference data | [REFERENCE_DATA.md](REFERENCE_DATA.md) — catalogue import |
 | 7 | Add existing DBC files | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **`reference dbc register`** |
-| 8 | Add supporting reference documents | [REFERENCE_DATA.md](REFERENCE_DATA.md) — retention model |
-| 9 | Convert unsupported formats (if needed) | [REFERENCE_DATA.md](REFERENCE_DATA.md) — **planned** `can-reference-builder` |
-| 10 | Validate local reference knowledge | [REFERENCE_DATA.md](REFERENCE_DATA.md) — `reference validate` |
-| 11 | Install CAN Signal Research Skill | [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
+| 8 | Register supporting reference documents | [REFERENCE_DATA.md](REFERENCE_DATA.md) — source registry |
+| 9 | Convert messy formats (if needed) | **can-reference-builder** → [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md) |
+| 10 | Validate and import reference bundles | `reference bundle validate` / `import` |
+| 11 | Install Skills + MCP | [MCP_SETUP.md](MCP_SETUP.md) · [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) |
 | 12 | Establish first asset | [INSTALLATION.md](INSTALLATION.md) — `asset add` |
 | 13 | Run known-first analysis | Below + [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) |
-| 14 | Research unknown remainder only | Skill + MCP passive workflow |
+| 14 | Research unknown remainder only | **can-signal-research** + MCP passive workflow |
 
 **Multiple machines?** Repeat per installation — [MULTI_INSTANCE_DEPLOYMENT.md](MULTI_INSTANCE_DEPLOYMENT.md).
 
 ---
 
-## Three knowledge categories
+## Three knowledge paths
 
-CAN Research treats these as **first-class** inputs:
+CAN Research treats these as **first-class, separate** inputs (see [REFERENCE_DATA.md](REFERENCE_DATA.md)):
 
-### 1. Structured reference data
+### 1. Structured reference catalogue
 
 J1939, ISOBUS, OEM PGN/SPN tables — normalized into the local reference catalogue
 (`data/references/canresearch.db`).
@@ -67,7 +71,7 @@ J1939, ISOBUS, OEM PGN/SPN tables — normalized into the local reference catalo
 **Today:** import licensed J1939-71 and ISOBUS DDI PDFs via CLI. Lookup via MCP
 `lookup_pgn` / `lookup_spn`.
 
-### 2. Existing DBC knowledge
+### 2. Registered DBC knowledge
 
 Supplier, OEM, user-created, tuned, `<asset>_standard.dbc`, confirmed `<asset>_research.dbc`.
 
@@ -82,12 +86,19 @@ uv run canresearch reference dbc list
 uv run canresearch session dbc-coverage <session-id>
 ```
 
-### 3. Supporting reference documents
+### 3. Supporting reference sources + Reference Bundle V1
 
-PDFs, spreadsheets, CSV, Markdown, OEM manuals — retained for provenance and
-generative/manual consultation; normalized forms feed deterministic tools when imported.
+PDFs, spreadsheets, CSV, Markdown, OEM manuals — registered for provenance; normalized
+**Reference Bundle V1** JSON is validated and imported deterministically by CAN Research.
 
-See [REFERENCE_DATA.md](REFERENCE_DATA.md) for the full model.
+```powershell
+uv run canresearch reference source add path\to\manual.pdf --key my_manual --visibility private
+uv run canresearch reference bundle validate my_manual.json
+uv run canresearch reference bundle import my_manual.json
+```
+
+Messy source conversion is handled by the **can-reference-builder** Skill (generative);
+CAN Research core does not parse arbitrary PDFs.
 
 ---
 
@@ -150,13 +161,14 @@ uv run canresearch session dbc <session-id> --asset <asset-key>
 
 ### Supporting documents (implemented registry + bundle import)
 
-Register originals, convert externally, import normalized JSON:
+Register originals, convert with **can-reference-builder**, validate and import:
 
 ```powershell
 uv run canresearch reference source add path\to\manual.pdf --key my_manual --visibility private
-# … produce my_manual.json via can-reference-builder or manual conversion …
+# … produce my_manual.json via can-reference-builder (see skills/can-reference-builder/) …
 uv run canresearch reference bundle validate my_manual.json
 uv run canresearch reference bundle import my_manual.json
+uv run canresearch reference search "motor speed"
 ```
 
 See [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md). Retain originals locally
@@ -164,13 +176,28 @@ See [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md). Retain originals l
 
 ---
 
-## Step 11 — MCP + Skill
+## Step 11 — MCP + Skills
 
 1. Start MCP — [MCP_SETUP.md](MCP_SETUP.md)
-2. Connect ChatGPT connector
-3. Upload `skills/can-signal-research/skill.zip` — [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md)
+2. Connect ChatGPT connector (if used)
+3. Package and install Skills — [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md):
 
-The Skill is **portable** — confirm backend with `get_instance_info`.
+```powershell
+uv run python scripts/package_skill.py skills/can-onboarding
+# upload skills/can-onboarding/skill.zip to ChatGPT
+
+# when reference material exists:
+uv run python scripts/package_skill.py skills/can-reference-builder
+
+# for proprietary research:
+uv run python scripts/package_skill.py skills/can-signal-research
+```
+
+Generated `skill.zip` files are **local deployment artifacts** (gitignored) — build on
+each machine after clone. Typical order: **can-onboarding** → **can-reference-builder**
+(when needed) → **can-signal-research**.
+
+Confirm backend with `get_instance_info`. Verify tool count with `uv run canresearch mcp tools`.
 
 ---
 
@@ -196,13 +223,13 @@ reference catalogue
         +
 registered DBC library (+ asset *_standard.dbc / *_research.dbc)
         +
-relevant supporting documents
+imported reference bundles
         ↓
-known baseline (reference + DBC coverage)
+known baseline (reference + DBC + bundle coverage)
         ↓
 unknown / proprietary remainder
         ↓
-CAN Signal Research Skill
+can-signal-research Skill
         ↓
 confirmed research knowledge (CLI)
 ```
@@ -229,19 +256,19 @@ existing DBC → register/discover → inspect → compare against session
 | List registered DBC sources | `list_dbc_sources` |
 | Session vs DBC coverage | `session dbc-coverage` / `analyze_dbc_coverage` |
 | List confirmed proprietary | `list_research_candidates`, `preview_research_dbc` |
-| Isolate unknown IDs | Skill bus inventory — DBC coverage + reference analysis |
-| Research remainder | Skill passive inference → experiment if needed |
+| Isolate unknown IDs | Skill bus inventory — DBC + reference + bundle analysis |
+| Research remainder | can-signal-research — passive inference → experiment if needed |
 
-**Do not** experimentally rediscover signals already in your reference catalogue or
-confirmed DBC.
+**Do not** experimentally rediscover signals already in your reference catalogue,
+imported bundles, or confirmed DBC.
 
-Passive preflight before capture is required — see Skill V2/V3 workflow.
+Passive preflight before capture is required — see can-signal-research workflow.
 
 ---
 
 ## Laptop onboarding smoke test (manual)
 
-Use this checklist on a **fresh second laptop** today:
+Use this checklist on a **fresh second laptop**:
 
 | Step | Action |
 |------|--------|
@@ -249,14 +276,14 @@ Use this checklist on a **fresh second laptop** today:
 | B | `uv run canresearch config show` — confirm `resolved_data_dir` |
 | C | `uv run canresearch reference source add path\to\private.pdf --key trial_manual --visibility private` |
 | D | `uv run canresearch reference source list` and `reference source inspect trial_manual` |
-| E | Copy or create a bundle from [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md) (or synthetic fixture) with matching `source_key` |
+| E | Create a bundle from [REFERENCE_BUNDLE_FORMAT.md](REFERENCE_BUNDLE_FORMAT.md) (or synthetic fixture) with matching `source_key` |
 | F | `uv run canresearch reference bundle validate trial_manual.json` |
 | G | `uv run canresearch reference bundle import trial_manual.json` |
 | H | `uv run canresearch reference search "<signal name>"` |
 | I | `uv run canresearch reference dbc register --key trial_dbc path\to\file.dbc` |
 | J | `uv run canresearch mcp serve --transport streamable-http --host 127.0.0.1 --port 8765 --path /mcp` |
 | K | MCP: `list_reference_sources`, `search_reference_knowledge`, `list_dbc_sources` |
-| L | CANsub connect + known-first: `analyze_session`, `analyze_dbc_coverage`, Skill workflow |
+| L | CANsub connect + known-first: `analyze_session`, `analyze_dbc_coverage`, can-signal-research workflow |
 
 Do **not** commit private PDFs or proprietary bundle content.
 
@@ -267,9 +294,10 @@ Do **not** commit private PDFs or proprietary bundle content.
 After onboarding you should have:
 
 - [ ] CAN Research running with validated CANsub path
-- [ ] MCP + Skill connected (`get_instance_info` correct)
+- [ ] MCP + Skills connected (`get_instance_info` correct)
 - [ ] Local reference catalogue populated **or** a plan to add it
 - [ ] DBC files and source documents **retained locally** with provenance understood
+- [ ] Reference bundles imported where supporting documents exist
 - [ ] At least one asset defined
 - [ ] A capture with known vs unknown traffic separated
 - [ ] Proprietary research targeting **remainder only**
@@ -280,10 +308,10 @@ After onboarding you should have:
 
 | Document | When |
 |----------|------|
-| [REFERENCE_DATA.md](REFERENCE_DATA.md) | Knowledge model, licensing, conversion, future tools |
+| [REFERENCE_DATA.md](REFERENCE_DATA.md) | Knowledge model, licensing, three paths |
 | [INSTALLATION.md](INSTALLATION.md) | Software install |
 | [CANSUB_SETUP.md](CANSUB_SETUP.md) | Hardware |
 | [MCP_SETUP.md](MCP_SETUP.md) | ChatGPT connector |
-| [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) | Skill package |
+| [SKILL_INSTALLATION.md](SKILL_INSTALLATION.md) | Skill packaging and install |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Failures |
 | [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md) | Architecture contract |

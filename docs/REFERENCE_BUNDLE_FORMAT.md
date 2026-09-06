@@ -252,9 +252,11 @@ provenance is retained per source.
 
 ---
 
-## External conversion (can-reference-builder)
+### External conversion (can-reference-builder)
 
-The **can-reference-builder** Skill (developed separately) should output this JSON
-format. CAN Research validates and imports — it does not run the generative conversion.
+The **can-reference-builder** Skill (source under `skills/can-reference-builder/`) outputs
+Reference Bundle V1 JSON. Package locally with `scripts/package_skill.py` — see
+[SKILL_INSTALLATION.md](SKILL_INSTALLATION.md). CAN Research validates and imports the
+bundle deterministically; it does not parse arbitrary PDFs in-core.
 
 See [USER_ONBOARDING.md](USER_ONBOARDING.md) and [REFERENCE_DATA.md](REFERENCE_DATA.md).

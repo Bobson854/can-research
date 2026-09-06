@@ -1,8 +1,11 @@
 # CAN Research MCP connection
 
-> **Public canonical guide:** [MCP_SETUP.md](MCP_SETUP.md)
+> **Deployment record — not canonical installation instructions.**
 >
-> This document retains **per-instance verification state** and Office deployment records.
+> This document records a previously validated **Office** installation and may contain
+> instance-specific paths, device IDs, ports, or **historical tool counts** (e.g. 32 tools
+> at verification time). For current setup, see [MCP_SETUP.md](MCP_SETUP.md) and verify
+> with `uv run canresearch mcp tools` (baseline **41 tools** as of schema v9).
 
 Per-instance operational guide for exposing a local CAN Research MCP server to ChatGPT
 via an OpenAI tunnel.
@@ -20,7 +23,7 @@ See also:
 
 These must **all** agree before tools work in ChatGPT:
 
-1. **Local MCP service** — 32 tools, initialize OK, correct `get_instance_info`
+1. **Local MCP service** — healthy, current tool registry, initialize OK, correct `get_instance_info` (verified at **32 tools** on 2026-09-05; current baseline **41**)
 2. **OpenAI tunnel** — healthy, targets `http://127.0.0.1:8765/mcp` on the same host
 3. **ChatGPT app/plugin** — published schema discovered/refreshed and enabled in the chat/workspace
 
