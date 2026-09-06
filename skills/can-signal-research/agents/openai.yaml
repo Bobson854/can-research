@@ -1,11 +1,15 @@
 interface:
   display_name: "CAN Signal Research"
-  short_description: "Find proprietary CAN signals with guided physical experiments via CAN Research MCP."
+  short_description: "Find proprietary CAN signals with guided passive-first research via CAN Research MCP."
   default_prompt: >-
     Help me find a proprietary CAN signal on my machine. Use the CAN Research MCP
-    connector, establish asset scope, account for known reference and confirmed DBC
-    signals first, then design a minimal physical experiment and analyze the evidence.
-    Ask me for physical actions in short steps; do not confirm candidates automatically.
+    connector: confirm backend identity, run live preflight (device/channel status and
+    bounded observe_live_traffic) before any capture, establish system and asset context,
+    apply known reference and confirmed DBC signals first, validate passive hypotheses
+    with preview_candidate_values, and design a minimal physical experiment only if
+    needed. Ask at most one or two short context questions when useful; give physical
+    actions in short steps; separate encoding confidence from semantic confidence; do
+    not confirm candidates automatically.
 
 policy:
   allow_implicit_invocation: true

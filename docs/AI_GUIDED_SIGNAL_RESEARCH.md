@@ -512,3 +512,27 @@ not confirmed signal definitions.
 - **Asset registration and scoping** remain important before the full known-baseline / DBC workflow can be validated end-to-end.
 - **Concise operator interaction** remains a key design goal — the trial succeeded partly because the operator was not asked to move machinery unnecessarily.
 - Inferred results must stay labelled as **hypothesis / likely / high confidence** until CLI confirmation; never as reference-backed fact or confirmed DBC content.
+
+---
+
+## Benchmark-driven Skill improvements
+
+The first **asset-scoped** benchmark of the installed `can-signal-research` Skill against
+the working Office MCP connector (September 2026) validated the architecture direction and
+identified concrete Skill workflow improvements — implemented in `skills/can-signal-research/`.
+
+| Gap observed | Skill improvement |
+|--------------|-------------------|
+| Capture started before channel health proven | **Mandatory live preflight** — `get_instance_info` → `get_cansub_*` → `observe_live_traffic` → frames confirmed before `start_live_capture` |
+| WebSocket ownership confused with missing traffic | Explicit **`channel_rx_in_use`** handling — free the channel (e.g. webCAN on another channel), not “no bus traffic” |
+| Weak asset/system framing at session start | **System-context intake** — short questions about what is connected; context as prior, not proof |
+| Asset scope unclear on first scoped run | **Asset-scope assistance** — propose `asset_key` / type / display_name; MCP inspect only; CLI for create |
+| Physical action requested too early | **Passive hypothesis validation** — `preview_candidate_values` on hypothesized fields before physical tests |
+| Single confidence label too coarse | **Encoding vs semantic confidence** — separate bit/layout certainty from meaning certainty |
+| Operator overload | Reinforced **concise interaction** — one context question, one physical step, concise evidence summary |
+
+The benchmark methodology example (bench GNSS controller, proprietary IDs `0x18667017` /
+`0x18667117`) is documented in the Skill as an **illustration only** — not portable CAN
+knowledge for other controllers.
+
+Skill self-evaluation checklist: see `skills/can-signal-research/SKILL.md` (self-evaluation section).

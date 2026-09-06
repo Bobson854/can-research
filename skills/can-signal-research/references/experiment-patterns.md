@@ -4,6 +4,20 @@ Physical test templates for proprietary CAN signal research. Pair each stable st
 `mark_experiment_event` labels before calling `compare_experiment_windows` or offline
 signal research tools on the captured session.
 
+## Passive first
+
+Complete **live preflight** and **passive hypothesis validation** before any capture or
+physical experiment:
+
+1. `get_instance_info` → `get_cansub_*` → `observe_live_traffic` — confirm frames exist.
+2. Known-first baseline (reference + confirmed DBC).
+3. Form hypotheses; run **`preview_candidate_values`** on session data when available.
+4. Use operator context as a **prior**, not proof (see [system-context-and-assets.md](system-context-and-assets.md)).
+5. Design a physical experiment **only** when passive evidence leaves material ambiguity.
+
+Do not start `start_live_capture` when observation shows no traffic or when
+`channel_rx_in_use` blocks the channel.
+
 ## Universal rules
 
 1. **One variable at a time** — do not steer and rev PTO in the same window unless testing coupling is the explicit goal.
@@ -102,10 +116,11 @@ stationary baseline → mark
 [optional short displacement in known direction] → mark
 ```
 
-**Without exact encoding**, use contextual anchors:
+**Without exact encoding**, use contextual anchors and **`preview_candidate_values`**:
 
 - Approximate region (city, farm, depot) narrows plausible lat/lon ranges.
 - Rank signed/unsigned, endian, and scale candidates by geographic plausibility.
+- Validate decodes deterministically before asking for motion.
 - Motion helps only when stationary ranking leaves multiple viable encodings.
 
 Do not hard-code answers from past bench machines in this reference.
@@ -153,6 +168,9 @@ Design the **smallest** test that splits them:
 
 ## Anti-patterns
 
+- Starting capture before live preflight shows frames on the channel.
+- Treating `channel_rx_in_use` as “no traffic on the bus.”
+- Skipping `preview_candidate_values` when a field layout is already hypothesized.
 - Long captures with no event labels.
 - Asking the operator to sweep every control at once.
 - Re-running full bus ranking when a targeted follow-up test would suffice.
