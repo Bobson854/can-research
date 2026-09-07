@@ -105,3 +105,11 @@ Design reference: [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md),
 - DBC diff and merge tooling
 - User-provided DBC reference import (complete `reference import-dbc`)
 - Optional cloud backup (user-controlled)
+- **AI-agent Skills portability** — CAN Research remains agent-agnostic; shipped Skills are
+  primarily authored/tested for ChatGPT. A future `skills/` root guide should tell Claude,
+  Gemini, and other agents how to adapt/rebuild Skills into native formats while preserving
+  workflow intent, evidence model, safety boundaries, MCP tool semantics, and the
+  fact/hypothesis/confirmed distinction. Adapted or AI-translated Skills are not
+  automatically equivalent to tested originals; AI should assist migration between agent
+  ecosystems rather than requiring manual rewrite of every integration. **Not implemented** —
+  planned for the next major Skills pass (do not modify Skill sources in positioning-doc-only work).

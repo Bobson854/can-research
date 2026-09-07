@@ -1,12 +1,17 @@
 # CAN Research
 
-CAN Research is a toolkit for **understanding, documenting, and researching real CAN
-networks**, built around [CSS Electronics CANsub.2](https://www.csselectronics.com/)
-hardware and a **passive, evidence-first** workflow.
+CAN Research is an **AI-assisted CAN engineering research platform** for understanding,
+documenting, reverse-engineering, diagnosing, and developing real CAN systems — built
+around [CSS Electronics CANsub.2](https://www.csselectronics.com/) hardware and a **passive,
+evidence-first** workflow.
 
-It is for engineers and technicians working on tractors, implements, industrial
-controllers, and mixed J1939/proprietary buses — anyone who needs to move beyond ad-hoc
-scripts and scattered PDFs toward **persistent, asset-scoped machine knowledge**.
+It is a **general CAN research platform** with particularly strong support for J1939,
+ISOBUS, agricultural machinery, implements, and mixed standard/proprietary networks.
+Concrete examples include tractors, implements, industrial controllers, mobile equipment,
+and marine or mining CAN segments — anyone who needs to move beyond ad-hoc scripts and
+scattered PDFs toward **persistent, asset-scoped machine knowledge**. Generic 11-bit CAN
+research fits the same evidence-driven architecture; protocol-specific capabilities such
+as UDS, ISO-TP, CAN FD, or LIN may require future extensions or different reference material.
 
 ## What problem it solves
 
@@ -24,13 +29,44 @@ Research only what remains unknown.
 
 That means applying, in order: J1939/ISOBUS catalogue knowledge → normalized reference
 bundles → registered DBCs → confirmed local research — before treating traffic as
-proprietary.
+proprietary. The same known-first pattern applies to other buses once reference material
+is on file.
+
+## Engineering philosophy
+
+CAN Research is an **engineering tool** — not a packet viewer or AI demo. It supports
+reverse engineering, diagnostics, experimentation, control-system understanding, and
+development of real solutions on real equipment.
+
+Practical engineering is **iterative**. Unexpected behaviour and failed experiments
+happen. The objective is not careless risk-taking, but deliberate work: establish
+baselines, make controlled changes, preserve evidence, understand failures, recover
+where possible, and apply what was learned to the next design.
+
+Distinguish **observation**, **reference-backed knowledge**, **hypotheses**, and
+**confirmed findings**. Prefer reproducible experiments and recovery planning alongside
+discovery.
+
+> Observe carefully. Experiment deliberately. Preserve evidence. Learn from failure. Build better systems.
+
+Fuller positioning: [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md).
 
 ## How the pieces fit together
 
 ```text
-CAN bus  →  CANsub.2  →  CAN Research core  →  MCP  →  ChatGPT / Skills
+physical system
+  → CAN interface (CANsub.2)
+  → deterministic CAN Research core
+  → reference / DBC / historical knowledge
+  → bounded MCP evidence
+  → AI-guided reasoning (Skills / MCP clients)
+  → human engineering judgement
 ```
+
+The main differentiator is not one isolated algorithm — it is the full **research loop**:
+observe → establish known baseline → isolate unknown behaviour → form hypothesis → run
+bounded experiment → compare evidence → refine understanding → preserve knowledge →
+produce reusable engineering artefacts.
 
 | Layer | Role |
 |-------|------|
@@ -131,6 +167,23 @@ Developers: git clone → `uv sync` → same MCP/AI steps. Details: [INSTALLATIO
 
 Architecture detail: [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
 
+## Normal use after setup
+
+Initial setup (install, CANsub, MCP/tunnel, connector, Skills) may remain technical —
+AI-agent integration layers (MCP clients, ChatGPT connectors/tunnels, Claude desktop MCP,
+and similar) cannot always be made universally frictionless. **Repeated use should not be.**
+
+After onboarding, the typical Windows workflow:
+
+```text
+start-can-research.cmd  →  status.cmd  →  connect AI (if used)  →  READY FOR RESEARCH
+```
+
+`status.cmd` verifies CANsub reachability, local MCP, tunnel health (when configured),
+and related checks. Startup and recovery detail:
+[MCP_SETUP.md](docs/MCP_SETUP.md#normal-startup-after-reboot) ·
+[INSTALLATION.md](docs/INSTALLATION.md) · [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
 ## Where to start
 
 | Goal | Start here |
@@ -141,14 +194,20 @@ Architecture detail: [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEAR
 | **OEM manual / PDF / spreadsheet intake** | [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) · **can-reference-builder** |
 | Bundle schema / JSON contract | [docs/REFERENCE_BUNDLE_FORMAT.md](docs/REFERENCE_BUNDLE_FORMAT.md) |
 | Proprietary signal research architecture | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) · **can-signal-research** |
-| Why CAN Research exists (positioning) | [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) |
+| Why CAN Research exists (positioning, research loop, engineering culture) | [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) |
 
 ## Safety and trust boundaries
 
-- **Passive MCP** — no arbitrary CAN TX, replay, injection, or autonomous machine control
+- **Passive MCP** — no arbitrary CAN TX, replay, injection, or autonomous machine control through the shipped MCP interface
 - **CLI-only confirmation** — research candidates are not confirmed through MCP
 - **Separate knowledge classes** — reference-backed vs DBC vs confirmed research vs AI hypothesis
 - **Licensed material** — never commit SAE/ISO/OEM source documents; keep private originals local
+
+Passive MCP reduces one class of risk; it does **not** make reverse engineering
+risk-free. Downstream firmware changes, PLC or configuration edits, external CAN tools,
+wiring changes, diagnostic operations, and manual experiments can still cause equipment
+malfunction, configuration loss, or damage. You remain responsible for understanding the
+equipment you work on and the consequences of your changes.
 
 Details: [REFERENCE_DATA.md](docs/REFERENCE_DATA.md) · [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md)
 
@@ -171,7 +230,7 @@ Milestone history: [docs/V1_SCOPE.md](docs/V1_SCOPE.md). Bench/deployment record
 | Area | Description |
 |------|-------------|
 | Hardware | CANsub.2 via configured hostname or Ethernet |
-| Protocol | J1939/ISOBUS parsing, reference catalogue, bundle knowledge |
+| Protocol | J1939/ISOBUS parsing, reference catalogue, bundle knowledge; generic 11-bit CAN sessions supported |
 | DBC | Registered library + generated standard/research asset DBCs |
 | Assets | Tractor/implement/controller registry with session links |
 | Capture | SQLite metadata + JSONL frames under `{data_dir}/sessions/` |
@@ -496,7 +555,7 @@ scripts/              MCP HTTP verification helper
 
 | Document | Description |
 |----------|-------------|
-| [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) | **Why CAN Research exists** — differentiation, user value, complementary tooling |
+| [docs/PRODUCT_POSITIONING.md](docs/PRODUCT_POSITIONING.md) | **Why CAN Research exists** — differentiation, research loop, engineering culture, complementary tooling |
 | [docs/AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md) | AI + MCP + Skill workflow for proprietary signal discovery |
 | [skills/can-signal-research/SKILL.md](skills/can-signal-research/SKILL.md) | Signal research Skill source |
 | [skills/can-onboarding/SKILL.md](skills/can-onboarding/SKILL.md) | Onboarding Skill source |

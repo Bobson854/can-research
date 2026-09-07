@@ -238,6 +238,25 @@ Typical sequence:
 
 **No CAN TX.** No bus injection. No autonomous machinery control.
 
+### Failed and inconclusive experiments are still evidence
+
+An experiment that **does not** confirm a hypothesis is not a wasted session. Record it.
+
+| Outcome | What to preserve |
+|---------|------------------|
+| **Null result** | Baseline stable; candidate field did not change as predicted — narrows search space |
+| **Ambiguous result** | Multiple fields moved; confounding action — informs next discriminating test |
+| **Failed capture / setup** | Channel busy, wrong asset scope, missing markers — fix process, do not discard context |
+| **Inconclusive ranking** | Tie between candidates — documents why another experiment is needed |
+
+Use `mark_experiment_event` and session notes so later review can distinguish “not yet
+known” from “tested and ruled out”. Do not discard sessions or omit negative results from
+research reports — they prevent repeated dead ends and support recovery planning.
+
+Label inconclusive outcomes as **hypothesis not supported** or **insufficient evidence**,
+not as confirmed findings. See [PRODUCT_POSITIONING.md](PRODUCT_POSITIONING.md) for the
+broader engineering culture around learning from failure.
+
 ---
 
 ## 7. Evidence / confidence model
