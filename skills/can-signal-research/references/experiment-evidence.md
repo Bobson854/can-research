@@ -20,6 +20,46 @@ followed exactly. Generic ranker wrongly prioritised noisier GNSS IDs.
 
 **Your ranking should override naive activity rank** when experiment signature is this clean.
 
+## Transaction health before software recommendations
+
+For command/status or PLC-to-PLC protocols, establish transaction health **before** suggesting logic changes:
+
+```text
+Compare command vs status/ack/complete IDs
+  → verify CommandID (or equivalent) correlation
+  → check for remote faults, StopRequest, ACK timeout, completion timeout
+  → note whether cyclic command frames repeat without new movement events
+  → measure observed cadence and effective endpoint resolution
+```
+
+| Finding | Likely layer | Next step |
+|---------|--------------|-----------|
+| Missing ACK/complete, fault bits, timeout counters | Transport / transaction | Trace handshake fields and fault semantics |
+| Clean handshake, matching CommandID, no faults | Control loop / tuning | One setpoint/gain/limit change per capture |
+| Many identical command frames, one physical move | Held transaction | Do not treat each frame as a separate event |
+
+**Do not recommend retry, watchdog, or transport rewrites** when the capture already shows a healthy command → acknowledge → complete path with consistent CommandID matching.
+
+## Cyclic commands vs movement events
+
+Repeated cyclic command frames often mean the controller is **holding one transaction level**, not issuing duplicate movements.
+
+Prefer **CommandID correlation** over inferring events from short pulse edges alone.
+
+When cyclic traffic is present, compare:
+
+- command CommandID vs acknowledge/status/complete CommandID
+- whether status/position fields change once per operator action despite many command frames
+- observed inter-frame period on the bus (not configured PLC scan time alone)
+
+## Saved-session analysis
+
+Intermittent faults may only appear in a saved capture after the machine or laptop has shut down.
+
+Treat **`analyze_session`**, **`compare_experiment_windows`**, and event-marked offline review as first-class — not a fallback when live capture is unavailable.
+
+Event markers around known physical disturbances (valve move, pressure step, setpoint edit) make offline windows usable days later.
+
 ## Minimal operator burden
 
 One clean change + return-to-baseline is often **enough** when evidence is strong.
@@ -61,3 +101,8 @@ Stable state before each mark — see [experiment-patterns.md](experiment-patter
 - Ignoring static/setpoint messages pre-experiment
 - Asking for a second RPM sweep when first already matched exact deltas
 - Failing to compare return-to-baseline window
+- Proposing retry/transport changes when handshake and CommandID evidence already look healthy
+- Assuming PLC scan/tick configuration equals measured CAN cadence
+- Treating every cyclic command frame as a separate movement event
+- Changing multiple tuning parameters in one capture without isolated event marks
+- Abandoning saved sessions because the fault cannot be reproduced live

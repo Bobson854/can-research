@@ -9,6 +9,7 @@ Research effort should focus on what remains after standards and local knowledge
 ```text
 Observed bus
   → standards-backed traffic (J1939 / ISOBUS reference catalogue)
+  → imported reference-bundle knowledge (normalized bundles per source_key)
   → locally known traffic (confirmed DBC, prior research, layout fingerprints)
   → genuinely unknown / proprietary traffic
 ```
@@ -24,6 +25,7 @@ After preflight and capture (or on stored session):
 |------|-------|
 | Session overview | `get_session`, `analyze_session` |
 | J1939 classification | `analyze_session` — observed PGNs, reference matches |
+| **Imported bundle lookup** | `lookup_reference_message` (by PGN or CAN ID), `search_reference_knowledge`, `list_reference_sources`, `inspect_reference_source` |
 | Node / address picture | `list_session_nodes`, `inspect_transport` if needed |
 | Reference decode | `decode_session`, `lookup_pgn`, `lookup_spn` |
 | Standard DBC preview | `build_session_dbc_preview` |
@@ -40,10 +42,11 @@ Produce a concise bus picture:
 | Metric | Meaning |
 |--------|---------|
 | Total observed messages / unique CAN IDs | Bus size |
-| Standards-backed messages | Matched reference catalogue (PGN/SPN) |
+| Standards-backed messages | Matched J1939/ISOBUS **catalogue** (PGN/SPN/DDI) |
+| Bundle-backed messages | Matched **imported reference bundle** (`lookup_reference_message`, `search_reference_knowledge`) |
 | Locally recognised messages | Registered DBC exact match + confirmed research / layout match |
 | Partially recognised | DBC PGN address-variant, DLC mismatch, or conflicting definitions |
-| Unknown / proprietary messages | Research targets |
+| Unknown / proprietary messages | Research targets — only after catalogue **and** imported bundle checks |
 | High-value unknowns | Periodic, stable layout, operator intent, experiment potential |
 
 Example framing:
@@ -53,8 +56,13 @@ Example framing:
 
 ## ISOBUS / ISO 11783
 
-Where the reference catalogue includes ISOBUS DDI entries, apply the same known-first
-discipline as J1939. Do not skip reference lookup because traffic “looks proprietary.”
+Apply known-first discipline for both the **deterministic catalogue** and **imported reference bundles** (PGN-level ISOBUS Parameters exports are common). For each observed PGN:
+
+1. `lookup_pgn` / catalogue decode
+2. `lookup_reference_message(pgn=...)` across registered bundle sources
+3. `search_reference_knowledge` when semantic names help
+
+Do not label a PGN proprietary until both catalogue and relevant imported bundle sources have been checked.
 
 ## When to stop inventory and start research
 

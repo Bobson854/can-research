@@ -52,7 +52,9 @@ Recommended fields where known:
 }
 ```
 
-Exact messages require `key`. `can_id` may be omitted if the source only gives partial/J1939 information, but this will not support exact-ID lookup.
+Exact messages require `key`. `can_id` may be omitted if the source only defines a **PGN-level** message (common for ISO 11783 / J1939 standards where source and destination address are runtime-dependent). PGN-level messages support lookup by PGN but not exact-ID lookup.
+
+**Do not synthesize** a CAN ID, source address, or destination address merely to eliminate validator warnings. Preserve `pgn`, DLC, priority, timing, and signals where the source supports them.
 
 ## Signal
 
@@ -77,6 +79,8 @@ Exact messages require `key`. `can_id` may be omitted if the source only gives p
 ```
 
 Unknown optional fields should be omitted rather than guessed.
+
+**SQLite INTEGER fields:** When the importer stores a numeric value in SQLite INTEGER (e.g. signal `minimum` / `maximum`, register `default`), it must fit signed 64-bit range. Values such as `18446744073709551615` (`0xFFFFFFFFFFFFFFFF`) must not appear as numeric fields — preserve them in `description` or provenance text instead.
 
 ## Message family
 
@@ -185,10 +189,11 @@ Errors block import. Typical errors:
 - impossible bit range
 - overlapping signal ranges
 - unknown enum reference
+- numeric field exceeds SQLite signed 64-bit INTEGER range
 
 Warnings do not block import. Typical warnings:
 
-- missing exact CAN ID
+- missing exact CAN ID (expected for PGN-level J1939/ISOBUS messages; CLI may summarize repeated occurrences)
 - signal name missing
 - factor/offset unknown
 - unit unknown

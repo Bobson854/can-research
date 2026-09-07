@@ -2,6 +2,19 @@
 
 Recommended default when starting a **new** reference conversion or import on Windows.
 
+## Shell discipline
+
+**Determine PowerShell vs Command Prompt before giving copy/paste commands.**
+
+| Shell | Path example |
+|-------|----------------|
+| PowerShell | `"$env:USERPROFILE\Downloads\file.json"` |
+| Command Prompt | `"%USERPROFILE%\Downloads\file.json"` |
+
+If the user provides an explicit path (e.g. `K:\Downloads\isobus_parameters_reference.json`), **use that exact path** — do not replace it with `%USERPROFILE%` or `$env:USERPROFILE` assumptions.
+
+Command Prompt — use `cd /d` when changing drives to the repo before `uv run ...`.
+
 ## Staging convention
 
 Before register / validate / import, suggest:

@@ -68,6 +68,7 @@ and `source_location` pointers — not a copy of the entire document.
 | SAE J1939-71 PDF (licensed, supported importer) | Structured J1939/ISOBUS **catalogue** | `reference import-j1939` |
 | ISOBUS DDI PDF (licensed, supported importer) | Structured J1939/ISOBUS **catalogue** | `reference import-isobus-pdf` |
 | Existing DBC file | **DBC knowledge** (separate path) | `reference dbc register` |
+| ISOBUS Parameters CSV/XLSX/ZIP (e.g. isobus.net export) | **Reference source** → scoped bundle | `reference source add` → **can-reference-builder** → bundle validate/import |
 | OEM manual / supplier PDF / XLSX / CSV / Markdown / protocol notes | **Reference source** → bundle | `reference source add` → **can-reference-builder** → bundle validate/import |
 
 **Important:** DBC registration and Reference Bundle import are **deliberately separate**.

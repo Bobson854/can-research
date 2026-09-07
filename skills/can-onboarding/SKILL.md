@@ -147,7 +147,9 @@ register → inspect → coverage
 
 ### J1939/ISOBUS structured source
 
-Use existing supported catalogue import where appropriate.
+Use existing supported **catalogue** import (`reference import-j1939`, `reference import-isobus-pdf`) when the document matches a deterministic importer.
+
+Also consider **ISOBUS Parameters CSV/XLSX exports** (e.g. isobus.net) as bundle sources: register the original ZIP/CSV with `reference source add`, then hand to **can-reference-builder** for a scoped normalized bundle. Keep catalogue importers and bundle sources separate.
 
 ### OEM/supplier/general document
 
@@ -175,6 +177,7 @@ Do not declare onboarding complete until applicable checks pass:
 ✓ required Skills installed
 ✓ existing DBC/reference knowledge onboarded or consciously skipped
 ✓ reference lookup/search works when reference material was added
+  (reference source inspect shows non-zero imported counts AND a known search/lookup returns useful data)
 ✓ asset exists or user is ready to create one
 ```
 

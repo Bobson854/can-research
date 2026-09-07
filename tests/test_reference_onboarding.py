@@ -16,6 +16,7 @@ from canresearch.references.bundle_common import load_bundle_json
 from canresearch.references.bundle_knowledge import import_bundle_file, search_reference_knowledge
 from canresearch.references.bundle_validate import (
     acceptance_family_match,
+    format_bundle_warnings,
     validate_reference_bundle,
 )
 from canresearch.references.source_registry import (
@@ -169,3 +170,45 @@ def test_missing_source_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr("canresearch.references.source_registry.resolve_data_dir", lambda: data_dir)
     with pytest.raises(ReferenceSourceNotFoundError):
         get_reference_source("missing")
+
+
+def test_sqlite_integer_overflow_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    data_dir = _register_fixture_source(tmp_path, "sqlite_overflow")
+    monkeypatch.setattr("canresearch.references.source_registry.resolve_data_dir", lambda: data_dir)
+    payload = {
+        "schema_version": 1,
+        "source_key": "sqlite_overflow",
+        "messages": [
+            {
+                "key": "ws_member",
+                "name": "Working Set Member",
+                "pgn": 65036,
+                "signals": [
+                    {
+                        "key": "name_of_member",
+                        "name": "NAME of Working Set Member",
+                        "start_bit": 0,
+                        "bit_length": 64,
+                        "maximum": 18446744073709551615,
+                    }
+                ],
+            }
+        ],
+    }
+    report = validate_reference_bundle(payload, data_dir=data_dir)
+    assert not report.valid
+    assert any(issue.category == "sqlite_integer" for issue in report.errors)
+    assert "18446744073709551615" in report.errors[0].message
+
+
+def test_format_bundle_warnings_summarizes_pgn_only_can_id() -> None:
+    from canresearch.references.bundle_validate import BundleValidationIssue
+
+    warnings = [
+        BundleValidationIssue("warning", "incomplete", "no exact CAN ID on message", f"messages[{i}]")
+        for i in range(117)
+    ]
+    lines = format_bundle_warnings(warnings)
+    assert len(lines) == 1
+    assert "117 messages have no exact CAN ID" in lines[0]
+    assert "PGN-level definitions" in lines[0]

@@ -46,19 +46,27 @@ Keep these axes separate:
 
 **visibility:** `public`, `private`, `licensed`
 
-Default uncertain material to **private**. Licensed material belongs in the private managed area even though visibility metadata remains `licensed`.
+Default uncertain material to **private**. **Public download ≠ public redistribution** — ISO/ISOBUS exports from public websites are often still **licensed** (`source_type: standard`, `visibility: licensed`). Licensed originals and derived bundles stay in the private managed area; do not commit them.
 
 ## Extraction model
 
 Use the object that best fits the source. Do not force all knowledge into PGN/SPN form.
 
-- **messages** — exact CAN identifiers or J1939 messages.
+- **messages** — exact CAN identifiers or J1939/ISOBUS PGN-level definitions (`can_id` optional when SA/DA is runtime-dependent).
 - **signals** — bit/byte fields inside exact messages.
 - **message_families** — masked/patterned IDs such as `0x187055??`.
 - **enums** — value-to-meaning mappings used by signals/registers.
 - **registers** — vendor parameter/register protocols.
 - **fault_codes** — diagnostic/status code tables.
 - **protocol_notes** — bitrate, periods, timeouts, checksum rules, heartbeat behaviour, command/feedback relationships, operational notes.
+
+**PGN-only standards:** ISO 11783 / J1939 exports often define PGNs without a fixed 29-bit CAN ID. Preserve `pgn`, DLC, priority, timing, and signals where known. **Do not invent** source/destination addresses or synthesize a CAN ID to silence validator warnings. Repeated `no exact CAN ID` warnings on standard PGN-level sources are expected and do not block import.
+
+**Mixed vendor exports:** Inspect source/document/reference columns before grouping rows. Scope deliberately (e.g. ISO 11783 PGN/SPN only from a multi-CSV ZIP). Do not treat J1939DA pointer rows as full signal layouts. State clearly what was included and excluded.
+
+**Auxiliary tables beyond V1:** Manufacturer IDs, NAME functions, industry groups, AEF tables, and similar data may not fit Reference Bundle V1. Do **not** dump thousands of rows into `protocol_notes`. Report the contract gap; note candidate future structured types.
+
+**SQLite storage limits:** Numeric `minimum` / `maximum` / `default` fields must fit signed 64-bit SQLite INTEGER. If the source states a larger value (e.g. `0xFFFFFFFFFFFFFFFF`), omit the numeric field and preserve the fact in `description` or provenance — never clip or invent a smaller range.
 
 Read [reference-bundle-v1.md](references/reference-bundle-v1.md) before producing a bundle. Use [reference-bundle-v1.schema.json](references/reference-bundle-v1.schema.json) as the machine-readable shape.
 
@@ -131,14 +139,15 @@ Before handing off, check:
 
 ## CAN Research handoff
 
-After bundle creation, guide the user through validate/import. On Windows, use Downloads
-staging paths — [reference-ingest-staging.md](references/reference-ingest-staging.md).
+After bundle creation, guide the user through validate/import. On Windows, confirm **PowerShell vs CMD** before emitting paths — see [reference-ingest-staging.md](references/reference-ingest-staging.md). Prefer the user's **exact path** (e.g. `K:\Downloads\...`) over `%USERPROFILE%` assumptions.
 
 ```powershell
 uv run canresearch reference bundle validate "$env:USERPROFILE\Downloads\<source_key>_reference.json"
 uv run canresearch reference bundle import "$env:USERPROFILE\Downloads\<source_key>_reference.json"
 uv run canresearch reference search "<known term>"
 ```
+
+Command Prompt equivalent uses `%USERPROFILE%\Downloads\...` — not PowerShell `$env:` syntax.
 
 Public workflow reference: [REFERENCE_ONBOARDING.md](../../../docs/REFERENCE_ONBOARDING.md)
 

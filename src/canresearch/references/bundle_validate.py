@@ -8,12 +8,16 @@ from typing import Any
 from canresearch.references.bundle_common import (
     BUNDLE_SCHEMA_VERSION,
     BundleFormatError,
+    SQLITE_INTEGER_MAX,
+    SQLITE_INTEGER_MIN,
+    coerce_storable_integer,
     family_matches,
     finite_float,
     normalize_byte_order,
     normalize_signedness,
     parse_can_id,
     parse_mask_pair,
+    sqlite_integer_out_of_range,
 )
 from canresearch.references.source_registry import source_exists
 
@@ -38,6 +42,49 @@ class BundleValidationReport:
 
     def add_warning(self, category: str, message: str, path: str = "") -> None:
         self.warnings.append(BundleValidationIssue("warning", category, message, path))
+
+
+def _validate_sqlite_integer_field(
+    value: Any,
+    *,
+    path: str,
+    field: str,
+    report: BundleValidationReport,
+) -> None:
+    coerced = coerce_storable_integer(value)
+    if coerced is None:
+        return
+    if sqlite_integer_out_of_range(coerced):
+        report.add_error(
+            "sqlite_integer",
+            f"{path}.{field}={coerced} cannot be stored in SQLite INTEGER "
+            f"(signed 64-bit range {SQLITE_INTEGER_MIN}..{SQLITE_INTEGER_MAX}); "
+            f"omit the numeric field and preserve the source value in description or provenance",
+            path,
+        )
+
+
+def format_bundle_warnings(warnings: list[BundleValidationIssue]) -> list[str]:
+    """Format warnings for CLI output, summarizing repeated identical messages."""
+    if not warnings:
+        return []
+    groups: dict[tuple[str, str], list[str]] = {}
+    for issue in warnings:
+        groups.setdefault((issue.category, issue.message), []).append(issue.path)
+
+    lines: list[str] = []
+    for (category, message), paths in groups.items():
+        count = len(paths)
+        if count > 1 and message == "no exact CAN ID on message":
+            lines.append(
+                f"WARN  [{category}] {count} messages have no exact CAN ID "
+                f"(PGN-level definitions)"
+            )
+        elif count > 1:
+            lines.append(f"WARN  [{category}] {count} occurrences: {message}")
+        else:
+            lines.append(f"WARN  [{category}] {paths[0]}: {message}")
+    return lines
 
 
 def _require_key(obj: dict[str, Any], path: str, report: BundleValidationReport) -> str | None:
@@ -174,6 +221,14 @@ def validate_reference_bundle(
             except (TypeError, ValueError):
                 report.add_error("dlc", f"{mpath}: dlc must be integer", mpath)
 
+        for field in ("pgn", "source_address", "destination_address", "period_ms", "priority", "dlc"):
+            _validate_sqlite_integer_field(
+                message.get(field),
+                path=mpath,
+                field=field,
+                report=report,
+            )
+
         signals = message.get("signals", [])
         if signals is None:
             signals = []
@@ -211,6 +266,13 @@ def validate_reference_bundle(
                     report.add_warning("incomplete", "signal scale unknown", spath)
                 if not signal.get("unit"):
                     report.add_warning("incomplete", "signal unit unknown", spath)
+                for field in ("start_bit", "bit_length", "minimum", "maximum"):
+                    _validate_sqlite_integer_field(
+                        signal.get(field),
+                        path=spath,
+                        field=field,
+                        report=report,
+                    )
             _validate_signal_overlap(signals, path=mpath, report=report)
 
     families = payload.get("message_families", [])
@@ -270,6 +332,13 @@ def validate_reference_bundle(
             finite_float(reg.get("factor"), field=f"{rpath}.factor")
         except BundleFormatError as exc:
             report.add_error("register_field", str(exc), rpath)
+        for field in ("address", "width", "minimum", "maximum", "default"):
+            _validate_sqlite_integer_field(
+                reg.get(field),
+                path=rpath,
+                field=field,
+                report=report,
+            )
 
     fault_codes = payload.get("fault_codes", [])
     if fault_codes is None:
@@ -285,6 +354,12 @@ def validate_reference_bundle(
             continue
         if fault.get("value") is None and not fault.get("name"):
             report.add_warning("incomplete", "fault code value/name missing", fpath)
+        _validate_sqlite_integer_field(
+            fault.get("value"),
+            path=fpath,
+            field="value",
+            report=report,
+        )
 
     notes = payload.get("protocol_notes", payload.get("notes", []))
     if notes is None:

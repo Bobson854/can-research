@@ -9,6 +9,8 @@ from typing import Any
 
 CAN_ID_RE = re.compile(r"^0[xX][0-9a-fA-F]+$")
 BUNDLE_SCHEMA_VERSION = 1
+SQLITE_INTEGER_MIN = -(2**63)
+SQLITE_INTEGER_MAX = 2**63 - 1
 
 
 class BundleFormatError(Exception):
@@ -133,3 +135,32 @@ def finite_float(value: Any, *, field: str) -> float | None:
         msg = f"{field}: must be finite"
         raise BundleFormatError(msg)
     return parsed
+
+
+def coerce_storable_integer(value: Any) -> int | None:
+    """Return an integer if value would be stored in SQLite INTEGER, else None."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if value.is_integer():
+            return int(value)
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            if text.lower().startswith("0x"):
+                return int(text, 16)
+            return int(text, 10)
+        except ValueError:
+            return None
+    return None
+
+
+def sqlite_integer_out_of_range(value: int) -> bool:
+    return value < SQLITE_INTEGER_MIN or value > SQLITE_INTEGER_MAX

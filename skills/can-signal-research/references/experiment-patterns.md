@@ -21,11 +21,14 @@ Do not start `start_live_capture` when observation shows no traffic or when
 ## Universal rules
 
 1. **One variable at a time** — do not steer and rev PTO in the same window unless testing coupling is the explicit goal.
-2. **Stable before mark** — wait for the operator to confirm the machine state has settled.
-3. **Repeat cheap cycles** — centre → left → centre costs little and tests repeatability.
-4. **Discriminate, don't collect** — prefer the smallest next test that splits two hypotheses.
-5. **Name events consistently** — e.g. `baseline_start`, `left_full`, `centre_return`, `right_full`.
-6. **Baseline first** — always capture a neutral/idle window when applicable.
+2. **One parameter change per capture** — when tuning or validating control behaviour, change only one setpoint, gain, timeout, or scan-related setting between marked captures. Multiple simultaneous changes obscure causality.
+3. **Stable before mark** — wait for the operator to confirm the machine state has settled.
+4. **Repeat cheap cycles** — centre → left → centre costs little and tests repeatability.
+5. **Discriminate, don't collect** — prefer the smallest next test that splits two hypotheses.
+6. **Name events consistently** — e.g. `baseline_start`, `left_full`, `centre_return`, `right_full`.
+7. **Baseline first** — always capture a neutral/idle window when applicable.
+8. **Mark known physical disturbances** — place event markers immediately before/after operator-visible movement, valve travel, pressure change, or HMI setpoint edits so offline windows align with ground truth.
+9. **Prefer measured cadence** — use observed frame period and effective movement resolution from the capture; do not assume PLC scan time, tick interval, or configured cycle time equals endpoint timing on the bus.
 
 ## Boolean / discrete
 
@@ -142,7 +145,7 @@ Traverse modes **slowly**; one mode change between marks when possible.
 
 ## Command / feedback pairs
 
-**Use for:** Command frame vs measured response.
+**Use for:** Command frame vs measured response; PLC-to-PLC command/status handshakes.
 
 **Pattern:**
 
@@ -153,6 +156,67 @@ settle → mark
 ```
 
 Compare windows around command vs idle; look for correlated response IDs (not assumed PGN).
+
+**Before proposing software changes**, compare command and status IDs and transaction health:
+
+| Check | Healthy transaction signs | Not a transport problem |
+|-------|---------------------------|-------------------------|
+| Handshake | command → acknowledge → complete present | Missing ACK/complete, StopRequest, remote fault |
+| Correlation | matching **CommandID** (or equivalent) across command/status | Relying only on short pulse edges when ID matching is available |
+| Duplication | repeated cyclic command frames do **not** imply duplicate movement events | One level-held transaction re-sent each scan |
+| Faults | no ACK timeout, completion timeout, or remote fault counters rising | Transaction layer already proven |
+
+When handshake evidence is clean but motion/position still wrong, treat the problem as **control-loop or tuning** (gains, limits, setpoint mapping, endpoint resolution) — not missing retries or broken transport.
+
+## Cyclic / held transactions (PLC-style)
+
+**Use for:** Controllers that re-transmit the same command every scan while a level or position is held.
+
+**Interpretation:**
+
+- Repeated identical (or slowly changing) command frames may represent **one sustained transaction**, not one movement per frame.
+- Match **CommandID** (or protocol-equivalent correlation key) between command, acknowledge, status, and complete messages before counting “events.”
+- Measure **effective movement resolution** and **observed CAN cadence** from the capture; configured PLC scan/tick settings are hints only.
+
+**Pattern:**
+
+```text
+idle (no active command) → mark
+single operator setpoint change → mark
+hold at new level until motion settles → mark
+return to idle/baseline → mark
+```
+
+**Analysis bias:** one physical movement despite many command frames; status/complete tied to CommandID; tune loop only after transaction health is confirmed.
+
+## Saved sessions for intermittent faults
+
+**Use for:** Faults that disappear after shutdown, power cycle, or operator leave/return.
+
+Saved sessions remain a **first-class** analysis path:
+
+```text
+start_live_capture + event marks during fault
+  → stop capture / save session
+  → analyze_session / compare_experiment_windows / decode_session offline
+  → revisit after laptop or machine restart without requiring live reproduction
+```
+
+Do not discard a saved capture because the machine state changed afterward — event markers and session metadata often preserve the only evidence of a transient fault.
+
+## Transaction health vs control-loop tuning
+
+Separate these diagnosis layers explicitly in reports:
+
+```text
+Layer 1 — Transport / transaction:  ACK, complete, CommandID match, faults, timeouts
+Layer 2 — Timing / cadence:         observed frame period vs configured scan assumptions
+Layer 3 — Control loop / tuning:    overshoot, hunting, wrong endpoint, gain/limit issues
+```
+
+**Do not recommend retry logic, watchdog, or transport changes** when Layer 1 evidence already shows a healthy command/acknowledge/complete path. Direct further work to Layer 3 (one parameter change per test capture).
+
+Example outcome (motor-valve PLC pair): handshake working, no remote faults, no duplicate movement from cyclic commands, measurable cadence — remaining issue is tuning, not retry software.
 
 ## Experiment-aware ranking
 
@@ -182,6 +246,11 @@ Design the **smallest** test that splits them:
 - Skipping `preview_candidate_values` when a field layout is already hypothesized.
 - Long captures with no event labels.
 - Asking the operator to sweep every control at once.
+- Changing multiple PLC/HMI parameters in one capture when tuning is the goal.
+- Assuming configured scan/tick time equals observed CAN cadence or movement timing.
+- Counting one movement per cyclic command frame when CommandID shows a single held transaction.
 - Re-running full bus ranking when a targeted follow-up test would suffice.
 - Ignoring confirmed asset DBC and rediscovering known signals.
 - Trusting `rank_signal_candidates` over a clean experiment window on the target ID.
+- Proposing retry/transport fixes when command/acknowledge/complete and CommandID correlation already look healthy.
+- Discarding saved sessions because the fault is no longer live on the bench.

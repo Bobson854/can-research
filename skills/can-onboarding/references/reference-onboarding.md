@@ -9,11 +9,13 @@ Onboarding is not complete merely because the software runs. Load existing CAN k
 Inventory:
 
 - DBC files
-- J1939 / ISOBUS references
+- J1939 / ISOBUS references (catalogue PDFs **or** ISOBUS Parameters CSV/XLSX/ZIP exports)
 - OEM / supplier manuals
 - signal spreadsheets / CSV
 - protocol documents
 - previous confirmed reverse engineering
+
+ZIP/CSV/XLSX originals may be registered directly with `reference source add` before bundle conversion.
 
 ## Source classification
 
@@ -46,8 +48,11 @@ uv run canresearch reference source inspect my_manual
 3. Verify ingest worked:
 
 ```powershell
-uv run canresearch reference search "motor speed"
+uv run canresearch reference source inspect <source_key>
+uv run canresearch reference search "General Purpose Valve" --source <source_key>
 ```
+
+Success means **non-zero imported counts** (messages, signals, etc.) **and** a known search term returns useful rows — not merely that validate/import exited without error.
 
 MCP verification:
 

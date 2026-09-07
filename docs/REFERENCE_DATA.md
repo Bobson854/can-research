@@ -142,7 +142,14 @@ uv run canresearch reference search "motor speed"
 `search_reference_knowledge`, `lookup_reference_message`
 
 **Visibility:** `public`, `private`, `licensed` (metadata — default **private**). Licensed
-material must never be committed or exposed via MCP raw download.
+material must never be committed or exposed via MCP raw download. **Public website download
+does not automatically mean `visibility: public`** — treat ISO/ISOBUS exports conservatively
+as licensed unless redistribution rights are explicit.
+
+**ISOBUS Parameters CSV/ZIP exports** (e.g. isobus.net) are a common bundle source: register
+the original ZIP, scope conversion to supported PGN/SPN rows, and verify with
+`reference source inspect` (non-zero counts) plus `reference search`. PGN-level messages
+without exact CAN IDs are normal; auxiliary CSV tables may exceed Reference Bundle V1.
 
 ### External conversion Skill
 

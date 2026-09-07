@@ -221,8 +221,8 @@ CLI: `uv run canresearch reference bundle validate <path>`
 
 | Severity | Examples |
 |----------|----------|
-| **Error** | Wrong schema version; unregistered `source_key`; invalid CAN ID; overlapping signals; unknown `enum_key`; invalid mask |
-| **Warning** | Missing unit/scale; no exact CAN ID; incomplete family variable metadata; missing signal name |
+| **Error** | Wrong schema version; unregistered `source_key`; invalid CAN ID; overlapping signals; unknown `enum_key`; invalid mask; numeric field outside SQLite signed 64-bit INTEGER range |
+| **Warning** | Missing unit/scale; no exact CAN ID (expected for PGN-level J1939/ISOBUS — CLI summarizes repeated occurrences); incomplete family variable metadata; missing signal name |
 
 Import requires **zero errors**. Warnings are printed but do not block import.
 

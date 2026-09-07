@@ -51,7 +51,7 @@ not necessarily a perfect autonomous DBC. Technicians refine naming/scaling afte
 12. PROPOSE + CLI            human confirm; persist catalogue knowledge
 ```
 
-**Traffic layering:** observed bus → standards-backed → locally known → proprietary remainder.
+**Traffic layering:** observed bus → catalogue-backed → imported bundle-backed → DBC-known → proprietary remainder.
 
 ## Live preflight (mandatory before capture)
 
@@ -84,7 +84,7 @@ High structure + medium exact meaning is a **valid success**.
 | Phase | Tools |
 |-------|-------|
 | Identity / live | `get_instance_info`, `get_cansub_*`, `observe_live_traffic`, capture/events |
-| Bus inventory | `analyze_session`, `decode_session`, `list_session_nodes`, `lookup_pgn`/`lookup_spn`, `build_session_dbc_preview`, `list_reference_sources`, `search_reference_knowledge`, `list_dbc_sources`, `analyze_dbc_coverage` |
+| Bus inventory | `analyze_session`, `decode_session`, `list_session_nodes`, `lookup_pgn`/`lookup_spn`, `lookup_reference_message`, `list_reference_sources`, `search_reference_knowledge`, `build_session_dbc_preview`, `list_dbc_sources`, `analyze_dbc_coverage` |
 | Research | `preview_candidate_values`, `rank_signal_candidates`, `analyze_can_id_activity`, `correlate_candidate_field`, `compare_experiment_windows`, `detect_counters`/`checksums` |
 | Knowledge | `list_research_candidates`, `preview_research_dbc`, `list_assets`, `get_asset`, **`inspect_dbc`**, **`lookup_dbc_message`** |
 
@@ -98,6 +98,7 @@ Full list: project README.
 | Similar message elsewhere | [knowledge-reuse.md](references/knowledge-reuse.md) |
 | GNSS / sprayer / static setpoints | [contextual-reasoning.md](references/contextual-reasoning.md) |
 | Controlled RPM/pressure test | [experiment-evidence.md](references/experiment-evidence.md) |
+| PLC command/handshake / tuning diagnosis | [experiment-patterns.md](references/experiment-patterns.md) |
 | Report / DBC for viewer | [research-output-and-dbc.md](references/research-output-and-dbc.md) |
 | Physical test templates | [experiment-patterns.md](references/experiment-patterns.md) |
 
@@ -105,11 +106,14 @@ Full list: project README.
 
 - [ ] Backend + preflight + frames verified
 - [ ] Registered DBC sources listed; `analyze_dbc_coverage` run when DBCs exist
-- [ ] Bus inventory: standards vs DBC-known vs unknown summarised
+- [ ] Bus inventory: catalogue vs bundle-backed vs DBC-known vs unknown summarised
 - [ ] Local/DBC knowledge searched before “unknown” research
 - [ ] Passive + contextual reasoning before physical action
 - [ ] Field widths not over-shrunk; static messages considered
 - [ ] Experiment signature weighted over naive ranker when applicable
+- [ ] Transaction health (command/ack/complete, CommandID) assessed before transport/retry recommendations
+- [ ] Control-loop/tuning separated from transport failure when handshake evidence is clean
+- [ ] Saved sessions and event markers used for intermittent faults
 - [ ] Evidence types labelled; external research used purposefully
 - [ ] Markdown report / DBC preview offered when useful
 - [ ] No false confirmation claims

@@ -35,6 +35,7 @@ Propose: “Layout matches `<source>` — verify before confirming.”
 | Standard DBC preview | `build_session_dbc_preview` |
 | Asset context | `get_asset`, `list_asset_nodes` |
 | Reference catalogue | `lookup_pgn`, `lookup_spn` |
+| **Imported reference bundles** | `list_reference_sources`, `lookup_reference_message`, `search_reference_knowledge`, `inspect_reference_source` |
 
 Also consider DBC files in the workspace (if the host can read them) as **hypothesis
 generators** — always validate with MCP on the current session.
@@ -45,7 +46,8 @@ generators** — always validate with MCP on the current session.
 |-------|---------|
 | Source DBC | Named file or asset DBC that suggested the layout |
 | Prior session | Session ID where layout was seen |
-| Standard / reference | PGN/SPN from catalogue |
+| Standard / catalogue | PGN/SPN/DDI from deterministic catalogue importers |
+| **Reference bundle** | Normalized bundle import (`lookup_reference_message`, `search_reference_knowledge`) |
 | Operator confirmation | CLI-confirmed research candidate |
 | Inferred / contextual match | Layout or semantic similarity — not confirmed |
 

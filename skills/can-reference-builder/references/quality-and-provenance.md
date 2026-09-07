@@ -20,7 +20,20 @@ Every useful object should retain `source_location` when available. Exact pages 
 - Do not reproduce or redistribute whole documents.
 - Do not embed source PDFs or large verbatim excerpts in the Skill or bundle.
 - Default uncertain redistribution status to `private`.
-- `licensed` is metadata; licensed files stay in the private managed source area.
+- **`licensed`** is metadata; licensed files stay in the private managed source area.
+- **Public website download ≠ `visibility: public`** — treat ISO/ISOBUS standards exports conservatively as licensed unless redistribution rights are clear.
+- Derived bundles containing licensed definitions should also remain private/licensed locally.
+
+## SQLite numeric limits
+
+Reference Bundle import stores some numeric fields in SQLite **signed 64-bit INTEGER**.
+
+If the source states a value outside that range (e.g. `maximum: 18446744073709551615` for a 64-bit NAME field):
+
+- omit the numeric `minimum` / `maximum` / `default` field;
+- preserve the source-supported value in `description` or provenance;
+- explain the omission in the quality report;
+- never clip or invent a smaller numeric range.
 
 ## Quality report
 

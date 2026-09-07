@@ -32,6 +32,16 @@ Put register read/write/reply transactions in `message_families` and the paramet
 
 Use column semantics rather than file layout. Preserve row provenance with sheet/table/row description where practical. If columns conflict or use undocumented shorthand, do not infer a meaning solely from naming.
 
+### ISOBUS Parameters export (isobus.net and similar)
+
+Vendor ZIPs often contain **multiple CSV datasets** (SPN/PGN, Manufacturer IDs, NAME functions, industry groups, source-address tables, AEF functionality, etc.).
+
+- **Scope deliberately** — a first bundle may include only ISO 11783 PGN/SPN rows from `SPNs and PGNs.csv`, not every auxiliary file.
+- **Inspect reference/document columns** — rows pointing at J1939DA are not full signal layouts unless the source provides bit/scaling data.
+- **PGN without CAN ID** — normal for ISO 11783; do not invent addresses or CAN IDs.
+- **Auxiliary CSVs** — valuable knowledge but may exceed Reference Bundle V1; report contract gaps instead of stuffing `protocol_notes`.
+- **Register the original ZIP** with `source_type: standard`, `visibility: licensed` unless redistribution rights are explicit.
+
 ## DBC-derived source
 
 A DBC is already structured, but the normalized bundle is not a replacement for the DBC library. Use bundle conversion only when the user wants its facts represented in reference knowledge. Preserve DBC endian semantics carefully; normalize bit numbering before setting `start_bit`.

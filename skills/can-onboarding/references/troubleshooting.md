@@ -51,6 +51,10 @@ Normally restart only MCP and tunnel client. Do not recreate tunnel/profile/conn
 
 Do not mutate source facts to make validation pass. Give the errors to `can-reference-builder`, repair the normalized representation, then validate again.
 
+**SQLite INTEGER overflow** (`sqlite_integer` error): a numeric field such as signal `maximum` exceeds signed 64-bit range (e.g. `18446744073709551615` for a 64-bit NAME field). Remove the numeric field from the bundle and preserve the source value in `description` or provenance text — do not clip to a smaller number.
+
+**Many PGN-only warnings:** `no exact CAN ID on message` is expected for ISO 11783/J1939 standard exports. The CLI summarizes repeated occurrences; do not invent CAN IDs to silence them.
+
 ## Reference search returns nothing
 
 Confirm:

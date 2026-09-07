@@ -2351,7 +2351,7 @@ def reference_bundle_validate(bundle_path: str, allow_unregistered: bool) -> Non
     from pathlib import Path
 
     from canresearch.references.bundle_common import BundleFormatError, load_bundle_json
-    from canresearch.references.bundle_validate import validate_reference_bundle
+    from canresearch.references.bundle_validate import format_bundle_warnings, validate_reference_bundle
 
     try:
         payload = load_bundle_json(Path(bundle_path))
@@ -2363,8 +2363,8 @@ def reference_bundle_validate(bundle_path: str, allow_unregistered: bool) -> Non
     )
     for issue in report.errors:
         click.echo(f"ERROR [{issue.category}] {issue.path}: {issue.message}")
-    for issue in report.warnings:
-        click.echo(f"WARN  [{issue.category}] {issue.path}: {issue.message}")
+    for line in format_bundle_warnings(report.warnings):
+        click.echo(line)
     if report.valid:
         click.echo("Validation passed.")
     else:
@@ -2385,6 +2385,7 @@ def reference_bundle_import(bundle_path: str, db_path: str | None) -> None:
     from pathlib import Path
 
     from canresearch.references.bundle_knowledge import import_bundle_file
+    from canresearch.references.bundle_validate import format_bundle_warnings
     from canresearch.storage.database import default_db_path, initialize
 
     db = Path(db_path) if db_path else default_db_path()
@@ -2396,8 +2397,8 @@ def reference_bundle_import(bundle_path: str, db_path: str | None) -> None:
         raise SystemExit(str(exc)) from exc
     conn.close()
     if validation:
-        for issue in validation.warnings:
-            click.echo(f"WARN  [{issue.category}] {issue.path}: {issue.message}")
+        for line in format_bundle_warnings(validation.warnings):
+            click.echo(line)
     click.echo(f"imported source_key={report.source_key}")
     click.echo(
         f"messages={report.messages} signals={report.signals} "
