@@ -38,6 +38,15 @@ uv run canresearch session marker-companion
 uv run python scripts/marker_companion.py
 ```
 
+On successful attach the terminal prints:
+
+```text
+Opening marker companion for session <id>...
+Marker companion window is ready.
+```
+
+Startup failures print `[FAIL] <code>: <message>` and show a foreground error dialog.
+
 When multiple captures are recording, pass an explicit session:
 
 ```powershell
@@ -73,6 +82,32 @@ and warns if the session is no longer recording.
 Custom label and optional note fields are also available (Enter to record).
 
 Keyboard shortcuts apply when the companion window is focused (not global system hooks).
+
+---
+
+## Windows manual acceptance
+
+After starting live capture, run `marker-companion.cmd` from the repository root.
+
+**Expected (single active capture):**
+
+1. Terminal prints `Opening marker companion for session <id>...` then `Marker companion window is ready.`
+2. **CAN Research — Capture Markers** appears on the desktop within a few seconds, in the foreground and ready for F1–F6 / button clicks.
+3. The terminal remains blocked while the GUI is open (normal — close the window to return to the prompt).
+4. Pressing a marker button updates the status line and writes to `session_events`.
+
+**Expected (no active capture):**
+
+1. Terminal prints `[FAIL] no_active_capture: ...` with a non-zero exit code.
+2. A foreground error dialog shows the same reason.
+
+**Expected (multiple active captures):**
+
+1. Terminal prints `Multiple active captures — select one in the dialog.`
+2. A foreground **Select active capture** window appears; choose **Attach** or **Cancel**.
+3. Cancel prints `[FAIL] session_selection_cancelled: ...` and exits non-zero.
+
+If the window does not appear, confirm a capture is **recording** (`uv run canresearch session list`) and that no other full-screen app is blocking new windows.
 
 ---
 

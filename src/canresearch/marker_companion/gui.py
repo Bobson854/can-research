@@ -12,7 +12,6 @@ from typing import Callable
 from canresearch.core.marker_companion import (
     STANDARD_MARKER_LABELS,
     AttachedSession,
-    LOCAL_COMPANION_ORIGIN,
     MarkerCompanionError,
     record_companion_marker,
     resolve_attached_session,
@@ -20,11 +19,54 @@ from canresearch.core.marker_companion import (
 )
 from canresearch.core.session_events import SessionEvent
 
+FOCUS_TOPMOST_MS = 200
+
 
 def _format_session_line(session: AttachedSession) -> str:
     name = session.name or "(unnamed)"
     channel = session.channel if session.channel is not None else "?"
     return f"{session.session_id} — {name} — ch{channel} — {session.status.value}"
+
+
+def bring_window_to_foreground(
+    window: tk.Misc,
+    *,
+    topmost_ms: int = FOCUS_TOPMOST_MS,
+) -> None:
+    """Raise a Tk window on the active desktop (Windows-safe focus sequence)."""
+    window.deiconify()
+    window.update_idletasks()
+    window.lift()
+    window.focus_force()
+    try:
+        window.attributes("-topmost", True)
+        window.after(topmost_ms, lambda: window.attributes("-topmost", False))
+    except tk.TclError:
+        pass
+
+
+def show_startup_error(code: str, message: str) -> None:
+    """Show a foreground error dialog for startup failures."""
+    root = tk.Tk()
+    root.withdraw()
+    holder = tk.Toplevel(root)
+    holder.withdraw()
+    holder.update_idletasks()
+    bring_window_to_foreground(holder)
+    messagebox.showerror(
+        "Capture marker companion",
+        f"{code}\n\n{message}",
+        parent=holder,
+    )
+    holder.destroy()
+    root.destroy()
+
+
+def report_startup_failure(code: str, message: str) -> int:
+    """Print a startup failure and show a foreground error dialog."""
+    print(f"[FAIL] {code}: {message}", file=sys.stderr)
+    show_startup_error(code, message)
+    return 1
 
 
 class MarkerCompanionApp:
@@ -177,45 +219,59 @@ class MarkerCompanionApp:
         self._custom_note.set("")
 
 
-def _choose_session_dialog(
-    root: tk.Tk,
-    sessions: tuple[AttachedSession, ...],
-) -> AttachedSession | None:
-    dialog = tk.Toplevel(root)
-    dialog.title("Select active capture")
-    dialog.transient(root)
-    dialog.grab_set()
+def pick_session_interactive(sessions: tuple[AttachedSession, ...]) -> AttachedSession | None:
+    """Show a foreground session picker when multiple captures are active."""
+    root = tk.Tk()
+    root.title("Select active capture")
+    root.geometry("640x320")
+    root.minsize(520, 260)
     selected: dict[str, AttachedSession | None] = {"value": None}
 
     ttk.Label(
-        dialog,
+        root,
         text="Multiple recording sessions are active. Select one:",
         padding=10,
     ).pack(anchor=tk.W)
 
-    listbox = tk.Listbox(dialog, width=70, height=min(len(sessions), 8))
+    listbox = tk.Listbox(root, width=70, height=min(len(sessions), 8))
     for item in sessions:
         listbox.insert(tk.END, _format_session_line(item))
     listbox.selection_set(0)
-    listbox.pack(padx=10, pady=(0, 10))
+    listbox.pack(padx=10, pady=(0, 10), fill=tk.BOTH, expand=True)
 
     def accept() -> None:
         index = listbox.curselection()
         if not index:
-            messagebox.showwarning("Select session", "Choose a session.", parent=dialog)
+            messagebox.showwarning("Select session", "Choose a session.", parent=root)
             return
         selected["value"] = sessions[index[0]]
-        dialog.destroy()
+        root.quit()
 
     def cancel() -> None:
-        dialog.destroy()
+        selected["value"] = None
+        root.quit()
 
-    actions = ttk.Frame(dialog, padding=(10, 0, 10, 10))
+    actions = ttk.Frame(root, padding=(10, 0, 10, 10))
     actions.pack(fill=tk.X)
     ttk.Button(actions, text="Attach", command=accept).pack(side=tk.RIGHT, padx=(6, 0))
     ttk.Button(actions, text="Cancel", command=cancel).pack(side=tk.RIGHT)
-    dialog.wait_window()
+    root.protocol("WM_DELETE_WINDOW", cancel)
+    bring_window_to_foreground(root)
+    root.mainloop()
+    root.destroy()
     return selected["value"]
+
+
+def resolve_attached_session_for_launch(
+    *,
+    session_id: str | None = None,
+    db_path: Path | None = None,
+) -> AttachedSession | MarkerCompanionError:
+    """Resolve attachment or return a structured startup error."""
+    try:
+        return resolve_attached_session(session_id=session_id, db_path=db_path)
+    except MarkerCompanionError as exc:
+        return exc
 
 
 def launch_companion(
@@ -224,24 +280,28 @@ def launch_companion(
     db_path: Path | None = None,
 ) -> int:
     """Resolve session attachment and open the marker companion window."""
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        attached = resolve_attached_session(session_id=session_id, db_path=db_path)
-    except MarkerCompanionError as exc:
-        if exc.code == "multiple_active_captures":
-            chosen = _choose_session_dialog(root, exc.sessions)
+    attached = resolve_attached_session_for_launch(session_id=session_id, db_path=db_path)
+    if isinstance(attached, MarkerCompanionError):
+        if attached.code == "multiple_active_captures":
+            print(
+                "Multiple active captures — select one in the dialog.",
+                file=sys.stderr,
+            )
+            chosen = pick_session_interactive(attached.sessions)
             if chosen is None:
-                root.destroy()
-                return 1
+                return report_startup_failure(
+                    "session_selection_cancelled",
+                    "No session selected.",
+                )
             attached = chosen
         else:
-            messagebox.showerror("Capture marker companion", f"{exc.code}\n\n{exc.message}")
-            root.destroy()
-            return 1
+            return report_startup_failure(attached.code, attached.message)
 
-    root.deiconify()
+    print(f"Opening marker companion for session {attached.session_id}...")
+    root = tk.Tk()
     MarkerCompanionApp(root, session_id=attached.session_id, db_path=db_path)
+    bring_window_to_foreground(root)
+    print("Marker companion window is ready.")
     root.mainloop()
     return 0
 
