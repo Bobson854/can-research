@@ -11,7 +11,7 @@ from pathlib import Path
 from canresearch.cansub.capture import cansub_frame_to_can_frame, default_capture_store
 from canresearch.cansub.client import probe_host
 from canresearch.cansub.exceptions import CansubConnectionError, CansubWebSocketError
-from canresearch.cansub.ws_client import ConnectFn, receive_frames_sync
+from canresearch.cansub.ws_client import ConnectFn, abort_channel_websocket_sync, receive_frames_sync
 from canresearch.core.assets import link_session_asset
 from canresearch.core.live_errors import LiveResearchError
 from canresearch.core.sessions import (
@@ -34,6 +34,8 @@ class ActiveCapture:
     channel: int
     host: str
     started_at: datetime
+    timeout: float = 5.0
+    verify_tls: bool = False
     stop_event: threading.Event = field(default_factory=threading.Event)
     finished_event: threading.Event = field(default_factory=threading.Event)
     thread: threading.Thread | None = None
@@ -158,6 +160,8 @@ class LiveCaptureRegistry:
             channel=channel,
             host=host,
             started_at=session.started_at,
+            timeout=timeout,
+            verify_tls=verify_tls,
         )
 
         def worker() -> None:
@@ -181,7 +185,7 @@ class LiveCaptureRegistry:
                 )
                 capture.duration_s = rx.duration_s
                 capture.exit_reason = rx.exit_reason
-                if rx.exit_reason == "interrupted":
+                if rx.exit_reason in {"interrupted", "stopped"}:
                     final_status = SessionStatus.INTERRUPTED
             except CansubWebSocketError as exc:
                 capture.error = exc
@@ -231,8 +235,22 @@ class LiveCaptureRegistry:
             if capture is None or capture.finished_event.is_set():
                 msg = f"No active capture for session {session_id!r}"
                 raise LiveResearchError("capture_not_active", msg)
+            host = capture.host
+            channel = capture.channel
+            timeout = capture.timeout
+            verify_tls = capture.verify_tls
 
         capture.stop_event.set()
+        try:
+            abort_channel_websocket_sync(
+                host,
+                channel,
+                timeout=timeout,
+                verify_tls=verify_tls,
+            )
+        except CansubWebSocketError:
+            pass
+
         if capture.thread is not None:
             capture.thread.join(timeout=STOP_JOIN_TIMEOUT_S)
         if not capture.finished_event.is_set():

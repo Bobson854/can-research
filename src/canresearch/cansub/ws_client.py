@@ -25,6 +25,7 @@ WS_CLOSE_TIMEOUT = 2.0
 WS_SLOT_RELEASE_DELAY_S = 0.25
 WS_CONNECT_ATTEMPTS = 2
 EARLY_CLOSE_THRESHOLD_S = 1.0
+RECV_POLL_INTERVAL_S = 0.25
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,10 +168,11 @@ async def _receive_frames_once(
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     break
+                recv_timeout = min(remaining, RECV_POLL_INTERVAL_S)
                 try:
-                    message = await asyncio.wait_for(ws.recv(), timeout=remaining)
+                    message = await asyncio.wait_for(ws.recv(), timeout=recv_timeout)
                 except TimeoutError:
-                    break
+                    continue
                 except ConnectionClosed as exc:
                     elapsed = time.monotonic() - started
                     if frame_count == 0 and elapsed < EARLY_CLOSE_THRESHOLD_S:
@@ -298,6 +300,17 @@ def _default_connect(url: str, **kwargs: Any) -> Any:
     import websockets
 
     return websockets.connect(url, **kwargs)
+
+
+def abort_channel_websocket_sync(
+    host: str,
+    channel: int,
+    *,
+    timeout: float = 5.0,
+    verify_tls: bool = False,
+) -> bool:
+    """Abort the active WebSocket client on a channel (DELETE /api/can/{channel}/ws)."""
+    return _release_websocket_slot(host, channel, timeout=timeout, verify_tls=verify_tls)
 
 
 def receive_frames_sync(

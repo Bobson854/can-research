@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -268,3 +270,30 @@ def test_release_slot_called_before_connect(monkeypatch: pytest.MonkeyPatch) -> 
 def test_websocket_url() -> None:
     assert websocket_url("device.local", 1) == "wss://device.local/api/can/1/ws"
     assert websocket_url("device.local", 2, port=8443) == "wss://device.local:8443/api/can/2/ws"
+
+
+def test_stop_check_exits_promptly_with_no_frames(monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_channels(monkeypatch)
+    stopped = threading.Event()
+
+    def arm_stop() -> None:
+        time.sleep(0.05)
+        stopped.set()
+
+    threading.Thread(target=arm_stop, daemon=True).start()
+
+    start = time.monotonic()
+    result = _run(
+        receive_frames(
+            "example.test",
+            1,
+            duration=86_400.0,
+            connect=_fake_connect([]),
+            stop_check=stopped.is_set,
+        )
+    )
+    elapsed = time.monotonic() - start
+
+    assert result.exit_reason == "stopped"
+    assert result.frame_count == 0
+    assert elapsed < 1.0

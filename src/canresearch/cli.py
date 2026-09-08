@@ -292,7 +292,19 @@ def _run_device_rx(
     verify_tls: bool,
 ) -> None:
     from canresearch.cansub.exceptions import CansubWebSocketError
+    from canresearch.core.live_errors import LiveResearchError
+    from canresearch.core.timing_preflight import enforce_channel_timing_preflight
     from canresearch.cansub.ws_client import receive_frames_sync
+
+    try:
+        enforce_channel_timing_preflight(
+            host,
+            channel,
+            timeout=timeout,
+            verify_tls=verify_tls,
+        )
+    except LiveResearchError as exc:
+        raise SystemExit(f"{exc.code}: {exc.message}") from exc
 
     click.echo("CANsub.2 RX")
     click.echo(f"Host:       {host}")

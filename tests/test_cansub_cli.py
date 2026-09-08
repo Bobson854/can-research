@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from canresearch.cansub.client import CansubChannelStatus, CansubDeviceInfo
@@ -201,3 +202,44 @@ def test_device_rx_keyboard_interrupt(monkeypatch) -> None:
     result = runner.invoke(main, ["device", "rx", "1", "--host", "192.0.2.1"])
     assert result.exit_code == 0
     assert "Interrupted" in result.output
+
+
+def test_device_rx_rejects_timing_mismatch_before_websocket(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from unittest.mock import MagicMock
+
+    from tests.test_timing_preflight import PHY_250K_1M
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[cansub]
+host = "desk.local"
+
+[cansub.channels.1]
+nominal_bitrate = 500000
+data_bitrate = 1000000
+""".strip(),
+        encoding="utf-8",
+    )
+    rx_called = {"value": False}
+
+    def fake_rx(*args, **kwargs):
+        _ = args, kwargs
+        rx_called["value"] = True
+        raise AssertionError("receive_frames_sync must not run on timing mismatch")
+
+    monkeypatch.setattr("canresearch.cansub.ws_client.receive_frames_sync", fake_rx)
+    monkeypatch.setattr("canresearch.config.default_config_path", lambda: config_path)
+    monkeypatch.setattr(
+        "canresearch.core.timing_preflight.get_channel_info",
+        lambda *args, **kwargs: MagicMock(phy=PHY_250K_1M),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["device", "rx", "1"])
+    assert result.exit_code == 1
+    assert "timing_mismatch" in result.output
+    assert not rx_called["value"]

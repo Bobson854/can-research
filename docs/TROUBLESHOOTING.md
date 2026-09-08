@@ -96,16 +96,30 @@ Do **not** reboot the whole system as the first response.
 
 ## D. Stuck capture / session remains recording
 
-**Symptoms:** Capture shows recording; `stop_live_capture` fails; channel stays busy.
+**Symptoms:** Capture shows recording; `stop_live_capture` fails; channel stays busy; zero-frame capture never ends on its own.
 
-**Likely cause:** Local MCP process still holds the WebSocket.
+**Likely causes:**
+
+- Local MCP process still holds the WebSocket
+- Capture worker blocked waiting for the next WebSocket frame (no bus traffic, wrong timing, or idle bus)
+- Previous stop did not release the CANsub channel slot
+
+**What stop does now:**
+
+1. Sets the capture stop flag
+2. Calls `DELETE /api/can/{channel}/ws` on the device to abort the active WebSocket client and unblock any waiting receive
+3. Finalizes the session and removes the in-process registry entry so the channel can be reused
 
 **Recovery:**
 
-1. Try `stop_live_capture` with the session ID
-2. Stop the MCP server process (Ctrl+C in its terminal)
-3. Restart MCP: `uv run canresearch mcp serve ...`
-4. Re-run preflight before new capture
+1. Try `stop_live_capture` with the session ID, or CLI: `uv run canresearch capture stop [<session-id>]`
+2. Confirm the session status is `interrupted` or `completed` and no capture remains active on that channel
+3. Reconnect webCAN on that channel if you need the browser UI again
+4. If stop still fails, stop the MCP server process (Ctrl+C in its terminal)
+5. Restart MCP: `uv run canresearch mcp serve ...`
+6. Re-run preflight (`device timing-check`, `observe_live_traffic`) before a new capture
+
+**Zero-frame captures:** A connected capture with no frames is not automatically an error. If timing preflight passed but you still see zero frames, verify bus traffic and timing in webCAN. Stop should still complete within seconds even when no frames arrive.
 
 Full system reboot is a last resort, not the first fix.
 
