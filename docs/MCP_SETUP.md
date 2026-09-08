@@ -60,7 +60,8 @@ Configure once per machine:
 uv run python scripts\connection_windows.py configure
 ```
 
-This persists namespaced User-level env vars (for example `CANRESEARCH_LOCAL_API_KEY`) and does **not** store secrets in `data/config.toml`.
+This persists namespaced User-level env vars derived from `instance_key` (for example
+`CANRESEARCH_LAPTOP_API_KEY`) and does **not** store secrets in `data/config.toml`.
 
 Normal restart after configuration:
 
@@ -117,8 +118,8 @@ Connection settings belong in the machine-local, gitignored `data/config.toml`.
 
 ```toml
 [instance]
-instance_key = "local"
-display_name = "CAN Research (local)"
+instance_key = "laptop"
+display_name = "CAN Research (laptop)"
 
 [connection]
 kind = "openai-runtime-env"
@@ -126,13 +127,13 @@ mcp_url = "http://127.0.0.1:8765/mcp"
 health_host = "127.0.0.1"
 health_port = 8081
 
-[connection.secrets]
-api_key_env = "CANRESEARCH_LOCAL_API_KEY"
-tunnel_id_env = "CANRESEARCH_LOCAL_TUNNEL_ID"
-
 [tunnel]
 install_dir = "%LOCALAPPDATA%\\CAN Research\\tunnel-client"
 ```
+
+Secret env var names are **derived from `instance_key`** (for example `laptop` →
+`CANRESEARCH_LAPTOP_API_KEY` and `CANRESEARCH_LAPTOP_TUNNEL_ID`). Override only in
+`[connection.secrets]` for advanced/multi-project use.
 
 Run one-time interactive configuration:
 
@@ -140,7 +141,12 @@ Run one-time interactive configuration:
 uv run python scripts\connection_windows.py configure
 ```
 
-API keys and tunnel IDs are stored as Windows User environment variables referenced by `api_key_env` / `tunnel_id_env`. They are **never** written into TOML.
+If you previously persisted generic User-level `CONTROL_PLANE_API_KEY` or
+`CONTROL_PLANE_TUNNEL_ID`, `configure` copies them once into the derived namespaced
+variables without displaying their values. Legacy generic variables are left unchanged.
+
+API keys and tunnel IDs are stored as Windows User environment variables. They are **never**
+written into TOML.
 
 ### Legacy profile metadata (Office / older runtimes)
 

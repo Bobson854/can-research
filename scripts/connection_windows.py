@@ -32,6 +32,9 @@ DEFAULT_INSTALL_DIR = (
 TUNNEL_ID_PATTERN = re.compile(r"^tunnel_[a-z0-9]{32}$")
 CONFIGURE_CMD = "uv run python scripts\\connection_windows.py configure"
 
+LEGACY_API_KEY_ENV = "CONTROL_PLANE_API_KEY"
+LEGACY_TUNNEL_ID_ENV = "CONTROL_PLANE_TUNNEL_ID"
+
 SUPPORTED_KINDS = frozenset({"openai-runtime-env", "openai-profile-legacy"})
 
 
@@ -97,8 +100,13 @@ def settings() -> ConnectionSettings:
     exe = install_dir / "tunnel-client.exe"
     profile = str(tunnel.get("profile", f"can-research-{instance_key}")).strip()
 
-    api_key_env = str(secrets.get("api_key_env", default_api_env)).strip() or default_api_env
-    tunnel_id_env = str(secrets.get("tunnel_id_env", default_tunnel_env)).strip() or default_tunnel_env
+    api_key_env = default_api_env
+    tunnel_id_env = default_tunnel_env
+    if isinstance(secrets, dict):
+        if "api_key_env" in secrets:
+            api_key_env = str(secrets["api_key_env"]).strip() or default_api_env
+        if "tunnel_id_env" in secrets:
+            tunnel_id_env = str(secrets["tunnel_id_env"]).strip() or default_tunnel_env
 
     return ConnectionSettings(
         instance_key=instance_key,
@@ -167,6 +175,36 @@ def redact(value: str | None) -> str:
     if len(value) <= 8:
         return "(set, redacted)"
     return f"(set, {len(value)} chars, redacted)"
+
+
+def migrate_legacy_secrets(cfg: ConnectionSettings) -> tuple[str | None, str | None, list[str]]:
+    """Copy generic User-level OpenAI runtime vars into namespaced vars once.
+
+    Does not read, alter, or delete the legacy generic variables.
+    """
+    messages: list[str] = []
+    api_key = read_user_env(cfg.api_key_env)
+    tunnel_id = read_user_env(cfg.tunnel_id_env)
+
+    if not api_key:
+        legacy_api = read_user_env(LEGACY_API_KEY_ENV)
+        if legacy_api:
+            persist_user_env(cfg.api_key_env, legacy_api)
+            api_key = legacy_api
+            messages.append(
+                f"[OK] Migrated existing persisted API-key reference to {cfg.api_key_env}"
+            )
+
+    if not tunnel_id:
+        legacy_tunnel = read_user_env(LEGACY_TUNNEL_ID_ENV)
+        if legacy_tunnel and TUNNEL_ID_PATTERN.fullmatch(legacy_tunnel):
+            persist_user_env(cfg.tunnel_id_env, legacy_tunnel)
+            tunnel_id = legacy_tunnel
+            messages.append(
+                f"[OK] Migrated existing persisted tunnel identity to {cfg.tunnel_id_env}"
+            )
+
+    return api_key, tunnel_id, messages
 
 
 def runtime_supports_env_model(exe: Path) -> tuple[bool, str]:
@@ -262,7 +300,9 @@ class OpenaiRuntimeEnvBackend(ConnectionBackend):
             return 1
         print("[OK]   OpenAI tunnel runtime supports environment-backed run")
 
-        api_key, tunnel_id = self._read_secrets()
+        api_key, tunnel_id, migrate_messages = migrate_legacy_secrets(self.cfg)
+        for line in migrate_messages:
+            print(line)
 
         if not api_key:
             entered = getpass.getpass(

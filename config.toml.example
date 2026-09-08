@@ -34,12 +34,13 @@ kind = "openai-runtime-env"
 mcp_url = "http://127.0.0.1:8765/mcp"
 health_host = "127.0.0.1"
 health_port = 8081
-
-[connection.secrets]
-# Namespaced User-level Windows env vars (values are NOT stored in this file).
-# Derived from instance_key, e.g. local -> CANRESEARCH_LOCAL_API_KEY
-api_key_env = "CANRESEARCH_LOCAL_API_KEY"
-tunnel_id_env = "CANRESEARCH_LOCAL_TUNNEL_ID"
+# Secret env var names are derived from instance_key above, e.g.:
+#   instance_key = "laptop"  -> CANRESEARCH_LAPTOP_API_KEY / CANRESEARCH_LAPTOP_TUNNEL_ID
+#   instance_key = "office"  -> CANRESEARCH_OFFICE_API_KEY / CANRESEARCH_OFFICE_TUNNEL_ID
+# Optional explicit override for advanced/multi-project use only:
+# [connection.secrets]
+# api_key_env = "CANRESEARCH_CUSTOM_API_KEY"
+# tunnel_id_env = "CANRESEARCH_CUSTOM_TUNNEL_ID"
 
 [tunnel]
 # Legacy profile metadata (Office/profile-based runtimes). Not used by openai-runtime-env.
