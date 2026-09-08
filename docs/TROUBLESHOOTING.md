@@ -117,11 +117,13 @@ Full system reboot is a last resort, not the first fix.
 
 **Checks:**
 
-1. Is `tunnel-client.exe` running?
-2. Correct `--profile` for this machine (`can-research-<instance_key>`)?
-3. Health listener port free (`--health.listen-addr 127.0.0.1:<port>`)?
-4. Local MCP still up at `http://127.0.0.1:8765/mcp`?
-5. Runtime API key / profile still valid (recreate only if lost)
+1. Run `.\status.cmd` — note whether MCP, connection config, secrets, executable, or health failed
+2. Is `tunnel-client.exe` running?
+3. For `openai-runtime-env`: are namespaced User env vars set? Run `uv run python scripts\connection_windows.py configure` if missing
+4. For legacy profile runtimes: correct `--profile` for this machine (`can-research-<instance_key>`)?
+5. Health listener port free (`127.0.0.1:<port>` from `data/config.toml`)?
+6. Local MCP still up at `http://127.0.0.1:8765/mcp`?
+7. Runtime API key / tunnel identity still valid (recreate remote resources only if deliberately lost)
 
 See [MCP_SETUP.md](MCP_SETUP.md) — normal startup vs one-time setup.
 

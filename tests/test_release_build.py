@@ -52,6 +52,7 @@ def test_release_includes_runtime_scripts(release_zip: Path) -> None:
         "scripts/mcp_verify_http.py",
         "scripts/package_skill.py",
         "scripts/tunnel_windows.py",
+        "scripts/connection_windows.py",
     )
     with zipfile.ZipFile(release_zip) as zf:
         names = [n.replace("\\", "/") for n in zf.namelist()]

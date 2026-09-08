@@ -23,28 +23,54 @@ Troubleshoot in that order. Do not delete/recreate the ChatGPT connector just be
 After one-time setup, the normal operator workflow is intentionally one command:
 
 ```cmd
-start-can-research.cmd
+.\start-can-research.cmd
 ```
 
 That script:
 
-1. Reads the per-instance tunnel settings from `data/config.toml`
+1. Reads connection settings from `data/config.toml` (`[connection]` for current runtimes; legacy `[tunnel]` profile metadata for Office)
 2. Starts the CAN Research MCP service if it is not already healthy
 3. Verifies the MCP registry with `scripts/mcp_verify_http.py`
-4. Runs `tunnel-client doctor` before starting a stopped tunnel
-5. Starts the OpenAI tunnel if it is not already running
-6. Waits for the tunnel health listener
-7. Tells the operator to use the **existing** ChatGPT connector
+4. Starts the OpenAI tunnel if the health listener is not already reachable
+5. Waits for the tunnel health listener
+6. Tells the operator to use the **existing** ChatGPT connector
 
 It opens separate foreground windows for the MCP service and OpenAI tunnel. Closing those windows stops the corresponding process.
 
 Check health at any time with:
 
 ```cmd
-status.cmd
+.\status.cmd
 ```
 
-`status.cmd` checks the CLI/config, local MCP endpoint/tool registry, OpenAI tunnel client/health listener, and CANsub.2 reachability.
+`status.cmd` checks the CLI/config, local MCP endpoint/tool registry, OpenAI tunnel connection state, and CANsub.2 reachability.
+
+### Current Laptop / customer OpenAI runtime
+
+The current Windows customer runtime exposes `tunnel-client.exe run` with **environment-backed identity** (not YAML profile `doctor`/`init`):
+
+- `CONTROL_PLANE_API_KEY`
+- `CONTROL_PLANE_TUNNEL_ID`
+- `MCP_SERVER_URL`
+- `HEALTH_LISTEN_ADDR`
+
+Configure once per machine:
+
+```cmd
+uv run python scripts\connection_windows.py configure
+```
+
+This persists namespaced User-level env vars (for example `CANRESEARCH_LOCAL_API_KEY`) and does **not** store secrets in `data/config.toml`.
+
+Normal restart after configuration:
+
+```cmd
+.\start-can-research.cmd
+```
+
+### Legacy Office / profile-based runtime
+
+Installations that predate the environment-backed runtime may still use YAML profile metadata under `[tunnel]` and `tunnel-client run --profile ...`. Those instructions remain **Office-specific / legacy** until separately audited. Do not assume every runtime supports the same CLI flags.
 
 ### Do not recreate after reboot
 
@@ -83,9 +109,40 @@ The source archive/folder can then be removed from Downloads after the permanent
 
 ---
 
-## Per-instance tunnel configuration
+## Per-instance connection configuration
 
-Tunnel runtime settings belong in the machine-local, gitignored `data/config.toml`:
+Connection settings belong in the machine-local, gitignored `data/config.toml`.
+
+### Environment-backed runtime (current Laptop / customer builds)
+
+```toml
+[instance]
+instance_key = "local"
+display_name = "CAN Research (local)"
+
+[connection]
+kind = "openai-runtime-env"
+mcp_url = "http://127.0.0.1:8765/mcp"
+health_host = "127.0.0.1"
+health_port = 8081
+
+[connection.secrets]
+api_key_env = "CANRESEARCH_LOCAL_API_KEY"
+tunnel_id_env = "CANRESEARCH_LOCAL_TUNNEL_ID"
+
+[tunnel]
+install_dir = "%LOCALAPPDATA%\\CAN Research\\tunnel-client"
+```
+
+Run one-time interactive configuration:
+
+```cmd
+uv run python scripts\connection_windows.py configure
+```
+
+API keys and tunnel IDs are stored as Windows User environment variables referenced by `api_key_env` / `tunnel_id_env`. They are **never** written into TOML.
+
+### Legacy profile metadata (Office / older runtimes)
 
 ```toml
 [instance]
@@ -99,13 +156,7 @@ health_port = 8081
 install_dir = "%LOCALAPPDATA%\\CAN Research\\tunnel-client"
 ```
 
-If `[tunnel]` is absent, the Windows helper derives defaults from `instance.instance_key`:
-
-- profile: `can-research-<instance_key>`
-- health listener: `127.0.0.1:8081`
-- install directory: `%LOCALAPPDATA%\CAN Research\tunnel-client`
-
-This keeps older installations working while allowing workshop/travel/office machines to preserve separate tunnel profiles.
+If `[connection]` is absent, Windows startup preserves legacy profile behaviour for existing Office-style installations. New Laptop installs should use `[connection].kind = "openai-runtime-env"` instead.
 
 ---
 
@@ -129,13 +180,19 @@ Edit `data/config.toml` as required, then verify:
 uv run canresearch config show
 ```
 
-### 3. Create the OpenAI tunnel and runtime key
+### 3. Configure the OpenAI tunnel connection
 
-Create one control-plane tunnel per CAN Research machine using the OpenAI Platform tunnel UI. Use the profile convention:
+**Current environment-backed runtime (Laptop / customer builds):**
 
-```text
-can-research-<instance_key>
+Create one control-plane tunnel per CAN Research machine using the OpenAI Platform tunnel UI. Then run:
+
+```cmd
+uv run python scripts\connection_windows.py configure
 ```
+
+The helper prompts only for missing namespaced User env vars, validates tunnel ID format, and persists values with `setx`. Close and reopen terminals only if other apps need the new User env vars immediately.
+
+**Legacy profile-based runtime (Office — until separately audited):**
 
 Persist the runtime API key for the Windows user:
 
@@ -147,7 +204,9 @@ Close the terminal and open a new one after `setx`.
 
 Never commit the API key, tunnel ID, or profile secrets.
 
-### 4. Create the local tunnel profile once
+### 4. Create the local tunnel profile once (legacy profile runtimes only)
+
+Skip this step for `openai-runtime-env` — the configure command above replaces profile initialization.
 
 With the local MCP endpoint running at `http://127.0.0.1:8765/mcp`, initialize the profile using the permanent executable. Example:
 
@@ -205,14 +264,15 @@ Always work inside-out:
 
 | Layer | Check | Recovery |
 |---|---|---|
-| CAN Research | `uv run python scripts/mcp_verify_http.py` | `start-can-research.cmd` |
+| CAN Research | `uv run python scripts/mcp_verify_http.py` | `.\start-can-research.cmd` |
+| Connection config | `uv run python scripts/connection_windows.py status` | `uv run python scripts/connection_windows.py configure` |
 | Tunnel install | `uv run python scripts/tunnel_windows.py show` | `setup.cmd` |
-| Tunnel runtime | `uv run python scripts/tunnel_windows.py status` | `start-can-research.cmd` |
-| Tunnel profile/auth | `tunnel-client doctor --profile ... --explain` | fix profile/API key; do not recreate connector |
+| Tunnel runtime | `.\status.cmd` | `.\start-can-research.cmd` |
+| Legacy tunnel profile/auth | `tunnel-client doctor --profile ... --explain` | fix profile/API key; do not recreate connector |
 | ChatGPT connector | actions/schema visible | refresh/use existing connector after lower layers pass |
 | Backend identity | `get_instance_info` | verify the selected connector/instance |
 
-If `CONTROL_PLANE_API_KEY` was set with `setx` but startup reports it missing, close the current Command Prompt/PowerShell window and open a new one.
+If namespaced env vars were set with `configure` but another app cannot see them yet, close that app or open a new terminal.
 
 If `8081` is occupied, choose another free health port in `data/config.toml` and use the same value for that instance thereafter.
 

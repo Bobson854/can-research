@@ -97,13 +97,19 @@ uv run canresearch config set-host your-device-id-usb.local
 
 ### 5. Start CAN Research
 
-Run **`start-can-research.cmd`** — starts local MCP and the OpenAI tunnel (if not already running). MCP listens at:
+Run **`.\start-can-research.cmd`** — starts local MCP and the OpenAI tunnel (if not already running). MCP listens at:
 
 ```text
 http://127.0.0.1:8765/mcp
 ```
 
-Leave any started service windows open while using AI. Health check: **`status.cmd`**
+First-time OpenAI tunnel setup on current customer runtimes:
+
+```cmd
+uv run python scripts\connection_windows.py configure
+```
+
+Leave any started service windows open while using AI. Health check: **`.\status.cmd`**
 
 ### 6. Connect AI and install bundled Skills
 

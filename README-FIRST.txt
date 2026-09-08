@@ -15,18 +15,21 @@ You do not need Git, Cursor, or a developer IDE.
 
 3. Connect CANsub.2 — docs\CANSUB_SETUP.md
 
-4. Run start-can-research.cmd  (leave that window open)
+4. First-time OpenAI tunnel on current customer runtimes:
+   uv run python scripts\connection_windows.py configure
 
-5. Open docs\AI_INTEGRATION.md — connect your AI frontend
+5. Run .\start-can-research.cmd  (leave that window open)
 
-6. Install bundled Skills from skills\dist\
+6. Open docs\AI_INTEGRATION.md — connect your AI frontend
+
+7. Install bundled Skills from skills\dist\
    - can-onboarding.skill.zip  (install first)
    - can-reference-builder.skill.zip
    - can-signal-research.skill.zip
    Details: docs\SKILL_INSTALLATION.md
 
-7. Start can-onboarding in ChatGPT
+8. Start can-onboarding in ChatGPT
 
-Health check: status.cmd
+Health check: .\status.cmd
 Overview: README.md
 Developers: docs\INSTALLATION.md

@@ -41,22 +41,34 @@ echo --- MCP (http://127.0.0.1:8765/mcp) ---
 uv run python scripts\mcp_verify_http.py --url http://127.0.0.1:8765/mcp
 if errorlevel 1 (
     echo [FAIL] MCP not reachable or tool registry mismatch
-    echo        Run start-can-research.cmd
+    echo        Run .\start-can-research.cmd
     set FAIL=1
 ) else (
     echo [OK]   MCP endpoint healthy
 )
 
 echo.
-echo --- OpenAI tunnel ---
-uv run python scripts\tunnel_windows.py status
-if errorlevel 1 (
-    echo [FAIL] OpenAI tunnel is not ready
-    echo        Run start-can-research.cmd
-    echo        Do NOT recreate the ChatGPT connector just because the tunnel is stopped
+echo --- OpenAI tunnel connection ---
+uv run python scripts\connection_windows.py status
+set CONN_RC=%ERRORLEVEL%
+if %CONN_RC%==0 (
+    echo [OK]   OpenAI tunnel connection healthy
+) else if %CONN_RC%==2 (
+    echo [FAIL] Connection not configured
+    echo        Run: uv run python scripts\connection_windows.py configure
+    set FAIL=1
+) else if %CONN_RC%==3 (
+    echo [FAIL] Persisted API key or tunnel ID missing
+    echo        Run: uv run python scripts\connection_windows.py configure
+    set FAIL=1
+) else if %CONN_RC%==4 (
+    echo [FAIL] Tunnel executable missing - run setup.cmd
     set FAIL=1
 ) else (
-    echo [OK]   OpenAI tunnel health listener reachable
+    echo [FAIL] OpenAI tunnel is not ready
+    echo        Run .\start-can-research.cmd
+    echo        Do NOT recreate the ChatGPT connector just because the tunnel is stopped
+    set FAIL=1
 )
 
 echo.
