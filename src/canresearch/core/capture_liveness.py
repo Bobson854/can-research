@@ -91,7 +91,7 @@ def is_session_live_anywhere(
     """Return True when any capture worker is heartbeating this session."""
     if record.status != SessionStatus.RECORDING:
         return False
-    if record.capture_server_id is None or record.capture_heartbeat_at is None:
+    if record.capture_heartbeat_at is None:
         return False
     current = now or datetime.now(tz=UTC)
     age_s = _heartbeat_age_seconds(record, now=current)
@@ -111,8 +111,6 @@ def is_session_live(
         return False
     if registry is not None and registry.get_active(record.id) is not None:
         return True
-    if record.capture_server_id != get_capture_server_id():
-        return False
     return is_session_live_anywhere(record, now=now)
 
 
@@ -132,6 +130,15 @@ def list_live_captures(
     ]
 
 
+def _reconcile_interrupted_reason(record: SessionRecord, *, startup: bool) -> str:
+    """Choose a machine-readable finalize reason for a stale recording row."""
+    if record.capture_heartbeat_at is None:
+        return "orphaned_capture"
+    if startup:
+        return "service_restart"
+    return "orphaned_capture"
+
+
 @dataclass(frozen=True, slots=True)
 class ReconcileResult:
     reconciled_session_ids: tuple[str, ...]
@@ -149,34 +156,31 @@ def reconcile_orphaned_captures(
     *,
     db_path: Path | None = None,
     registry: LiveCaptureRegistry | None = None,
-    reason: str = "service_restart",
+    reason: str = "orphaned_capture",
     now: datetime | None = None,
     startup: bool = False,
 ) -> ReconcileResult:
-    """Finalize stale recording rows that are not live in this process."""
+    """Finalize recording rows whose heartbeat is missing or stale."""
     current = now or datetime.now(tz=UTC)
     recording = list_sessions_by_status(SessionStatus.RECORDING, db_path=db_path)
     reconciled: list[str] = []
     for record in recording:
         if registry is not None and registry.get_active(record.id) is not None:
             continue
-        if record.capture_server_id == get_capture_server_id():
-            if is_session_live_anywhere(record, now=current):
-                continue
-        elif startup:
-            pass
-        elif is_session_live_anywhere(record, now=current):
+        if is_session_live_anywhere(record, now=current):
             continue
+        interrupted_reason = _reconcile_interrupted_reason(record, startup=startup)
         finalize_session(
             record.id,
             status=SessionStatus.INTERRUPTED,
             frame_count=record.frame_count or 0,
             stopped_at=current,
-            interrupted_reason=reason,
+            interrupted_reason=interrupted_reason,
             db_path=db_path,
         )
         reconciled.append(record.id)
-    return ReconcileResult(reconciled_session_ids=tuple(reconciled), reason=reason)
+    batch_reason = "service_restart" if startup else reason
+    return ReconcileResult(reconciled_session_ids=tuple(reconciled), reason=batch_reason)
 
 
 def require_live_session(

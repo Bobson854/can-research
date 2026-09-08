@@ -10,8 +10,8 @@ import pytest
 from canresearch.cansub.live_capture import LiveCaptureRegistry
 from canresearch.cansub.ws_client import CansubRxResult
 from canresearch.core.capture_liveness import (
+    CAPTURE_HEARTBEAT_STALE_S,
     bind_capture_session,
-    get_capture_server_id,
     is_session_live_anywhere,
     list_live_captures,
     reconcile_orphaned_captures,
@@ -51,23 +51,112 @@ def _create_recording_row(env: dict[str, Path], session_id: str) -> None:
     )
 
 
+def _set_liveness(
+    env: dict[str, Path],
+    session_id: str,
+    *,
+    server_id: str | None,
+    heartbeat_at: datetime | None,
+) -> None:
+    conn = initialize(env["db_path"])
+    try:
+        conn.execute(
+            """
+            UPDATE sessions
+            SET capture_server_id = ?, capture_heartbeat_at = ?
+            WHERE id = ?
+            """,
+            (
+                server_id,
+                heartbeat_at.isoformat() if heartbeat_at is not None else None,
+                session_id,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def test_schema_version_is_v11() -> None:
     assert SCHEMA_VERSION == 11
 
 
-def test_reconcile_stale_recording_rows_on_startup(liveness_env) -> None:
+def test_reconcile_missing_heartbeat_on_startup(liveness_env) -> None:
     _create_recording_row(liveness_env, "stale001")
     reset_capture_server_id_for_tests()
     result = reconcile_orphaned_captures(
         db_path=liveness_env["db_path"],
-        reason="service_restart",
         startup=True,
     )
     assert result.reconciled_session_ids == ("stale001",)
     record = get_session("stale001", db_path=liveness_env["db_path"])
     assert record.status == SessionStatus.INTERRUPTED
     assert record.stopped_at is not None
+    assert record.interrupted_reason == "orphaned_capture"
+
+
+def test_startup_preserves_fresh_heartbeat_from_other_server(liveness_env) -> None:
+    _create_recording_row(liveness_env, "live-other")
+    other_server = "aaaaaaaaaaaaaaaa"
+    fresh = datetime.now(tz=UTC)
+    _set_liveness(
+        liveness_env,
+        "live-other",
+        server_id=other_server,
+        heartbeat_at=fresh,
+    )
+    reset_capture_server_id_for_tests()
+
+    result = reconcile_orphaned_captures(
+        db_path=liveness_env["db_path"],
+        startup=True,
+    )
+
+    assert result.reconciled_session_ids == ()
+    record = get_session("live-other", db_path=liveness_env["db_path"])
+    assert record.status == SessionStatus.RECORDING
+    assert is_session_live_anywhere(record, now=fresh)
+
+
+def test_startup_reconciles_stale_heartbeat_from_other_server(liveness_env) -> None:
+    _create_recording_row(liveness_env, "stale-other")
+    stale = datetime.now(tz=UTC) - timedelta(seconds=CAPTURE_HEARTBEAT_STALE_S + 5)
+    _set_liveness(
+        liveness_env,
+        "stale-other",
+        server_id="bbbbbbbbbbbbbbbb",
+        heartbeat_at=stale,
+    )
+    reset_capture_server_id_for_tests()
+    current = datetime.now(tz=UTC)
+
+    result = reconcile_orphaned_captures(
+        db_path=liveness_env["db_path"],
+        startup=True,
+        now=current,
+    )
+
+    assert result.reconciled_session_ids == ("stale-other",)
+    record = get_session("stale-other", db_path=liveness_env["db_path"])
+    assert record.status == SessionStatus.INTERRUPTED
     assert record.interrupted_reason == "service_restart"
+
+
+def test_manual_reconcile_uses_orphaned_capture_reason(liveness_env) -> None:
+    _create_recording_row(liveness_env, "stale-manual")
+    stale = datetime.now(tz=UTC) - timedelta(seconds=CAPTURE_HEARTBEAT_STALE_S + 1)
+    _set_liveness(
+        liveness_env,
+        "stale-manual",
+        server_id="cccccccccccccccc",
+        heartbeat_at=stale,
+    )
+
+    result = reconcile_orphaned_captures(db_path=liveness_env["db_path"])
+
+    assert result.reconciled_session_ids == ("stale-manual",)
+    record = get_session("stale-manual", db_path=liveness_env["db_path"])
+    assert record.interrupted_reason == "orphaned_capture"
 
 
 def test_reconcile_is_idempotent(liveness_env) -> None:
