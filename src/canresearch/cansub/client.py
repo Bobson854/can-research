@@ -199,6 +199,56 @@ class CansubClient:
             )
         return self._decode_json(body)
 
+    def put_json(self, path: str, payload: dict[str, Any]) -> Any:
+        """PUT a JSON payload and return the decoded response body when present."""
+        url = f"{self._base_url()}{path}"
+        body = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=body,
+            method="PUT",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with self._urlopen(
+                request, timeout=self.timeout, context=self._ssl_context()
+            ) as response:
+                status = getattr(response, "status", 200)
+                response_body = response.read()
+        except urllib.error.HTTPError as exc:
+            raise CansubApiError(
+                f"CANsub.2 API request failed ({exc.code}) for {path}",
+                status_code=exc.code,
+            ) from exc
+        except urllib.error.URLError as exc:
+            reason = exc.reason
+            if isinstance(reason, TimeoutError):
+                msg = f"Unable to connect to CANsub.2 at {self.host}: timeout"
+            elif isinstance(reason, ConnectionRefusedError):
+                msg = f"Unable to connect to CANsub.2 at {self.host}: connection refused"
+            elif isinstance(reason, socket.gaierror):
+                msg = f"Unable to resolve CANsub.2 host {self.host}: {reason}"
+            else:
+                msg = f"Unable to connect to CANsub.2 at {self.host}: {reason}"
+            raise CansubConnectionError(msg) from exc
+        if status != 200:
+            raise CansubApiError(
+                f"CANsub.2 API request failed with status {status} for {path}",
+                status_code=status,
+            )
+        if not response_body:
+            return None
+        return self._decode_json(response_body)
+
+    def set_channel_phy(self, channel: int, phy: dict[str, Any]) -> dict[str, Any]:
+        """PUT /api/can/{channel}/phy — set channel PHY configuration."""
+        payload = self.put_json(f"/api/can/{channel}/phy", phy)
+        if not isinstance(payload, dict):
+            raise CansubIdentificationError(
+                f"Unexpected CANsub.2 channel {channel} PHY PUT response: expected object"
+            )
+        return payload
+
     def get_channel_status(self, channel: int) -> dict[str, Any]:
         """GET /api/can/{channel} — returns channel status object."""
         payload = self.get_json(f"/api/can/{channel}")

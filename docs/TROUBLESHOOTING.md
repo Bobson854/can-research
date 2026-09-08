@@ -157,14 +157,29 @@ Usually **`channel_rx_in_use`** — webCAN owns the channel MCP needs.
 
 ## H. Wrong channel / bitrate / physical connection
 
-**Symptoms:** Frames on webCAN but not on MCP channel; garbage/error frames; bus errors climbing.
+**Symptoms:** Frames on webCAN but not on MCP channel; zero-frame captures; `error_active`
+state; garbage/error frames; bus errors climbing.
 
 **Checks:**
 
 1. MCP using same physical channel as working webCAN view
-2. Bitrate and `listen_only` match working bench configuration
-3. `get_cansub_channel_status` — compare counters and state
-4. Swap channel 1 ↔ 2 test if wiring unclear
+2. **Timing preflight** — if `[cansub.channels.<n>]` is configured:
+   ```powershell
+   uv run canresearch device timing-check <n>
+   ```
+   A `timing_mismatch` error means CANsub PHY bitrates differ from config — correct
+   timing in webCAN, then re-check. This is **not** `channel_rx_in_use`.
+3. Bitrate and `listen_only` match working bench configuration
+4. `get_cansub_channel_status` — compare counters, `timing_preflight`, and state
+5. Swap channel 1 ↔ 2 test if wiring unclear
+
+**Distinct errors:**
+
+| Error | Meaning |
+|-------|---------|
+| `timing_mismatch` | Device PHY ≠ configured expected nominal/data bitrate |
+| `timing_unknown` | Expected timing configured but device PHY could not be verified |
+| `channel_rx_in_use` | Another WebSocket client owns the channel (webCAN, other capture) |
 
 ---
 

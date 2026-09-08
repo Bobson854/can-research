@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from canresearch.cansub.timing import ChannelTimingExpectation
 
 INSTANCE_KEY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -35,6 +37,7 @@ class CansubConfig:
     host: str | None = None
     timeout: float = 5.0
     verify_tls: bool = False
+    channels: dict[int, ChannelTimingExpectation] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -160,7 +163,79 @@ def _parse_cansub_section(raw: dict[str, Any]) -> CansubConfig:
         raise ConfigError("[cansub].verify_tls must be a boolean")
 
     cleaned_host = host.strip() if isinstance(host, str) and host.strip() else None
-    return CansubConfig(host=cleaned_host, timeout=float(timeout), verify_tls=verify_tls)
+    channels = _parse_cansub_channels(raw.get("channels"))
+    return CansubConfig(
+        host=cleaned_host,
+        timeout=float(timeout),
+        verify_tls=verify_tls,
+        channels=channels,
+    )
+
+
+def _parse_cansub_channels(raw: Any) -> dict[int, ChannelTimingExpectation]:
+    if not isinstance(raw, dict):
+        return {}
+    channels: dict[int, ChannelTimingExpectation] = {}
+    for key, value in raw.items():
+        if not isinstance(value, dict):
+            continue
+        try:
+            channel = int(str(key).strip())
+        except ValueError:
+            raise ConfigError(f"[cansub.channels.{key}] channel key must be an integer") from None
+        if channel <= 0:
+            raise ConfigError(f"[cansub.channels.{key}] channel must be positive")
+        nominal = value.get("nominal_bitrate")
+        if nominal is None:
+            raise ConfigError(
+                f"[cansub.channels.{key}] nominal_bitrate is required when a channel block is present"
+            )
+        if not isinstance(nominal, int) or nominal <= 0:
+            raise ConfigError(f"[cansub.channels.{key}] nominal_bitrate must be a positive integer")
+        data = value.get("data_bitrate")
+        if data is not None and (not isinstance(data, int) or data <= 0):
+            raise ConfigError(f"[cansub.channels.{key}] data_bitrate must be a positive integer")
+        timing = _parse_timing_table(value.get("timing"), f"[cansub.channels.{key}].timing")
+        timing_data = _parse_timing_table(
+            value.get("timing_data"),
+            f"[cansub.channels.{key}].timing_data",
+        )
+        listen_only = value.get("listen_only")
+        if listen_only is not None and not isinstance(listen_only, bool):
+            raise ConfigError(f"[cansub.channels.{key}] listen_only must be a boolean")
+        auto_reset = value.get("auto_reset")
+        if auto_reset is not None and not isinstance(auto_reset, bool):
+            raise ConfigError(f"[cansub.channels.{key}] auto_reset must be a boolean")
+        error_frames = value.get("error_frames")
+        if error_frames is not None and not isinstance(error_frames, bool):
+            raise ConfigError(f"[cansub.channels.{key}] error_frames must be a boolean")
+        channels[channel] = ChannelTimingExpectation(
+            channel=channel,
+            nominal_bitrate=nominal,
+            data_bitrate=data,
+            timing=timing,
+            timing_data=timing_data,
+            listen_only=listen_only,
+            auto_reset=auto_reset,
+            error_frames=error_frames,
+        )
+    return channels
+
+
+def _parse_timing_table(raw: Any, path: str) -> dict[str, int] | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{path} must be a table")
+    parsed: dict[str, int] = {}
+    for key in ("brp", "seg1", "seg2", "sjw"):
+        if key not in raw:
+            raise ConfigError(f"{path}.{key} is required when timing is specified")
+        value = raw[key]
+        if not isinstance(value, int) or value <= 0:
+            raise ConfigError(f"{path}.{key} must be a positive integer")
+        parsed[key] = value
+    return parsed
 
 
 def save_config(config: AppConfig, path: Path | None = None) -> Path:
@@ -186,8 +261,40 @@ def _render_config(config: AppConfig) -> str:
         lines.append(f"host = {_toml_string(config.cansub.host)}")
     lines.append(f"timeout = {config.cansub.timeout:g}")
     lines.append(f"verify_tls = {'true' if config.cansub.verify_tls else 'false'}")
+    for channel in sorted(config.cansub.channels):
+        expectation = config.cansub.channels[channel]
+        lines.append("")
+        lines.append(f"[cansub.channels.{channel}]")
+        lines.append(f"nominal_bitrate = {expectation.nominal_bitrate}")
+        if expectation.data_bitrate is not None:
+            lines.append(f"data_bitrate = {expectation.data_bitrate}")
+        if expectation.timing is not None:
+            lines.append(
+                "timing = "
+                + _render_inline_table(expectation.timing, ("brp", "seg1", "seg2", "sjw"))
+            )
+        if expectation.timing_data is not None:
+            lines.append(
+                "timing_data = "
+                + _render_inline_table(expectation.timing_data, ("brp", "seg1", "seg2", "sjw"))
+            )
+        if expectation.listen_only is not None:
+            lines.append(
+                f"listen_only = {'true' if expectation.listen_only else 'false'}"
+            )
+        if expectation.auto_reset is not None:
+            lines.append(f"auto_reset = {'true' if expectation.auto_reset else 'false'}")
+        if expectation.error_frames is not None:
+            lines.append(
+                f"error_frames = {'true' if expectation.error_frames else 'false'}"
+            )
     lines.append("")
     return "\n".join(lines)
+
+
+def _render_inline_table(values: dict[str, int], keys: tuple[str, ...]) -> str:
+    inner = ", ".join(f'{key} = {values[key]}' for key in keys)
+    return "{" + inner + "}"
 
 
 def _toml_string(value: str) -> str:

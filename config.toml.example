@@ -27,6 +27,22 @@ host = "your-device-id-usb.local"
 timeout = 5.0
 verify_tls = false
 
+# Optional per-channel expected CAN timing (enables capture preflight).
+# Declare nominal and data bitrates for each wired channel used in research.
+# When configured, live capture and observe_live_traffic refuse to start on mismatch.
+#
+# Office / CAN1 example (500 kbit/s nominal, 1 Mbit/s data):
+#
+# [cansub.channels.1]
+# nominal_bitrate = 500000
+# data_bitrate = 1000000
+#
+# Optional explicit PHY segments for `device apply-phy-timing --yes`
+# (copy from `canresearch device channel-info 1` or webCAN when needed):
+#
+# timing = { brp = 2, seg1 = 63, seg2 = 16, sjw = 4 }
+# timing_data = { brp = 4, seg1 = 15, seg2 = 4, sjw = 4 }
+
 [connection]
 # Windows tunnel connection backend for this machine.
 # Current Laptop/customer OpenAI runtime: environment-backed `run` (no YAML profile).

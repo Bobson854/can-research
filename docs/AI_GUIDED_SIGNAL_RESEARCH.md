@@ -135,7 +135,7 @@ Only request a physical experiment when it is expected to **materially reduce am
 
 | Stage | Deterministic inputs (MCP / CLI) | Generative role |
 |-------|----------------------------------|-----------------|
-| CONNECT | `get_cansub_device_status`, `get_cansub_channel_status`, `get_instance_info` | Verify correct backend when multiple connectors exist |
+| CONNECT | `get_cansub_device_status`, `get_cansub_channel_status`, `get_instance_info` | Verify correct backend; confirm `timing_preflight` is match when channel expectations are configured |
 | DEFINE ASSET | `list_assets`, `get_asset`, session/asset association | Choose scope; never mix assets silently |
 | OBSERVE TRAFFIC | `observe_live_traffic`, `start_live_capture` / `stop_live_capture` | Decide duration; avoid raw dumps to user |
 | APPLY REFERENCE | `lookup_pgn`, `lookup_spn`, `analyze_session`, `decode_session` | Map documented traffic; exclude from proprietary search |

@@ -98,6 +98,15 @@ class LiveCaptureRegistry:
         store: CaptureStore | None = None,
         connect: ConnectFn | None = None,
     ) -> dict[str, object]:
+        from canresearch.core.timing_preflight import enforce_channel_timing_preflight
+
+        enforce_channel_timing_preflight(
+            host,
+            channel,
+            timeout=timeout,
+            verify_tls=verify_tls,
+        )
+
         with self._lock:
             if channel in self._by_channel:
                 active_id = self._by_channel[channel]

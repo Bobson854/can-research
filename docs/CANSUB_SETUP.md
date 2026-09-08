@@ -51,7 +51,38 @@ Choose the channel wired to your bus. MCP and CLI capture use `--channel <n>`.
 ## Bitrate and PHY timing
 
 CAN bitrate and timing are configured on the CANsub (via webCAN or vendor tools). CAN
-Research reads PHY timing read-only via REST — it does not change bus timing.
+Research reads PHY timing read-only via REST — it does not change bus timing during
+capture or MCP observation.
+
+### Declare expected timing (one-time onboarding)
+
+Add per-channel expected bitrates to `data/config.toml` so live capture can refuse
+**before** starting empty or error-active sessions on a mismatched bus:
+
+```toml
+[cansub.channels.1]
+nominal_bitrate = 500000
+data_bitrate = 1000000
+```
+
+When configured, `start_live_capture`, `observe_live_traffic`, and CLI `capture start`
+check device PHY timing first. A mismatch is a **timing preflight failure** — not a
+tunnel, MCP, or connector problem.
+
+```powershell
+uv run canresearch device timing-check 1
+uv run canresearch device channel-info 1
+```
+
+Optional explicit apply (device configuration — requires `--yes`, never automatic):
+
+```powershell
+uv run canresearch device apply-phy-timing 1 --yes
+```
+
+Prefer webCAN when bitrates are not in a known preset. CAN Research remains passive
+RX-only; applying PHY timing is a documented REST `PUT /api/can/{channel}/phy` operation,
+not CAN frame transmission.
 
 Verify channel status shows expected bus state before research:
 
@@ -138,8 +169,12 @@ Preflight before capture:
 
 ```text
 get_instance_info → get_cansub_device_status → get_cansub_channel_status
-  → observe_live_traffic → confirm frames → start_live_capture
+  → timing preflight (expected vs actual) → observe_live_traffic
+  → confirm frames → start_live_capture
 ```
+
+`get_cansub_channel_status` includes a `timing_preflight` summary when timing
+expectations are configured.
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for decision logic when things fail.
 

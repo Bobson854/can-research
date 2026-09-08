@@ -72,6 +72,15 @@ def run_capture(
     interrupted: bool = False,
 ) -> CaptureResult:
     """Create a session, receive frames, and persist them to a file-backed store."""
+    from canresearch.core.timing_preflight import enforce_channel_timing_preflight
+
+    enforce_channel_timing_preflight(
+        host,
+        channel,
+        timeout=timeout,
+        verify_tls=verify_tls,
+    )
+
     if duration <= 0:
         msg = "Duration must be positive"
         raise ValueError(msg)

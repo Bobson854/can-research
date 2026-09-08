@@ -135,6 +135,120 @@ def _print_channel_info(host: str, channel: int, timeout: float, verify_tls: boo
             click.echo(f"Timing:      {info.phy['timing']}")
         if "timing_data" in info.phy:
             click.echo(f"Timing data: {info.phy['timing_data']}")
+    _print_timing_preflight(host, channel, timeout, verify_tls)
+
+
+def _print_timing_preflight(
+    host: str,
+    channel: int,
+    timeout: float,
+    verify_tls: bool,
+) -> None:
+    from canresearch.core.timing_preflight import check_channel_timing_preflight
+
+    result = check_channel_timing_preflight(
+        host,
+        channel,
+        timeout=timeout,
+        verify_tls=verify_tls,
+    )
+    click.echo("")
+    click.echo("Timing preflight")
+    if result.expected_summary:
+        click.echo(f"Expected: {result.expected_summary}")
+    else:
+        click.echo("Expected: (not configured)")
+    click.echo(f"Actual:   {result.actual_summary}")
+    click.echo(f"Timing:   {result.state.value}")
+    if result.state.value not in {"match", "not_configured"}:
+        click.echo(result.remediation)
+
+
+@device_group.command("timing-check")
+@click.argument("channel", type=int)
+@click.option("--host", default=None, help="CANsub.2 host/IP (overrides config).")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout in seconds.")
+def device_timing_check(channel: int, host: str | None, timeout: float | None) -> None:
+    """Check configured vs device-reported CAN timing for a channel."""
+    resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    _print_timing_preflight(resolved_host, channel, resolved_timeout, verify_tls)
+
+
+@device_group.command("apply-phy-timing")
+@click.argument("channel", type=int)
+@click.option("--host", default=None, help="CANsub.2 host/IP (overrides config).")
+@click.option("--timeout", default=None, type=float, help="HTTP timeout in seconds.")
+@click.option(
+    "--yes",
+    is_flag=True,
+    help="Apply configured PHY timing to the device (required).",
+)
+def device_apply_phy_timing(
+    channel: int,
+    host: str | None,
+    timeout: float | None,
+    yes: bool,
+) -> None:
+    """Apply configured channel PHY timing via CANsub REST PUT (device configuration)."""
+    from canresearch.cansub.client import CansubClient
+    from canresearch.cansub.exceptions import CansubError
+    from canresearch.cansub.timing import resolve_apply_phy_payload
+    from canresearch.config import default_config_path, load_config
+    from canresearch.core.timing_preflight import check_channel_timing_preflight
+
+    if not yes:
+        raise SystemExit(
+            "Refusing to change device PHY timing without --yes.\n"
+            "This is a device-configuration operation — review the planned change first."
+        )
+
+    resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
+    config = load_config(default_config_path())
+    expectation = config.cansub.channels.get(channel)
+    if expectation is None:
+        raise SystemExit(
+            f"No configured timing for channel {channel}. "
+            f"Add [cansub.channels.{channel}] to data/config.toml first."
+        )
+
+    client = CansubClient(resolved_host, timeout=resolved_timeout, verify_tls=verify_tls)
+    try:
+        current_phy = client.get_channel_phy(channel)
+        payload = resolve_apply_phy_payload(expectation, current_phy)
+        if payload is None:
+            raise SystemExit(
+                "Configured bitrates do not map to a known CANsub timing preset and no "
+                "explicit timing/timing_data tables were provided in config.\n"
+                "Add timing segments copied from webCAN GET /phy, or configure timing in webCAN."
+            )
+        before = check_channel_timing_preflight(
+            resolved_host,
+            channel,
+            timeout=resolved_timeout,
+            verify_tls=verify_tls,
+            client=client,
+        )
+        click.echo("Planned PHY change (PUT /api/can/{channel}/phy):")
+        click.echo(f"  Channel:  {channel}")
+        click.echo(f"  Host:     {resolved_host}")
+        click.echo(f"  Expected: {expectation.expected_summary()}")
+        click.echo(f"  Current:  {before.actual_summary}")
+        click.echo(f"  Payload:  {payload}")
+        client.set_channel_phy(channel, payload)
+        after = check_channel_timing_preflight(
+            resolved_host,
+            channel,
+            timeout=resolved_timeout,
+            verify_tls=verify_tls,
+            client=client,
+        )
+    except CansubError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    click.echo("")
+    click.echo(f"Applied PHY timing on channel {channel}.")
+    click.echo(f"Actual: {after.actual_summary}")
+    click.echo(f"Timing: {after.state.value}")
 
 
 @device_group.command("rx")
@@ -249,6 +363,14 @@ def config_show() -> None:
     click.echo(f"host = {config.cansub.host or '(not set)'}")
     click.echo(f"timeout = {config.cansub.timeout:g}")
     click.echo(f"verify_tls = {'true' if config.cansub.verify_tls else 'false'}")
+    if config.cansub.channels:
+        click.echo("")
+        click.echo("[cansub.channels]")
+        for channel in sorted(config.cansub.channels):
+            expectation = config.cansub.channels[channel]
+            click.echo(f"  [{channel}] expected = {expectation.expected_summary()}")
+    else:
+        click.echo("channel timing expectations = (not configured)")
 
 
 @config_group.command("set-instance")

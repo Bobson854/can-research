@@ -144,6 +144,17 @@ def get_cansub_channel_status(
     }
     if status.phy is not None:
         result["phy"] = status.phy
+
+    from canresearch.core.timing_preflight import check_channel_timing_preflight
+
+    timing = check_channel_timing_preflight(
+        host,
+        channel,
+        timeout=timeout,
+        verify_tls=verify_tls,
+        phy=status.phy,
+    )
+    result["timing_preflight"] = timing.to_dict()
     return result
 
 
@@ -176,6 +187,15 @@ def observe_live_traffic(
     registry: LiveCaptureRegistry | None = None,
 ) -> dict[str, Any]:
     """Observe live CAN traffic for a bounded duration; return aggregated summary."""
+    from canresearch.core.timing_preflight import enforce_channel_timing_preflight
+
+    enforce_channel_timing_preflight(
+        host,
+        channel,
+        timeout=timeout,
+        verify_tls=verify_tls,
+    )
+
     if duration_seconds < MIN_OBSERVE_DURATION_S or duration_seconds > MAX_OBSERVE_DURATION_S:
         msg = (
             f"duration_seconds must be between {MIN_OBSERVE_DURATION_S} and "
