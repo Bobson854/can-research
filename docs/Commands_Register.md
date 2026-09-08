@@ -12,6 +12,12 @@ Canonical user docs: [INSTALLATION.md](INSTALLATION.md) · [MCP_SETUP.md](MCP_SE
 ```cmd
 cd /d C:\dev\Can_Research\Can-Research_V1\can-research
 ```
+New Laptop Start Commands
+cd C:\dev\Can-Research\Can-ResearchV1\can-research
+.\start-can-research.cmd
+
+
+
 
 ### One-command AI startup
 
