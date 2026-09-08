@@ -84,8 +84,8 @@ def _confirm(
     return created.id
 
 
-def test_schema_version_is_v9() -> None:
-    assert SCHEMA_VERSION == 9
+def test_schema_version_is_v10() -> None:
+    assert SCHEMA_VERSION == 10
 
 
 class TestClassicPayloadBounds:

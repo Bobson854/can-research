@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -540,6 +540,9 @@ MIGRATIONS: dict[int, str] = {
         CREATE INDEX IF NOT EXISTS idx_ref_knowledge_families_source
             ON reference_knowledge_message_families(source_key);
     """,
+    10: """
+        ALTER TABLE session_events ADD COLUMN origin TEXT;
+    """,
 }
 
 
@@ -549,6 +552,7 @@ def connect(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
@@ -587,6 +591,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v8(conn)
         elif version == 9:
             _migrate_v9(conn)
+        elif version == 10:
+            _migrate_v10(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -664,6 +670,16 @@ def _migrate_v9(conn: sqlite3.Connection) -> None:
     if _table_exists(conn, "reference_knowledge_messages"):
         return
     conn.executescript(MIGRATIONS[9])
+
+
+def _migrate_v10(conn: sqlite3.Connection) -> None:
+    """Add origin metadata to session experiment markers."""
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(session_events)").fetchall()
+    }
+    if "origin" not in columns:
+        conn.execute("ALTER TABLE session_events ADD COLUMN origin TEXT")
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:

@@ -208,6 +208,7 @@ The agent may blend classes (e.g. boolean PTO + monotonic hydraulic pressure) bu
 - If two candidates remain, design the **next experiment specifically to separate them**.
 - Do **not** ask the operator for unnecessary actions.
 - Use **event markers** (`mark_experiment_event`) at stable states before/after transitions.
+- Operators may also use the **local capture marker companion** (`marker-companion.cmd`) during live capture for precise host-side timestamps without MCP round-trips. Companion markers set `origin=local_companion` and appear in the same `session_events` store. See [MARKER_COMPANION.md](MARKER_COMPANION.md).
 
 ### Pattern catalogue
 

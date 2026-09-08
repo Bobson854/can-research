@@ -943,7 +943,22 @@ def session_event_list(session_id: str) -> None:
     click.echo(f"Experiment events for session {session_id}")
     for event in events:
         notes = f"  ({event['notes']})" if event.get("notes") else ""
-        click.echo(f"  {event['timestamp']}  {event['label']}{notes}")
+        origin = event.get("origin")
+        origin_suffix = f"  [{origin}]" if origin else ""
+        click.echo(f"  {event['timestamp']}  {event['label']}{notes}{origin_suffix}")
+
+
+@session_group.command("marker-companion")
+@click.option(
+    "--session-id",
+    default=None,
+    help="Attach to a specific recording session (when multiple captures are active).",
+)
+def session_marker_companion(session_id: str | None) -> None:
+    """Open the passive local capture marker companion window."""
+    from canresearch.marker_companion.gui import launch_companion
+
+    raise SystemExit(launch_companion(session_id=session_id))
 
 
 @session_group.command("compare")

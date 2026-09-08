@@ -19,6 +19,7 @@ class SessionEvent:
     timestamp_us: int
     label: str
     notes: str | None
+    origin: str | None
     created_at: datetime
 
 
@@ -36,6 +37,7 @@ def add_session_event(
     *,
     notes: str | None = None,
     timestamp_us: int | None = None,
+    origin: str | None = None,
     db_path: Path | None = None,
 ) -> SessionEvent:
     """Persist an experiment marker against a session."""
@@ -56,10 +58,12 @@ def add_session_event(
     try:
         conn.execute(
             """
-            INSERT INTO session_events (id, session_id, timestamp_us, label, notes, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO session_events (
+                id, session_id, timestamp_us, label, notes, origin, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (event_id, session_id, ts, cleaned, notes, _utc_now_iso()),
+            (event_id, session_id, ts, cleaned, notes, origin, _utc_now_iso()),
         )
         conn.commit()
         row = conn.execute(
@@ -131,11 +135,14 @@ def get_session_event_by_label(
 
 
 def _row_to_event(row: sqlite3.Row) -> SessionEvent:
+    keys = row.keys()
+    origin = row["origin"] if "origin" in keys else None
     return SessionEvent(
         id=row["id"],
         session_id=row["session_id"],
         timestamp_us=int(row["timestamp_us"]),
         label=row["label"],
         notes=row["notes"],
+        origin=origin,
         created_at=_parse_datetime(row["created_at"]),
     )

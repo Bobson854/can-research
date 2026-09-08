@@ -28,6 +28,27 @@ Do not start `start_live_capture` when observation shows no traffic or when
 6. **Name events consistently** — e.g. `baseline_start`, `left_full`, `centre_return`, `right_full`.
 7. **Baseline first** — always capture a neutral/idle window when applicable.
 8. **Mark known physical disturbances** — place event markers immediately before/after operator-visible movement, valve travel, pressure change, or HMI setpoint edits so offline windows align with ground truth.
+
+## Local capture marker companion
+
+During **live capture**, the operator may use the Windows **marker companion**
+(`marker-companion.cmd` / `uv run canresearch session marker-companion`) to record precise
+local annotations without chat or MCP timing:
+
+| Label | Typical use |
+|-------|-------------|
+| `baseline` | Stable idle / neutral state |
+| `page_opened` | Operator opened a screen or panel |
+| `node_selected` | Tree/list selection changed |
+| `save_pressed` | Save/commit action started |
+| `save_complete` | Save/commit finished |
+| `action` | General deliberate physical or UI action |
+
+Companion markers set `origin=local_companion` and are stored in the same `session_events`
+table as MCP `mark_experiment_event` markers. Prefer the companion when operator timing
+must be precise; prefer MCP markers when the agent orchestrates the experiment remotely.
+
+See [MARKER_COMPANION.md](../../../docs/MARKER_COMPANION.md).
 9. **Prefer measured cadence** — use observed frame period and effective movement resolution from the capture; do not assume PLC scan time, tick interval, or configured cycle time equals endpoint timing on the bus.
 
 ## Boolean / discrete

@@ -130,6 +130,10 @@ Physical machine actions remain human-in-the-loop.
 | `start_live_capture` / `stop_live_capture` | Passive session capture |
 | `mark_experiment_event` / `compare_experiment_windows` | Experiment windows |
 
+**Local marker companion (passive):** During live capture, operators can record precise
+annotations from **`marker-companion.cmd`** without MCP or chat timing. See
+[MARKER_COMPANION.md](MARKER_COMPANION.md).
+
 Preflight before capture:
 
 ```text

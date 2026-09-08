@@ -340,6 +340,7 @@ def _event_dict(event: SessionEvent) -> dict[str, Any]:
         "timestamp_us": event.timestamp_us,
         "label": event.label,
         "notes": event.notes,
+        "origin": event.origin,
         "created_at": event.created_at.isoformat(),
     }
 

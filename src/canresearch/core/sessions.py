@@ -255,6 +255,27 @@ def list_sessions(*, db_path: Path | None = None, limit: int = 50) -> list[Sessi
     return [_row_to_record(row) for row in rows]
 
 
+def list_sessions_by_status(
+    status: SessionStatus,
+    *,
+    db_path: Path | None = None,
+) -> list[SessionRecord]:
+    """Return sessions with a given status, newest first."""
+    conn = initialize(db_path or default_db_path())
+    try:
+        rows = conn.execute(
+            """
+            SELECT * FROM sessions
+            WHERE status = ?
+            ORDER BY started_at DESC, id ASC
+            """,
+            (status.value,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [_row_to_record(row) for row in rows]
+
+
 def summarize_session(session_id: str, *, db_path: Path | None = None) -> dict[str, Any]:
     """Produce a summary for a capture session."""
     record = get_session(session_id, db_path=db_path)

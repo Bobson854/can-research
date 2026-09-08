@@ -69,8 +69,8 @@ def live_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return {"db_path": db_path, "sessions_dir": sessions_dir}
 
 
-def test_schema_version_is_v9() -> None:
-    assert SCHEMA_VERSION == 9
+def test_schema_version_is_v10() -> None:
+    assert SCHEMA_VERSION == 10
 
 
 def test_session_events_table(live_env) -> None:

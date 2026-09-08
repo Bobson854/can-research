@@ -8,8 +8,8 @@ import pytest
 from canresearch.storage.database import SCHEMA_VERSION, get_schema_version, initialize
 
 
-def test_schema_version_is_v9() -> None:
-    assert SCHEMA_VERSION == 9
+def test_schema_version_is_v10() -> None:
+    assert SCHEMA_VERSION == 10
 
 
 def test_v2_tables_created(tmp_path: Path) -> None:

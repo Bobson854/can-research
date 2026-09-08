@@ -219,7 +219,7 @@ Details: [REFERENCE_DATA.md](docs/REFERENCE_DATA.md) · [AI_GUIDED_SIGNAL_RESEAR
 | Reference | J1939/ISOBUS PDF catalogue; source registry + Reference Bundle V1 import |
 | DBC | Library register/inspect/coverage; `<asset>_standard.dbc` / `<asset>_research.dbc` |
 | MCP | **41 tools** (28 read-only · 7 live/passive · 6 signal research) — verify with `uv run canresearch mcp tools` |
-| Database schema | **v9** (`get_instance_info` reports current version) |
+| Database schema | **v10** (`get_instance_info` reports current version) |
 | GUI | None — CLI-first |
 
 Milestone history: [docs/V1_SCOPE.md](docs/V1_SCOPE.md). Bench/deployment records:
@@ -236,7 +236,7 @@ Milestone history: [docs/V1_SCOPE.md](docs/V1_SCOPE.md). Bench/deployment record
 | Capture | SQLite metadata + JSONL frames under `{data_dir}/sessions/` |
 | Configuration | `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
 | MCP | Passive analysis substrate for AI Skills |
-| Storage | SQLite schema v9; frames outside SQLite |
+| Storage | SQLite schema v10; frames outside SQLite |
 
 ## Licensed / private data
 

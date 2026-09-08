@@ -38,6 +38,7 @@ ROOT_FILES = (
     "setup.cmd",
     "start-can-research.cmd",
     "status.cmd",
+    "marker-companion.cmd",
     "pyproject.toml",
     "uv.lock",
     "config.toml.example",
@@ -56,6 +57,7 @@ RELEASE_SCRIPT_FILES = (
     "package_skill.py",
     "tunnel_windows.py",
     "connection_windows.py",
+    "marker_companion.py",
 )
 
 # Paths that must never appear inside the release artifact.
@@ -80,6 +82,7 @@ REQUIRED_ZIP_SUFFIXES = (
     "setup.cmd",
     "start-can-research.cmd",
     "status.cmd",
+    "marker-companion.cmd",
     "pyproject.toml",
     "uv.lock",
     "config.toml.example",
@@ -91,6 +94,7 @@ REQUIRED_ZIP_SUFFIXES = (
     "scripts/package_skill.py",
     "scripts/tunnel_windows.py",
     "scripts/connection_windows.py",
+    "scripts/marker_companion.py",
     "skills/dist/can-onboarding.skill.zip",
     "skills/dist/can-reference-builder.skill.zip",
     "skills/dist/can-signal-research.skill.zip",
