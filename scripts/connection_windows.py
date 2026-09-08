@@ -594,6 +594,13 @@ def emit_env_cmd() -> int:
     return 0
 
 
+def run_tunnel_process(argv: list[str], env: dict[str, str] | None, cwd: Path | None) -> int:
+    """Run tunnel-client in the foreground with inherited stdio."""
+    run_cwd = str(cwd) if cwd is not None and cwd.exists() else None
+    result = subprocess.run(argv, env=env, cwd=run_cwd)
+    return int(result.returncode)
+
+
 def run_tunnel_cmd() -> int:
     cfg = settings()
     backend = get_backend(cfg)
@@ -608,10 +615,10 @@ def run_tunnel_cmd() -> int:
             print(f"       Next: {CONFIGURE_CMD}")
             return 3
         argv = backend.launch_argv()
-        os.execve(argv[0], argv, env)
+        return run_tunnel_process(argv, env, cfg.install_dir)
+
     argv = backend.launch_argv()
-    os.execv(argv[0], argv)
-    return 1  # unreachable after exec
+    return run_tunnel_process(argv, None, cfg.install_dir)
 
 
 def wait_health_cmd(timeout_s: float) -> int:

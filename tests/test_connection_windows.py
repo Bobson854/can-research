@@ -470,3 +470,70 @@ def test_configure_namespaced_values_precede_legacy(
     assert namespaced_key not in out
     assert namespaced_tunnel not in out
     assert "sk-legacy-should-not-win" not in out
+
+
+def test_run_tunnel_launches_subprocess_with_child_env(
+    config_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    install = _install_runtime_config(config_dir, tmp_path, instance_key="laptop")
+    cfg = cw.settings()
+    secret_key = "sk-run-tunnel-secret-key-value"
+    secret_tunnel = "tunnel_" + "a" * 32
+    monkeypatch.setenv(cfg.api_key_env, secret_key)
+    monkeypatch.setenv(cfg.tunnel_id_env, secret_tunnel)
+
+    completed = subprocess.CompletedProcess(args=["run"], returncode=0)
+
+    with patch.object(cw.subprocess, "run", return_value=completed) as run:
+        code = cw.run_tunnel_cmd()
+
+    assert code == 0
+    run.assert_called_once()
+    argv, kwargs = run.call_args.args, run.call_args.kwargs
+    assert argv[0][-1] == "run"
+    env = kwargs["env"]
+    assert env["CONTROL_PLANE_API_KEY"] == secret_key
+    assert env["CONTROL_PLANE_TUNNEL_ID"] == secret_tunnel
+    assert env["MCP_SERVER_URL"] == cfg.mcp_url
+    assert env["HEALTH_LISTEN_ADDR"] == f"{cfg.health_host}:{cfg.health_port}"
+    assert kwargs["cwd"] == str(install)
+    out = capsys.readouterr().out
+    assert secret_key not in out
+    assert secret_tunnel not in out
+
+
+def test_run_tunnel_propagates_exit_code(
+    config_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _install_runtime_config(config_dir, tmp_path, instance_key="laptop")
+    cfg = cw.settings()
+    monkeypatch.setenv(cfg.api_key_env, "key")
+    monkeypatch.setenv(cfg.tunnel_id_env, "tunnel_" + "b" * 32)
+
+    with patch.object(
+        cw.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess(args=["run"], returncode=7),
+    ):
+        code = cw.run_tunnel_cmd()
+
+    assert code == 7
+
+
+def test_start_cmd_runtime_env_launch_flow() -> None:
+    cmd_text = (ROOT / "start-can-research.cmd").read_text(encoding="utf-8")
+    lower = cmd_text.lower()
+
+    assert "connection_windows.py start-check" in lower
+    assert ":launch_runtime_env_tunnel" in lower
+    assert "connection_windows.py run-tunnel" in lower
+    assert "if %start_rc% equ 10 goto launch_tunnel" in lower
+
+    runtime_start = lower.index(":launch_runtime_env_tunnel")
+    legacy_start = lower.index(":launch_legacy_tunnel")
+    runtime_block = lower[runtime_start : lower.index(":wait_for_tunnel")]
+    legacy_block = lower[legacy_start:runtime_start]
+    assert "doctor" not in runtime_block
+    assert "legacy-doctor" not in runtime_block
+    assert "legacy-doctor" in legacy_block
+    assert "run --profile" in legacy_block

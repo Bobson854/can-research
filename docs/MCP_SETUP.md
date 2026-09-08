@@ -35,7 +35,10 @@ That script:
 5. Waits for the tunnel health listener
 6. Tells the operator to use the **existing** ChatGPT connector
 
-It opens separate foreground windows for the MCP service and OpenAI tunnel. Closing those windows stops the corresponding process.
+It opens separate foreground windows for the MCP service and OpenAI tunnel. The tunnel
+window runs `scripts/connection_windows.py run-tunnel`, which keeps `tunnel-client.exe`
+in the foreground with inherited output so runtime errors remain visible. Closing those
+windows stops the corresponding process.
 
 Check health at any time with:
 
