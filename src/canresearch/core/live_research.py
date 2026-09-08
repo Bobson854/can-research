@@ -187,13 +187,14 @@ def observe_live_traffic(
     registry: LiveCaptureRegistry | None = None,
 ) -> dict[str, Any]:
     """Observe live CAN traffic for a bounded duration; return aggregated summary."""
-    from canresearch.core.timing_preflight import enforce_channel_timing_preflight
+    from canresearch.core import capture_prepare
 
-    enforce_channel_timing_preflight(
+    capture_prepare.prepare_channel_for_capture(
         host,
         channel,
         timeout=timeout,
         verify_tls=verify_tls,
+        connect=connect,
     )
 
     if duration_seconds < MIN_OBSERVE_DURATION_S or duration_seconds > MAX_OBSERVE_DURATION_S:

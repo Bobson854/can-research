@@ -39,6 +39,9 @@ class SessionRecord:
     frame_store_path: str | None
     frame_count: int | None
     notes: str | None
+    capture_server_id: str | None = None
+    capture_heartbeat_at: datetime | None = None
+    interrupted_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +140,7 @@ def _utc_now() -> datetime:
 
 
 def _row_to_record(row: sqlite3.Row) -> SessionRecord:
+    keys = row.keys()
     return SessionRecord(
         id=row["id"],
         name=row["name"],
@@ -149,6 +153,11 @@ def _row_to_record(row: sqlite3.Row) -> SessionRecord:
         frame_store_path=row["frame_store_path"],
         frame_count=row["frame_count"],
         notes=row["notes"],
+        capture_server_id=row["capture_server_id"] if "capture_server_id" in keys else None,
+        capture_heartbeat_at=_parse_datetime(row["capture_heartbeat_at"])
+        if "capture_heartbeat_at" in keys
+        else None,
+        interrupted_reason=row["interrupted_reason"] if "interrupted_reason" in keys else None,
     )
 
 
@@ -203,6 +212,7 @@ def finalize_session(
     frame_count: int,
     stopped_at: datetime | None = None,
     notes: str | None = None,
+    interrupted_reason: str | None = None,
     db_path: Path | None = None,
 ) -> SessionRecord:
     """Update session metadata when capture ends."""
@@ -212,10 +222,19 @@ def finalize_session(
         conn.execute(
             """
             UPDATE sessions
-            SET stopped_at = ?, status = ?, frame_count = ?, notes = COALESCE(?, notes)
+            SET stopped_at = ?, status = ?, frame_count = ?,
+                notes = COALESCE(?, notes),
+                interrupted_reason = COALESCE(?, interrupted_reason)
             WHERE id = ?
             """,
-            (ended.isoformat(), status.value, frame_count, notes, session_id),
+            (
+                ended.isoformat(),
+                status.value,
+                frame_count,
+                notes,
+                interrupted_reason,
+                session_id,
+            ),
         )
         conn.commit()
         row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()

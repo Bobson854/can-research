@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from canresearch.core.capture_liveness import bind_capture_session, touch_capture_heartbeat
 from canresearch.core.marker_companion import (
     LOCAL_COMPANION_ORIGIN,
     MarkerCompanionError,
@@ -48,12 +49,18 @@ def _create_recording_session(
     )
 
 
-def test_schema_version_is_v10() -> None:
-    assert SCHEMA_VERSION == 10
+def _bind_live(session_id: str, env: dict[str, Path]) -> None:
+    bind_capture_session(session_id, db_path=env["db_path"])
+    touch_capture_heartbeat(session_id, db_path=env["db_path"])
+
+
+def test_schema_version_is_v11() -> None:
+    assert SCHEMA_VERSION == 11
 
 
 def test_resolve_attached_session_auto_single(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001", name="Bench run")
+    _bind_live("cap001", marker_env)
     attached = resolve_attached_session(db_path=marker_env["db_path"])
     assert attached.session_id == "cap001"
     assert attached.name == "Bench run"
@@ -69,6 +76,8 @@ def test_resolve_attached_session_refuses_zero(marker_env) -> None:
 def test_resolve_attached_session_refuses_multiple(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001")
     _create_recording_session(marker_env, session_id="cap002")
+    _bind_live("cap001", marker_env)
+    _bind_live("cap002", marker_env)
     with pytest.raises(MarkerCompanionError) as exc:
         resolve_attached_session(db_path=marker_env["db_path"])
     assert exc.value.code == "multiple_active_captures"
@@ -78,6 +87,8 @@ def test_resolve_attached_session_refuses_multiple(marker_env) -> None:
 def test_resolve_attached_session_explicit_id(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001")
     _create_recording_session(marker_env, session_id="cap002")
+    _bind_live("cap001", marker_env)
+    _bind_live("cap002", marker_env)
     attached = resolve_attached_session(session_id="cap002", db_path=marker_env["db_path"])
     assert attached.session_id == "cap002"
 
@@ -97,6 +108,7 @@ def test_resolve_attached_session_rejects_non_recording(marker_env) -> None:
 
 def test_record_companion_marker_sets_origin_and_timestamp(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001")
+    _bind_live("cap001", marker_env)
     ts = 1_700_000_000_000_000
     event = record_companion_marker(
         "cap001",
@@ -117,6 +129,7 @@ def test_record_companion_marker_sets_origin_and_timestamp(marker_env) -> None:
 
 def test_record_companion_marker_custom_label_and_note(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001")
+    _bind_live("cap001", marker_env)
     event = record_companion_marker(
         "cap001",
         "operator_step_3",
@@ -129,6 +142,7 @@ def test_record_companion_marker_custom_label_and_note(marker_env) -> None:
 
 def test_companion_markers_compatible_with_legacy_mcp_markers(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001")
+    _bind_live("cap001", marker_env)
     legacy = add_session_event(
         "cap001",
         "baseline_start",
@@ -151,6 +165,7 @@ def test_companion_markers_compatible_with_legacy_mcp_markers(marker_env) -> Non
 
 def test_concurrent_marker_writes(marker_env) -> None:
     _create_recording_session(marker_env, session_id="cap001")
+    _bind_live("cap001", marker_env)
 
     def write_marker(index: int) -> None:
         record_companion_marker(

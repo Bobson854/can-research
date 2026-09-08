@@ -13,6 +13,12 @@ from canresearch.cansub.client import probe_host
 from canresearch.cansub.exceptions import CansubConnectionError, CansubWebSocketError
 from canresearch.cansub.ws_client import ConnectFn, abort_channel_websocket_sync, receive_frames_sync
 from canresearch.core.assets import link_session_asset
+from canresearch.core.capture_liveness import (
+    CAPTURE_HEARTBEAT_INTERVAL_S,
+    bind_capture_session,
+    touch_capture_heartbeat,
+)
+from canresearch.core import capture_prepare
 from canresearch.core.live_errors import LiveResearchError
 from canresearch.core.sessions import (
     CaptureStore,
@@ -39,6 +45,7 @@ class ActiveCapture:
     stop_event: threading.Event = field(default_factory=threading.Event)
     finished_event: threading.Event = field(default_factory=threading.Event)
     thread: threading.Thread | None = None
+    heartbeat_thread: threading.Thread | None = None
     latest_timestamp_us: int | None = None
     error: Exception | None = None
     frame_count: int = 0
@@ -100,13 +107,12 @@ class LiveCaptureRegistry:
         store: CaptureStore | None = None,
         connect: ConnectFn | None = None,
     ) -> dict[str, object]:
-        from canresearch.core.timing_preflight import enforce_channel_timing_preflight
-
-        enforce_channel_timing_preflight(
+        capture_prepare.prepare_channel_for_capture(
             host,
             channel,
             timeout=timeout,
             verify_tls=verify_tls,
+            connect=connect,
         )
 
         with self._lock:
@@ -133,6 +139,8 @@ class LiveCaptureRegistry:
             frame_store_path=str(frames_path),
             db_path=db_path,
         )
+        bind_capture_session(session_id, db_path=db_path)
+
         if notes:
             path = db_path or default_db_path()
             conn = initialize(path)
@@ -164,10 +172,17 @@ class LiveCaptureRegistry:
             verify_tls=verify_tls,
         )
 
+        def heartbeat_worker() -> None:
+            while not capture.stop_event.is_set() and not capture.finished_event.is_set():
+                touch_capture_heartbeat(session_id, db_path=db_path)
+                if capture.stop_event.wait(CAPTURE_HEARTBEAT_INTERVAL_S):
+                    break
+
         def worker() -> None:
             capture_store = store or default_capture_store()
             capture_store.open(frames_path)
             final_status = SessionStatus.COMPLETED
+            interrupted_reason: str | None = None
             try:
                 def on_frame(frame) -> None:
                     capture.latest_timestamp_us = frame.timestamp_us
@@ -187,12 +202,15 @@ class LiveCaptureRegistry:
                 capture.exit_reason = rx.exit_reason
                 if rx.exit_reason in {"interrupted", "stopped"}:
                     final_status = SessionStatus.INTERRUPTED
+                    interrupted_reason = "capture_stopped"
             except CansubWebSocketError as exc:
                 capture.error = exc
                 final_status = SessionStatus.FAILED
+                interrupted_reason = "websocket_error"
             except Exception as exc:
                 capture.error = exc
                 final_status = SessionStatus.FAILED
+                interrupted_reason = "worker_exception"
             finally:
                 capture.frame_count = capture_store.frame_count()
                 capture_store.close()
@@ -201,6 +219,7 @@ class LiveCaptureRegistry:
                     status=final_status,
                     frame_count=capture.frame_count,
                     stopped_at=datetime.now(tz=UTC),
+                    interrupted_reason=interrupted_reason,
                     db_path=db_path,
                 )
                 capture.finished_event.set()
@@ -209,11 +228,18 @@ class LiveCaptureRegistry:
                     if self._by_channel.get(channel) == session_id:
                         self._by_channel.pop(channel, None)
 
+        heartbeat = threading.Thread(
+            target=heartbeat_worker,
+            name=f"live-capture-heartbeat-{session_id}",
+            daemon=True,
+        )
         thread = threading.Thread(target=worker, name=f"live-capture-{session_id}", daemon=True)
+        capture.heartbeat_thread = heartbeat
         capture.thread = thread
         with self._lock:
             self._by_session[session_id] = capture
             self._by_channel[channel] = session_id
+        heartbeat.start()
         thread.start()
 
         return {
@@ -253,6 +279,8 @@ class LiveCaptureRegistry:
 
         if capture.thread is not None:
             capture.thread.join(timeout=STOP_JOIN_TIMEOUT_S)
+        if capture.heartbeat_thread is not None:
+            capture.heartbeat_thread.join(timeout=STOP_JOIN_TIMEOUT_S)
         if not capture.finished_event.is_set():
             msg = f"Timed out stopping capture for session {session_id!r}"
             raise LiveResearchError("observation_timeout", msg)

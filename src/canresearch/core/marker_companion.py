@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from canresearch.core.capture_liveness import list_live_captures
 from canresearch.core.session_events import SessionEvent, add_session_event
 from canresearch.core.sessions import (
     SessionRecord,
@@ -66,9 +67,29 @@ def local_timestamp_us() -> int:
     return int(datetime.now(tz=UTC).timestamp() * 1_000_000)
 
 
+def list_live_capture_sessions(*, db_path: Path | None = None) -> list[SessionRecord]:
+    """Return sessions with a fresh capture heartbeat."""
+    return list_live_captures(db_path=db_path)
+
+
 def list_recording_sessions(*, db_path: Path | None = None) -> list[SessionRecord]:
-    """Return sessions currently marked recording in SQLite."""
+    """Return sessions currently marked recording in SQLite (includes stale rows)."""
     return list_sessions_by_status(SessionStatus.RECORDING, db_path=db_path)
+
+
+def _stale_recording_hint(*, db_path: Path | None) -> str:
+    stale = list_recording_sessions(db_path=db_path)
+    live_ids = {record.id for record in list_live_capture_sessions(db_path=db_path)}
+    stale_ids = [record.id for record in stale if record.id not in live_ids]
+    if not stale_ids:
+        return ""
+    joined = ", ".join(stale_ids[:4])
+    suffix = "..." if len(stale_ids) > 4 else ""
+    return (
+        f"\n\nStale SQLite rows still marked recording ({joined}{suffix}) are not "
+        "selectable. Run `uv run canresearch session reconcile-captures` or restart "
+        "MCP to finalize them, then start a new live capture."
+    )
 
 
 def resolve_attached_session(
@@ -76,32 +97,43 @@ def resolve_attached_session(
     session_id: str | None = None,
     db_path: Path | None = None,
 ) -> AttachedSession:
-    """Attach to exactly one active recording session or raise."""
+    """Attach to exactly one live capture session or raise."""
     if session_id is not None:
         record = get_session(session_id, db_path=db_path)
-        if record.status != SessionStatus.RECORDING:
+        live = list_live_capture_sessions(db_path=db_path)
+        live_ids = {item.id for item in live}
+        if record.id not in live_ids:
+            if record.status == SessionStatus.RECORDING:
+                msg = (
+                    f"Session {session_id!r} is marked recording but is not live "
+                    f"(missing or stale capture heartbeat)."
+                    f"{_stale_recording_hint(db_path=db_path)}"
+                )
+                raise MarkerCompanionError("capture_not_active", msg)
             msg = (
                 f"Session {session_id!r} is not recording "
-                f"(status={record.status.value})"
+                f"(status={record.status.value})."
+                f"{_stale_recording_hint(db_path=db_path)}"
             )
             raise MarkerCompanionError("capture_not_active", msg)
         return AttachedSession.from_record(record)
 
-    recording = list_recording_sessions(db_path=db_path)
-    if not recording:
-        raise MarkerCompanionError(
-            "no_active_capture",
-            "No active recording session found. Start live capture first.",
+    live = list_live_capture_sessions(db_path=db_path)
+    if not live:
+        msg = (
+            "No live capture session found. Start live capture first."
+            f"{_stale_recording_hint(db_path=db_path)}"
         )
-    if len(recording) > 1:
-        attached = tuple(AttachedSession.from_record(record) for record in recording)
+        raise MarkerCompanionError("no_active_capture", msg)
+    if len(live) > 1:
+        attached = tuple(AttachedSession.from_record(record) for record in live)
         ids = ", ".join(item.session_id for item in attached)
         raise MarkerCompanionError(
             "multiple_active_captures",
-            f"Multiple recording sessions found ({ids}). Select one explicitly.",
+            f"Multiple live capture sessions found ({ids}). Select one explicitly.",
             sessions=attached,
         )
-    return AttachedSession.from_record(recording[0])
+    return AttachedSession.from_record(live[0])
 
 
 def record_companion_marker(

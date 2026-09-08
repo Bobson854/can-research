@@ -209,6 +209,10 @@ def _parse_cansub_channels(raw: Any) -> dict[int, ChannelTimingExpectation]:
         error_frames = value.get("error_frames")
         if error_frames is not None and not isinstance(error_frames, bool):
             raise ConfigError(f"[cansub.channels.{key}] error_frames must be a boolean")
+        connection_policy = _parse_connection_policy(
+            value.get("connection_policy"),
+            path=f"[cansub.channels.{key}]",
+        )
         channels[channel] = ChannelTimingExpectation(
             channel=channel,
             nominal_bitrate=nominal,
@@ -218,6 +222,7 @@ def _parse_cansub_channels(raw: Any) -> dict[int, ChannelTimingExpectation]:
             listen_only=listen_only,
             auto_reset=auto_reset,
             error_frames=error_frames,
+            connection_policy=connection_policy,
         )
     return channels
 
@@ -236,6 +241,23 @@ def _parse_timing_table(raw: Any, path: str) -> dict[str, int] | None:
             raise ConfigError(f"{path}.{key} must be a positive integer")
         parsed[key] = value
     return parsed
+
+
+def _parse_connection_policy(raw: Any, *, path: str) -> "ConnectionPolicy":
+    from canresearch.cansub.timing import ConnectionPolicy
+
+    if raw is None:
+        return ConnectionPolicy.NONE
+    if not isinstance(raw, str):
+        raise ConfigError(f"{path}.connection_policy must be a string")
+    cleaned = raw.strip().lower()
+    try:
+        return ConnectionPolicy(cleaned)
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in ConnectionPolicy)
+        raise ConfigError(
+            f"{path}.connection_policy must be one of: {allowed}",
+        ) from exc
 
 
 def save_config(config: AppConfig, path: Path | None = None) -> Path:
@@ -287,6 +309,10 @@ def _render_config(config: AppConfig) -> str:
         if expectation.error_frames is not None:
             lines.append(
                 f"error_frames = {'true' if expectation.error_frames else 'false'}"
+            )
+        if expectation.connection_policy.value != "none":
+            lines.append(
+                f'connection_policy = {_toml_string(expectation.connection_policy.value)}'
             )
     lines.append("")
     return "\n".join(lines)

@@ -101,22 +101,44 @@ def test_matching_timing_permits_preflight(timing_config: Path) -> None:
         1,
         config_path=timing_config,
         phy=PHY_500K_1M,
+        channel_state="error_active",
     )
     assert result.state == TimingCompatibility.MATCH
 
 
-def test_mismatch_blocks_enforce(timing_config: Path) -> None:
+def test_stopped_default_phy_is_inactive_not_mismatch(timing_config: Path) -> None:
+    result = check_channel_timing_preflight(
+        "desk.local",
+        1,
+        config_path=timing_config,
+        phy=PHY_250K_1M,
+        channel_state="stopped",
+    )
+    assert result.state == TimingCompatibility.INACTIVE_OR_AMBIGUOUS
+
+
+def test_mismatch_blocks_enforce_on_active_channel(timing_config: Path) -> None:
     with pytest.raises(LiveResearchError) as exc:
         enforce_channel_timing_preflight(
             "desk.local",
             1,
             config_path=timing_config,
             phy=PHY_250K_1M,
+            channel_state="error_active",
         )
     assert exc.value.code == "timing_mismatch"
     assert "500 kbit/s" in exc.value.message
     assert "250 kbit/s" in exc.value.message
-    assert "webCAN" in exc.value.message
+
+
+def test_stopped_default_phy_does_not_block_enforce(timing_config: Path) -> None:
+    enforce_channel_timing_preflight(
+        "desk.local",
+        1,
+        config_path=timing_config,
+        phy=PHY_250K_1M,
+        channel_state="stopped",
+    )
 
 
 def test_unknown_actual_blocks_enforce(timing_config: Path) -> None:
@@ -126,6 +148,7 @@ def test_unknown_actual_blocks_enforce(timing_config: Path) -> None:
             1,
             config_path=timing_config,
             phy={"listen_only": False},
+            channel_state="error_active",
         )
     assert exc.value.code == "timing_unknown"
 
@@ -135,12 +158,22 @@ def test_live_capture_blocked_before_session(
     timing_config: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from canresearch.core.live_errors import LiveResearchError
+
     db_path = tmp_path / "canresearch.db"
     initialize(db_path)
     monkeypatch.setattr("canresearch.config.default_config_path", lambda: timing_config)
+
+    def block_prepare(*args, **kwargs):
+        _ = args, kwargs
+        raise LiveResearchError(
+            "timing_mismatch",
+            "Channel 1 PHY timing does not match configured expectation.",
+        )
+
     monkeypatch.setattr(
-        "canresearch.core.timing_preflight.get_channel_info",
-        lambda *args, **kwargs: MagicMock(phy=PHY_250K_1M),
+        "canresearch.core.capture_prepare.prepare_channel_for_capture",
+        block_prepare,
     )
     monkeypatch.setattr("canresearch.cansub.live_capture.probe_host", lambda *a, **k: None)
 
@@ -162,10 +195,17 @@ def test_observe_live_traffic_blocked_on_mismatch(
     timing_config: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from canresearch.core.live_errors import LiveResearchError
+
     monkeypatch.setattr("canresearch.config.default_config_path", lambda: timing_config)
+
+    def block_prepare(*args, **kwargs):
+        _ = args, kwargs
+        raise LiveResearchError("timing_mismatch", "active mismatch")
+
     monkeypatch.setattr(
-        "canresearch.core.timing_preflight.get_channel_info",
-        lambda *args, **kwargs: MagicMock(phy=PHY_250K_1M),
+        "canresearch.core.capture_prepare.prepare_channel_for_capture",
+        block_prepare,
     )
 
     with pytest.raises(LiveResearchError) as exc:
@@ -179,6 +219,7 @@ def test_mcp_and_cli_share_preflight_message(timing_config: Path) -> None:
         1,
         config_path=timing_config,
         phy=PHY_250K_1M,
+        channel_state="error_active",
     )
     with pytest.raises(LiveResearchError) as exc:
         enforce_channel_timing_preflight(
@@ -186,11 +227,9 @@ def test_mcp_and_cli_share_preflight_message(timing_config: Path) -> None:
             1,
             config_path=timing_config,
             phy=PHY_250K_1M,
+            channel_state="error_active",
         )
     assert cli_result.state == TimingCompatibility.MISMATCH
-    assert "Expected:" in exc.value.message or "Expected" in exc.value.message
-    assert "500 kbit/s" in exc.value.message
-    assert "250 kbit/s" in exc.value.message
 
 
 def test_compare_expected_bitrates_match() -> None:

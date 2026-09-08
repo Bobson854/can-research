@@ -97,6 +97,54 @@ class TimingCompatibility(StrEnum):
     MATCH = "match"
     MISMATCH = "mismatch"
     UNKNOWN = "unknown"
+    INACTIVE_OR_AMBIGUOUS = "inactive_or_ambiguous"
+
+
+class ConnectionPolicy(StrEnum):
+    """Per-channel passive RX preparation policy."""
+
+    NONE = "none"
+    ENSURE_BEFORE_RX = "ensure_before_rx"
+
+
+# Desk testing returned HTTP 400 for PUT /api/can/{channel}/phy on API 04.00 with the
+# current payload builder. Automatic PHY mutation stays disabled until re-verified.
+CANSUB_PHY_PUT_VERIFIED = False
+
+INACTIVE_CHANNEL_STATES = frozenset(
+    {"stopped", "inactive", "init", "uninitialized", "idle"},
+)
+
+DEFAULT_STOPPED_PHY_BITRATES = (250_000, 1_000_000)
+
+
+def is_channel_state_active(channel_state: str | None) -> bool:
+    if channel_state is None:
+        return False
+    return channel_state.lower() not in INACTIVE_CHANNEL_STATES
+
+
+def is_default_stopped_phy(phy: dict[str, Any] | None) -> bool:
+    bitrates = ChannelBitrates.from_phy(phy)
+    return (
+        bitrates.nominal_bps == DEFAULT_STOPPED_PHY_BITRATES[0]
+        and bitrates.data_bps == DEFAULT_STOPPED_PHY_BITRATES[1]
+    )
+
+
+def evaluate_timing_compatibility(
+    expectation: ChannelTimingExpectation,
+    phy: dict[str, Any] | None,
+    *,
+    channel_state: str | None,
+) -> TimingCompatibility:
+    """Compare configured timing against PHY, respecting channel activity."""
+    actual = ChannelBitrates.from_phy(phy)
+    if not is_channel_state_active(channel_state):
+        if actual.nominal_bps is None:
+            return TimingCompatibility.UNKNOWN
+        return TimingCompatibility.INACTIVE_OR_AMBIGUOUS
+    return compare_expected_bitrates(expectation, actual)
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +157,7 @@ class ChannelTimingExpectation:
     listen_only: bool | None = None
     auto_reset: bool | None = None
     error_frames: bool | None = None
+    connection_policy: ConnectionPolicy = ConnectionPolicy.NONE
 
     def expected_bitrates(self) -> ChannelBitrates:
         return ChannelBitrates(
@@ -187,3 +236,21 @@ def resolve_apply_phy_payload(
         "timing_data": timing_data,
     }
     return payload
+
+
+def validate_phy_put_payload(payload: dict[str, Any]) -> list[str]:
+    """Return structural validation errors for a planned PUT /phy body."""
+    errors: list[str] = []
+    for key in ("timing", "timing_data"):
+        segments = payload.get(key)
+        if not isinstance(segments, dict):
+            errors.append(f"{key} must be an object")
+            continue
+        parsed = BitTimingSegments.from_mapping(segments)
+        if parsed is None:
+            errors.append(f"{key} must contain positive brp/seg1/seg2/sjw integers")
+    for flag in ("listen_only", "auto_reset", "error_frames"):
+        value = payload.get(flag)
+        if value is not None and not isinstance(value, bool):
+            errors.append(f"{flag} must be a boolean when present")
+    return errors

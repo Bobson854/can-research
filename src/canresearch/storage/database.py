@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 MIGRATIONS: dict[int, str] = {
     1: """
@@ -543,6 +543,11 @@ MIGRATIONS: dict[int, str] = {
     10: """
         ALTER TABLE session_events ADD COLUMN origin TEXT;
     """,
+    11: """
+        ALTER TABLE sessions ADD COLUMN capture_server_id TEXT;
+        ALTER TABLE sessions ADD COLUMN capture_heartbeat_at TEXT;
+        ALTER TABLE sessions ADD COLUMN interrupted_reason TEXT;
+    """,
 }
 
 
@@ -593,6 +598,8 @@ def migrate(conn: sqlite3.Connection, target_version: int = SCHEMA_VERSION) -> N
             _migrate_v9(conn)
         elif version == 10:
             _migrate_v10(conn)
+        elif version == 11:
+            _migrate_v11(conn)
         else:
             conn.executescript(MIGRATIONS[version])
         conn.execute("DELETE FROM schema_version")
@@ -680,6 +687,20 @@ def _migrate_v10(conn: sqlite3.Connection) -> None:
     }
     if "origin" not in columns:
         conn.execute("ALTER TABLE session_events ADD COLUMN origin TEXT")
+
+
+def _migrate_v11(conn: sqlite3.Connection) -> None:
+    """Add capture liveness metadata to sessions."""
+    columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(sessions)").fetchall()
+    }
+    if "capture_server_id" not in columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN capture_server_id TEXT")
+    if "capture_heartbeat_at" not in columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN capture_heartbeat_at TEXT")
+    if "interrupted_reason" not in columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN interrupted_reason TEXT")
 
 
 def initialize(db_path: Path) -> sqlite3.Connection:

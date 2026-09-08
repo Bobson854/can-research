@@ -192,7 +192,11 @@ def device_apply_phy_timing(
     """Apply configured channel PHY timing via CANsub REST PUT (device configuration)."""
     from canresearch.cansub.client import CansubClient
     from canresearch.cansub.exceptions import CansubError
-    from canresearch.cansub.timing import resolve_apply_phy_payload
+    from canresearch.cansub.timing import (
+        CANSUB_PHY_PUT_VERIFIED,
+        resolve_apply_phy_payload,
+        validate_phy_put_payload,
+    )
     from canresearch.config import default_config_path, load_config
     from canresearch.core.timing_preflight import check_channel_timing_preflight
 
@@ -200,6 +204,13 @@ def device_apply_phy_timing(
         raise SystemExit(
             "Refusing to change device PHY timing without --yes.\n"
             "This is a device-configuration operation — review the planned change first."
+        )
+    if not CANSUB_PHY_PUT_VERIFIED:
+        raise SystemExit(
+            "Automatic PHY PUT is disabled: the CANsub PUT /api/can/{channel}/phy "
+            "contract is not verified on desk hardware (HTTP 400 observed).\n"
+            "Configure timing manually in webCAN, then verify with:\n"
+            f"  canresearch device timing-check {channel}"
         )
 
     resolved_host, resolved_timeout, verify_tls = _resolve_cansub_settings(host, timeout)
@@ -220,6 +231,12 @@ def device_apply_phy_timing(
                 "Configured bitrates do not map to a known CANsub timing preset and no "
                 "explicit timing/timing_data tables were provided in config.\n"
                 "Add timing segments copied from webCAN GET /phy, or configure timing in webCAN."
+            )
+        validation_errors = validate_phy_put_payload(payload)
+        if validation_errors:
+            raise SystemExit(
+                "Planned PHY PUT payload failed structural validation:\n"
+                + "\n".join(f"  - {item}" for item in validation_errors)
             )
         before = check_channel_timing_preflight(
             resolved_host,
@@ -1093,6 +1110,27 @@ def session_marker_companion(session_id: str | None) -> None:
     from canresearch.marker_companion.gui import launch_companion
 
     raise SystemExit(launch_companion(session_id=session_id))
+
+
+@session_group.command("reconcile-captures")
+def session_reconcile_captures() -> None:
+    """Finalize stale recording sessions that are no longer live."""
+    from canresearch.cansub.live_capture import get_live_capture_registry
+    from canresearch.core.capture_liveness import reconcile_orphaned_captures
+
+    result = reconcile_orphaned_captures(
+        registry=get_live_capture_registry(),
+        reason="orphaned_capture",
+    )
+    if not result.reconciled_session_ids:
+        click.echo("No stale recording sessions required reconciliation.")
+        return
+    click.echo(
+        f"Reconciled {len(result.reconciled_session_ids)} stale session(s) "
+        f"as interrupted ({result.reason}):"
+    )
+    for session_id in result.reconciled_session_ids:
+        click.echo(f"  {session_id}")
 
 
 @session_group.command("compare")

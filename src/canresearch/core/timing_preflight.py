@@ -10,9 +10,11 @@ from canresearch.cansub.client import CansubClient, get_channel_info
 from canresearch.cansub.timing import (
     ChannelBitrates,
     ChannelTimingExpectation,
+    ConnectionPolicy,
     TimingCompatibility,
-    compare_expected_bitrates,
+    evaluate_timing_compatibility,
     format_channel_bitrates,
+    is_default_stopped_phy,
 )
 from canresearch.config import load_config
 from canresearch.core.live_errors import LiveResearchError
@@ -23,6 +25,7 @@ class TimingPreflightResult:
     channel: int
     host: str
     state: TimingCompatibility
+    channel_state: str | None
     expected: ChannelTimingExpectation | None
     expected_summary: str | None
     actual: ChannelBitrates
@@ -34,6 +37,7 @@ class TimingPreflightResult:
             "channel": self.channel,
             "host": self.host,
             "timing_state": self.state.value,
+            "channel_state": self.channel_state,
             "expected": self.expected_summary,
             "actual": self.actual_summary,
             "remediation": self.remediation,
@@ -57,6 +61,7 @@ def check_channel_timing_preflight(
     config_path: Path | None = None,
     client: CansubClient | None = None,
     phy: dict[str, Any] | None = None,
+    channel_state: str | None = None,
 ) -> TimingPreflightResult:
     """Compare configured expected timing against device-reported PHY timing."""
     expectation = get_channel_timing_expectation(channel, config_path=config_path)
@@ -65,6 +70,7 @@ def check_channel_timing_preflight(
             channel=channel,
             host=host,
             state=TimingCompatibility.NOT_CONFIGURED,
+            channel_state=channel_state,
             expected=None,
             expected_summary=None,
             actual=ChannelBitrates(nominal_bps=None, data_bps=None),
@@ -75,30 +81,53 @@ def check_channel_timing_preflight(
             ),
         )
 
-    if phy is not None:
-        actual = ChannelBitrates.from_phy(phy)
-    elif client is not None:
-        actual = ChannelBitrates.from_phy(client.get_channel_phy(channel))
-    else:
-        status = get_channel_info(
-            host,
-            channel,
-            timeout=timeout,
-            verify_tls=verify_tls,
-            include_phy=True,
-        )
-        actual = ChannelBitrates.from_phy(status.phy)
+    resolved_state = channel_state
+    resolved_phy = phy
+    if resolved_phy is None or resolved_state is None:
+        if client is not None:
+            status = client.get_channel_info(channel)
+            resolved_phy = status.phy
+            resolved_state = status.state
+        else:
+            status = get_channel_info(
+                host,
+                channel,
+                timeout=timeout,
+                verify_tls=verify_tls,
+                include_phy=True,
+            )
+            resolved_phy = status.phy
+            resolved_state = status.state
 
-    state = compare_expected_bitrates(expectation, actual)
+    actual = ChannelBitrates.from_phy(resolved_phy)
+    state = evaluate_timing_compatibility(
+        expectation,
+        resolved_phy,
+        channel_state=resolved_state,
+    )
     expected_summary = expectation.expected_summary()
     actual_summary = format_channel_bitrates(actual)
 
     if state == TimingCompatibility.MATCH:
         remediation = "Timing matches configured expectation."
+    elif state == TimingCompatibility.INACTIVE_OR_AMBIGUOUS:
+        default_hint = (
+            " (default stopped/uninitialised 250 kbit/s / 1 Mbit/s)"
+            if is_default_stopped_phy(resolved_phy)
+            else ""
+        )
+        remediation = (
+            f"Channel {channel} is {resolved_state or 'inactive'} with PHY "
+            f"{actual_summary}{default_hint}. This is not proof of a live-bus "
+            f"mismatch. Configure timing in webCAN to the expected "
+            f"{expected_summary}, or enable connection_policy = "
+            f"\"{ConnectionPolicy.ENSURE_BEFORE_RX.value}\" after automatic PHY "
+            f"PUT is verified on your firmware."
+        )
     elif state == TimingCompatibility.MISMATCH:
         remediation = (
-            "Correct CANsub channel timing in webCAN or CSS vendor tools to match the "
-            "configured expectation, then verify with:\n"
+            "Channel is active but PHY timing does not match configured expectation. "
+            "Correct timing in webCAN or CSS vendor tools, then verify with:\n"
             f"  canresearch device timing-check {channel}"
         )
     else:
@@ -112,6 +141,7 @@ def check_channel_timing_preflight(
         channel=channel,
         host=host,
         state=state,
+        channel_state=resolved_state,
         expected=expectation,
         expected_summary=expected_summary,
         actual=actual,
@@ -129,6 +159,7 @@ def enforce_channel_timing_preflight(
     config_path: Path | None = None,
     client: CansubClient | None = None,
     phy: dict[str, Any] | None = None,
+    channel_state: str | None = None,
 ) -> TimingPreflightResult | None:
     """Raise LiveResearchError when configured timing does not permit capture."""
     result = check_channel_timing_preflight(
@@ -139,14 +170,18 @@ def enforce_channel_timing_preflight(
         config_path=config_path,
         client=client,
         phy=phy,
+        channel_state=channel_state,
     )
-    if result.state == TimingCompatibility.NOT_CONFIGURED:
-        return None
-    if result.state == TimingCompatibility.MATCH:
+    if result.state in {
+        TimingCompatibility.NOT_CONFIGURED,
+        TimingCompatibility.MATCH,
+        TimingCompatibility.INACTIVE_OR_AMBIGUOUS,
+    }:
         return result
     if result.state == TimingCompatibility.MISMATCH:
         message = (
             f"Channel {channel} PHY timing does not match configured expectation.\n"
+            f"  Channel state: {result.channel_state or 'unknown'}\n"
             f"  Expected: {result.expected_summary}\n"
             f"  Actual:   {result.actual_summary}\n"
             f"{result.remediation}"
@@ -154,6 +189,7 @@ def enforce_channel_timing_preflight(
         raise LiveResearchError("timing_mismatch", message)
     message = (
         f"Channel {channel} PHY timing could not be verified against configured expectation.\n"
+        f"  Channel state: {result.channel_state or 'unknown'}\n"
         f"  Expected: {result.expected_summary}\n"
         f"  Actual:   {result.actual_summary}\n"
         f"{result.remediation}"

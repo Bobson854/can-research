@@ -85,7 +85,7 @@ def _confirm(
 
 
 def test_schema_version_is_v10() -> None:
-    assert SCHEMA_VERSION == 10
+    assert SCHEMA_VERSION == 11
 
 
 class TestClassicPayloadBounds:

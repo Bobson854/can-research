@@ -60,8 +60,16 @@ uv run canresearch session marker-companion --session-id <session-id>
 | Active captures | Behaviour |
 |-----------------|-----------|
 | **Exactly one** | Attaches automatically |
-| **Zero** | Error — start live capture first |
+| **Zero** | Error — start live capture first (stale SQLite `recording` rows are ignored) |
 | **Multiple** | Selection dialog (GUI) or pass `--session-id` |
+
+Stale sessions from crashed MCP restarts are **not** selectable. Reconcile them with:
+
+```powershell
+uv run canresearch session reconcile-captures
+```
+
+Or restart MCP (reconciliation runs automatically on `mcp serve` startup).
 
 The window shows session ID, name, channel, and **recording** state. It polls every 2s
 and warns if the session is no longer recording.

@@ -9,7 +9,7 @@ from canresearch.storage.database import SCHEMA_VERSION, get_schema_version, ini
 
 
 def test_schema_version_is_v10() -> None:
-    assert SCHEMA_VERSION == 10
+    assert SCHEMA_VERSION == 11
 
 
 def test_v2_tables_created(tmp_path: Path) -> None:

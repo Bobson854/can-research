@@ -72,13 +72,15 @@ def run_capture(
     interrupted: bool = False,
 ) -> CaptureResult:
     """Create a session, receive frames, and persist them to a file-backed store."""
-    from canresearch.core.timing_preflight import enforce_channel_timing_preflight
+    from canresearch.core import capture_prepare
+    from canresearch.core.capture_liveness import bind_capture_session
 
-    enforce_channel_timing_preflight(
+    capture_prepare.prepare_channel_for_capture(
         host,
         channel,
         timeout=timeout,
         verify_tls=verify_tls,
+        connect=connect,
     )
 
     if duration <= 0:
@@ -104,11 +106,13 @@ def run_capture(
         frame_store_path=str(frames_path),
         db_path=db_path,
     )
+    bind_capture_session(session.id, db_path=db_path)
 
     capture_store.open(frames_path)
     exit_reason = "duration elapsed"
     duration_s = 0.0
     final_status = SessionStatus.COMPLETED
+    interrupted_reason: str | None = None
 
     try:
         if interrupted:
@@ -131,14 +135,18 @@ def run_capture(
         duration_s = rx_result.duration_s
         if exit_reason == "interrupted":
             final_status = SessionStatus.INTERRUPTED
+            interrupted_reason = "capture_stopped"
     except KeyboardInterrupt:
         exit_reason = "interrupted"
         final_status = SessionStatus.INTERRUPTED
+        interrupted_reason = "capture_stopped"
     except CansubWebSocketError:
         final_status = SessionStatus.FAILED
+        interrupted_reason = "websocket_error"
         raise
     except Exception:
         final_status = SessionStatus.FAILED
+        interrupted_reason = "worker_exception"
         raise
     finally:
         frame_count = capture_store.frame_count()
@@ -149,6 +157,7 @@ def run_capture(
             status=final_status,
             frame_count=frame_count,
             stopped_at=stopped_at,
+            interrupted_reason=interrupted_reason,
             db_path=db_path,
         )
 

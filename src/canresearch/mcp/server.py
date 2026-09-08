@@ -911,6 +911,14 @@ def serve(
     ``stdio`` is for desktop MCP clients. ``streamable-http`` exposes the same
     tool registry at ``http://<host>:<port><path>`` for tunnel-backed connectors.
     """
+    from canresearch.cansub.live_capture import get_live_capture_registry
+    from canresearch.core.capture_liveness import reconcile_orphaned_captures
+
+    reconcile_orphaned_captures(
+        registry=get_live_capture_registry(),
+        reason="service_restart",
+        startup=True,
+    )
     server = create_server()
     if transport == "stdio":
         server.run(transport="stdio")
