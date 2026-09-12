@@ -69,6 +69,10 @@ The CLI accepts any `MAJOR.MINOR` API version string returned by
 - Read-only channel status for channels 1 and 2
 - **WebSocket RX** on `wss://{host}/api/can/{channel}/ws` (binary HDLC-framed messages)
 - **Persistent capture sessions** (JSONL frame store + SQLite metadata)
+- **Configured timing preparation** (`connection_policy = "ensure_before_rx"`) on API
+  **04.00** / FW **02.04.00** — verified PUT, GET read-back, passive frame proof before
+  capture (hardware acceptance on device `7413f810`; see
+  [CANSUB_PHY_API_INVESTIGATION.md](CANSUB_PHY_API_INVESTIGATION.md))
 - CLI `--host` accepts either a **hostname** or an **IP address**
 
 Early bench tests used USB with no CAN bus attached (zero frames expected).
@@ -123,6 +127,25 @@ Precedence for CANsub host:
 PHY **write** via **`PUT /api/can/{channel}/phy`** is verified on API **04.00** (schema
 includes `tx_ack_frames`); see
 [CANSUB_PHY_API_INVESTIGATION.md](CANSUB_PHY_API_INVESTIGATION.md).
+
+## Capture preparation flow (configured timing)
+
+When `[cansub.channels.<n>]` declares expected bitrates (and optionally
+`connection_policy = "ensure_before_rx"`):
+
+```text
+configured desired timing
+  → inspect channel + GET /phy
+  → classify: active match | active mismatch | inactive/ambiguous
+  → active mismatch: fail closed (no silent PHY overwrite)
+  → ensure_before_rx + inactive/ambiguous: PUT → GET verify → passive RX proof
+  → persistent capture only after successful proof (or match path per policy)
+```
+
+Stopped/default-looking **250 kbit/s / 1 Mbit/s** on an idle channel is
+**inactive_or_ambiguous**, not proof of a live-bus mismatch. On the tested baseline,
+runtime **500 kbit/s / 1 Mbit/s** did **not** survive a full power cycle until prepare
+ran again.
 
 Per vendor documentation, only **one WebSocket client** may be connected to each
 channel at a time.

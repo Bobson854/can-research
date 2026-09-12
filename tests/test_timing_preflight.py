@@ -116,6 +116,7 @@ def test_stopped_default_phy_is_inactive_not_mismatch(timing_config: Path) -> No
     )
     assert result.state == TimingCompatibility.INACTIVE_OR_AMBIGUOUS
     assert "stopped/default state" in result.remediation
+    assert "passive frame evidence" in result.remediation
     assert "ensure_before_rx" in result.remediation
     assert "automatic PHY PUT" not in result.remediation
     assert "webCAN to the expected" not in result.remediation

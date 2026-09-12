@@ -40,11 +40,14 @@ Optional bench layout when both channels are physically connected to the same bu
 ```text
 get_instance_info
 → get_cansub_device_status
-→ get_cansub_channel_status
-→ observe_live_traffic
-→ frames present
-→ capture if needed
+→ get_cansub_channel_status  (includes timing_preflight when configured)
+→ observe_live_traffic / start_live_capture
+→ timing prepare + passive frame proof when connection_policy = ensure_before_rx
+→ capture only after evidence (or policy-appropriate match path)
 ```
+
+Configure `[cansub.channels.<n>]` bitrates in `data/config.toml`. Stopped/default-looking
+250k/1M is inactive_or_ambiguous, not an active mismatch. See [CANSUB_SETUP.md](../../../docs/CANSUB_SETUP.md).
 
 No CAN TX is part of onboarding/current signal research.
 

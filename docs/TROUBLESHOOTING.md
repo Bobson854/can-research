@@ -181,8 +181,16 @@ state; garbage/error frames; bus errors climbing.
    ```powershell
    uv run canresearch device timing-check <n>
    ```
-   A `timing_mismatch` error means CANsub PHY bitrates differ from config — correct
-   timing in webCAN, then re-check. This is **not** `channel_rx_in_use`.
+   - **`timing_mismatch`** — channel **active** but PHY bitrates ≠ config; fix in
+     webCAN/vendor tools (no automatic overwrite).
+   - **`inactive_or_ambiguous`** on `timing-check` — often **stopped** channel with
+     default-looking **250k/1M**; not proof of live-bus mismatch. With
+     `connection_policy = "ensure_before_rx"`, use `capture start` / live capture to
+     apply configured timing, verify read-back, and require passive frames before a
+     session is created.
+   - **`timing_proof_failed`** — timing prepared but no frames in proof window (quiet
+     bus, wiring, or wrong channel); **no** capture row should be created.
+   This is **not** `channel_rx_in_use`.
 3. Bitrate and `listen_only` match working bench configuration
 4. `get_cansub_channel_status` — compare counters, `timing_preflight`, and state
 5. Swap channel 1 ↔ 2 test if wiring unclear
@@ -191,7 +199,10 @@ state; garbage/error frames; bus errors climbing.
 
 | Error | Meaning |
 |-------|---------|
-| `timing_mismatch` | Device PHY ≠ configured expected nominal/data bitrate |
+| `timing_mismatch` | Active channel PHY ≠ configured bitrates |
+| `timing_put_failed` | REST PUT /phy failed during prepare |
+| `timing_verify_failed` | GET read-back after PUT ≠ configured expectation |
+| `timing_proof_failed` | Passive RX proof failed or zero frames before capture |
 | `timing_unknown` | Expected timing configured but device PHY could not be verified |
 | `channel_rx_in_use` | Another WebSocket client owns the channel (webCAN, other capture) |
 

@@ -125,7 +125,7 @@ def check_channel_timing_preflight(
                 "live-bus mismatch. "
                 f'Use connection_policy = "{ensure_policy}" to prepare the configured '
                 f"{expected_summary} profile, verify read-back, and require passive "
-                "traffic evidence before capture."
+                "frame evidence before capture."
             )
         elif bitrates_match:
             remediation = (
@@ -141,7 +141,7 @@ def check_channel_timing_preflight(
                 "Stopped/inactive PHY is not proof of a live-bus mismatch. "
                 f'Use connection_policy = "{ensure_policy}" to apply the configured '
                 f"{expected_summary} profile, verify read-back, and require passive "
-                "traffic evidence before capture."
+                "frame evidence before capture."
             )
     elif state == TimingCompatibility.MISMATCH:
         remediation = (

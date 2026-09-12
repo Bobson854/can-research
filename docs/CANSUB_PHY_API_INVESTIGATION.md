@@ -1,82 +1,127 @@
-# CANsub.2 PHY / timing REST API — investigation (2026-03)
+# CANsub.2 PHY / timing REST API
 
-## Status summary
+This document began as an **investigation** into the CANsub PHY write contract. That
+contract is now **verified** and **hardware acceptance-tested** on a documented baseline.
+It remains the technical reference for PUT schema, implementation notes, and known limits.
+
+## Current status
 
 | Topic | Status |
 |-------|--------|
-| Read PHY (`GET /api/can/{channel}/phy`) | **Verified** in project |
-| Write PHY (`PUT /api/can/{channel}/phy`) | **Verified** on API **04.00** / FW **02.04.00** (webCAN observation) |
-| Automatic PHY apply in capture prepare | **Enabled** when `CANSUB_PHY_PUT_VERIFIED` is true |
-| Persistence across power cycle | **Not observed** — do not assume |
+| Read PHY (`GET /api/can/{channel}/phy`) | **Verified** |
+| Write PHY (`PUT /api/can/{channel}/phy`) | **Verified** (API **04.00**, FW **02.04.00**) |
+| Automatic prepare in capture (`ensure_before_rx`) | **Hardware acceptance-tested** |
+| Runtime PHY after full power cycle (tested baseline) | **Did not persist** — see below |
+| Applying **250 kbit/s / 1 Mbit/s** as a desired PUT profile | **Not acceptance-tested** |
 
-## Verified on
+## Verified baseline (desk / Office hardware)
 
-- CANsub.2 device **7413f810**
-- Firmware **02.04.00**
-- API **04.00**
+| Field | Value |
+|-------|-------|
+| Device | CANsub.2 **7413f810** |
+| Hardware | **01.00** |
+| Firmware | **02.04.00** |
+| API | **04.00** |
+| Connection tested | Ethernet (`7413f810-eth.local`) |
 
-## Verified PHY write
+Do not assume identical behaviour on other firmware or API versions without re-test.
+
+## Verified PHY write contract
 
 **`PUT /api/can/{channel}/phy`**
 
 - Header: `Content-Type: application/json`
 - Success: HTTP **200** (response body may be empty)
 
-### Observed successful JSON body (webCAN)
+Required JSON fields (observed successful webCAN and CAN Research apply):
 
 ```json
 {
-  "listen_only": false,
-  "auto_reset": true,
-  "error_frames": false,
-  "tx_ack_frames": true,
-  "timing": {
-    "brp": 4,
-    "seg1": 31,
-    "seg2": 8,
-    "sjw": 4
-  },
-  "timing_data": {
-    "brp": 4,
-    "seg1": 15,
-    "seg2": 4,
-    "sjw": 4
-  }
+  "listen_only": <bool>,
+  "auto_reset": <bool>,
+  "error_frames": <bool>,
+  "tx_ack_frames": <bool>,
+  "timing": { "brp": <int>, "seg1": <int>, "seg2": <int>, "sjw": <int> },
+  "timing_data": { "brp": <int>, "seg1": <int>, "seg2": <int>, "sjw": <int> }
 }
 ```
 
-At 80 MHz CAN clock this pair yields **500 kbit/s** nominal and **1 Mbit/s** data.
+### Verified 500 kbit/s / 1 Mbit/s segment preset (80 MHz)
 
-### Read path (unchanged)
+| Segment | brp | seg1 | seg2 | sjw |
+|---------|-----|------|------|-----|
+| `timing` | 4 | 31 | 8 | 4 |
+| `timing_data` | 4 | 15 | 4 | 4 |
 
-**`GET /api/can/{channel}/phy`** — segment objects `timing` / `timing_data`; bitrates are
-derived in CAN Research for preflight comparison.
+**Read path:** `GET /api/can/{channel}/phy` returns segment objects; CAN Research derives
+nominal/data bitrates for preflight comparison.
 
-## Previous HTTP 400 (likely cause)
+## Historical investigation (HTTP 400)
 
-Earlier automated PUT attempts omitted **`tx_ack_frames`**, which is present on every
-successful webCAN PUT observed on API 04.00. The API likely rejected the incomplete body
-with HTTP 400. The earlier payload also used a different nominal segment set (`brp=2`) that
-still mathematically equals 500 kbit/s but was not the webCAN-proven segment choice.
+Early automated PUT attempts failed with **HTTP 400** because the body omitted
+**`tx_ack_frames`** (required on API 04.00). An alternate nominal segment set (`brp=2`)
+still mathematically equals 500 kbit/s but was not the webCAN-proven choice.
 
-## CAN Research implementation
+## CAN Research behaviour (summary)
 
-- `resolve_apply_phy_payload()` builds the verified schema from config.
-- Known bitrate pair **500000 / 1000000** maps to the observed segment preset.
-- Other bitrate pairs require explicit `timing` / `timing_data` in `config.toml` or a
-  future verified preset — no silent derivation for arbitrary bitrates.
-- After PUT: **GET /phy** read-back via `compare_phy_to_expectation()`, then passive RX
-  proof (must observe at least one frame before capture when preparation runs).
+- Configured `[cansub.channels.N]` supplies desired nominal/data bitrates (and optional
+  explicit segments / PHY flags).
+- **500000 / 1000000** maps to the verified segment preset above; other pairs need
+  explicit `timing` / `timing_data` in config (no arbitrary bitrate auto-derive).
+- **`connection_policy = "ensure_before_rx"`** (see [CANSUB_SETUP.md](CANSUB_SETUP.md)):
+  inactive/stopped/default-looking PHY → PUT → GET read-back → bounded passive RX proof
+  (≥1 frame) → persistent capture. Failures: `timing_put_failed`, `timing_verify_failed`,
+  `timing_proof_failed` — **no false capture session**.
+- **Active timing mismatch:** fail closed; no silent overwrite (webCAN/vendor remediation
+  may still apply).
 
-## Not verified / open questions
+Implementation flag: `CANSUB_PHY_PUT_VERIFIED` in code (true for this baseline).
 
-- Persistence across CANsub reboot or power cycle
-- Whether **250 kbit/s** presets match device-accepted segment tables (bitrate-only preset
-  retained from earlier desk GET examples, not re-validated via PUT)
-- API differences on firmware or API versions other than 04.00 / 02.04.00
+## Hardware acceptance (2026-03)
 
-## Manual re-check (optional)
+### Power cycle → automatic prepare → live capture (success)
 
-If PUT fails after a firmware upgrade, repeat the webCAN Network capture procedure
-(documented in earlier revisions of this file): change timing in webCAN only, record
-method/URL/body/response, restore known-good timing.
+After a **complete CANsub + EDGE101 power cycle**, `device timing-check` showed
+**250 kbit/s / 1 Mbit/s** and **inactive_or_ambiguous** (channel **stopped**) — the
+stopped/default-looking state, not an active bus mismatch.
+
+With configured **500 kbit/s / 1 Mbit/s** and **`ensure_before_rx`**, `capture start`:
+
+1. Classified **INACTIVE_OR_AMBIGUOUS** (not mismatch)
+2. Applied configured **500k/1M** via verified PUT
+3. **GET /phy** read-back succeeded
+4. Bounded passive RX proof observed real bus traffic
+5. Created persistent capture only after proof (**39 frames**, **3 s**, session completed)
+
+No webCAN intervention required.
+
+**Persistence note (this device/FW/API only):** the applied **500k/1M** runtime PHY **did
+not survive** the power cycle; timing-check returned to **250k/1M** stopped state until
+prepare ran again. Channel **stopped** when idle is expected and does not invalidate a
+successful apply during capture.
+
+### Zero-frame failure path (success)
+
+With no visible frames after apply + read-back:
+
+- Passive proof observed **zero frames**
+- Raised **`timing_proof_failed`**
+- **No** persistent capture row created
+
+### 250 kbit/s preset caution
+
+**Observed:** stopped/default-looking **250k/1M** after power cycle (read-side).
+
+**Verified via PUT acceptance:** recovery **to configured 500k/1M** on the tested baseline.
+
+**Not acceptance-tested:** deliberately configuring **250k/1M** as the desired operating
+profile through CAN Research PUT (preset retained from earlier GET examples only).
+
+## Open / re-test after firmware change
+
+- PHY persistence across reboot/power cycle on other devices or firmware
+- PUT acceptance for **250k/1M** as a target profile
+- API differences outside **04.00** / **02.04.00**
+
+If PUT fails after upgrade, capture one successful webCAN Network request (method, URL,
+body, response) and reconcile this document.

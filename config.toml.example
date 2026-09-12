@@ -36,7 +36,7 @@ verify_tls = false
 # [cansub.channels.1]
 # nominal_bitrate = 500000
 # data_bitrate = 1000000
-# connection_policy = "ensure_before_rx"
+# connection_policy = "ensure_before_rx"   # optional: PUT+verify+passive frame proof before capture
 #
 # Optional explicit PHY segments for `device apply-phy-timing --yes`
 # (copy from `canresearch device channel-info 1` or webCAN when needed):

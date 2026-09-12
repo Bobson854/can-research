@@ -9,7 +9,7 @@ verified firmware/API versions, historical bench lessons).
 
 CAN Research talks to CANsub.2 over:
 
-- **HTTPS REST** — device info, channel status, PHY timing (read-only)
+- **HTTPS REST** — device info, channel status, PHY timing (read; optional verified PUT when preparing capture)
 - **WebSocket** — passive CAN RX on `wss://<host>/api/can/{channel}/ws`
 
 Configure the host once in `data/config.toml` or via CLI:
@@ -50,24 +50,28 @@ Choose the channel wired to your bus. MCP and CLI capture use `--channel <n>`.
 
 ## Bitrate and PHY timing
 
-CAN bitrate and timing are configured on the CANsub (via webCAN or vendor tools). CAN
-Research reads PHY timing read-only via REST — it does not change bus timing during
-capture or MCP observation.
+Declare **expected** CAN timing per channel in `data/config.toml`. CAN Research compares
+device PHY to that profile before live capture and observation. On API **04.00** /
+FW **02.04.00** (tested baseline), automatic preparation is available when you opt in
+with `connection_policy` — webCAN remains useful for diagnostics and manual edits.
 
 ### Declare expected timing (one-time onboarding)
-
-Add per-channel expected bitrates to `data/config.toml` so live capture can refuse
-**before** starting empty or error-active sessions on a mismatched bus:
 
 ```toml
 [cansub.channels.1]
 nominal_bitrate = 500000
 data_bitrate = 1000000
+connection_policy = "ensure_before_rx"
 ```
 
+| `connection_policy` | Behaviour |
+|---------------------|-----------|
+| *(omitted or `none`)* | Preflight only. **Active** PHY mismatch → fail. Stopped/default-looking PHY (e.g. 250k/1M) → **inactive_or_ambiguous**, not treated as live-bus mismatch. |
+| `ensure_before_rx` | On inactive/ambiguous PHY: apply configured timing (verified PUT), **GET** read-back, bounded passive RX proof (≥1 frame), then persistent capture. **Active mismatch** still fails closed. |
+
 When configured, `start_live_capture`, `observe_live_traffic`, and CLI `capture start`
-check device PHY timing first. A mismatch is a **timing preflight failure** — not a
-tunnel, MCP, or connector problem.
+run timing preflight first. Errors such as `timing_mismatch`, `timing_proof_failed`, or
+`timing_verify_failed` are **not** tunnel, MCP, or connector problems.
 
 ```powershell
 uv run canresearch device timing-check 1

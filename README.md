@@ -70,7 +70,7 @@ produce reusable engineering artefacts.
 
 | Layer | Role |
 |-------|------|
-| **CAN Research core** | Deterministic capture, sessions, reference import, DBC library, coverage, evidence |
+| **CAN Research core** | Deterministic capture, sessions, reference import, DBC library, coverage, evidence; configured CANsub timing preflight and optional safe channel preparation before live capture |
 | **MCP server** | Bounded read-only API for AI clients (passive live observation; no CAN TX) |
 | **Skills** | Guided workflows: onboarding, reference conversion, signal research |
 
@@ -95,7 +95,7 @@ CAN Research core  →  MCP  →  Skills  →  AI (ChatGPT / compatible host)
 
 | Layer | Role |
 |-------|------|
-| **CAN Research core** | Deterministic CAN capabilities — capture, sessions, reference import, DBC library, coverage, evidence |
+| **CAN Research core** | Deterministic CAN capabilities — capture, sessions, reference import, DBC library, coverage, evidence; CANsub timing preflight and optional capture preparation |
 | **MCP** | Exposes those capabilities to AI clients (bounded, passive; no CAN TX) |
 | **Skills** | Guided workflows, domain reasoning, and orchestration for multi-step tasks |
 | **AI** | Interactive operator layer — adapts steps to your machine, answers, and prior context |
@@ -372,6 +372,21 @@ uv run python scripts/mcp_verify_http.py
 
 → [Normal startup after reboot](docs/MCP_SETUP.md#normal-startup-after-reboot)
 
+### CANsub timing and capture preparation
+
+Per-channel expected nominal/data bitrates live in `data/config.toml`
+(`[cansub.channels.<n>]`). Before persistent live capture, CAN Research can:
+
+- Compare device PHY to the configured profile (preflight)
+- Treat stopped/default-looking timing as **inactive/ambiguous**, not an active bus mismatch
+- With `connection_policy = "ensure_before_rx"`, apply verified device PHY configuration,
+  confirm **GET /phy** read-back, and require a bounded passive traffic sample before
+  creating a capture session
+- Fail closed on **active** timing mismatch (no silent overwrite)
+
+Details: [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md),
+[docs/CANSUB_PHY_API_INVESTIGATION.md](docs/CANSUB_PHY_API_INVESTIGATION.md).
+
 ### MCP tool surface (41 total)
 
 | Group | Count | Purpose |
@@ -544,7 +559,7 @@ scripts/              MCP HTTP verification helper
 | [docs/USER_ONBOARDING.md](docs/USER_ONBOARDING.md) | **End-to-end new user path** — knowledge intake, known-first research |
 | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, sources, bundles, DBCs, provenance |
 | [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) | Operator workflow — manual/PDF → bundle → import |
-| [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, channels, WebSocket ownership |
+| [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, timing profiles, capture preparation |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
 | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | All three Skills — package and install |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |
