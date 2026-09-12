@@ -12,6 +12,7 @@ from canresearch.cansub.timing import (
     ChannelTimingExpectation,
     ConnectionPolicy,
     TimingCompatibility,
+    compare_expected_bitrates,
     evaluate_timing_compatibility,
     format_channel_bitrates,
     is_default_stopped_phy,
@@ -111,19 +112,37 @@ def check_channel_timing_preflight(
     if state == TimingCompatibility.MATCH:
         remediation = "Timing matches configured expectation."
     elif state == TimingCompatibility.INACTIVE_OR_AMBIGUOUS:
-        default_hint = (
-            " (default stopped/uninitialised 250 kbit/s / 1 Mbit/s)"
-            if is_default_stopped_phy(resolved_phy)
-            else ""
+        state_label = resolved_state or "inactive"
+        ensure_policy = ConnectionPolicy.ENSURE_BEFORE_RX.value
+        bitrates_match = (
+            compare_expected_bitrates(expectation, actual)
+            == TimingCompatibility.MATCH
         )
-        remediation = (
-            f"Channel {channel} is {resolved_state or 'inactive'} with PHY "
-            f"{actual_summary}{default_hint}. This is not proof of a live-bus "
-            f"mismatch. Configure timing in webCAN to the expected "
-            f"{expected_summary}, or enable connection_policy = "
-            f"\"{ConnectionPolicy.ENSURE_BEFORE_RX.value}\" after automatic PHY "
-            f"PUT is verified on your firmware."
-        )
+        if is_default_stopped_phy(resolved_phy):
+            remediation = (
+                f"Channel {channel} is {state_label} with PHY {actual_summary}. "
+                "This may be the CANsub stopped/default state and is not proof of a "
+                "live-bus mismatch. "
+                f'Use connection_policy = "{ensure_policy}" to prepare the configured '
+                f"{expected_summary} profile, verify read-back, and require passive "
+                "traffic evidence before capture."
+            )
+        elif bitrates_match:
+            remediation = (
+                f"Channel {channel} is {state_label} with PHY {actual_summary}. "
+                "This is not proof of active bus traffic. "
+                f'With connection_policy = "{ensure_policy}", CAN Research will '
+                "verify/configure the expected timing and require passive frame "
+                "evidence before capture."
+            )
+        else:
+            remediation = (
+                f"Channel {channel} is {state_label} with PHY {actual_summary}. "
+                "Stopped/inactive PHY is not proof of a live-bus mismatch. "
+                f'Use connection_policy = "{ensure_policy}" to apply the configured '
+                f"{expected_summary} profile, verify read-back, and require passive "
+                "traffic evidence before capture."
+            )
     elif state == TimingCompatibility.MISMATCH:
         remediation = (
             "Channel is active but PHY timing does not match configured expectation. "

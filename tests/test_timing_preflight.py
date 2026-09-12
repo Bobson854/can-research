@@ -115,6 +115,24 @@ def test_stopped_default_phy_is_inactive_not_mismatch(timing_config: Path) -> No
         channel_state="stopped",
     )
     assert result.state == TimingCompatibility.INACTIVE_OR_AMBIGUOUS
+    assert "stopped/default state" in result.remediation
+    assert "ensure_before_rx" in result.remediation
+    assert "automatic PHY PUT" not in result.remediation
+    assert "webCAN to the expected" not in result.remediation
+
+
+def test_stopped_matching_phy_inactive_remediation(timing_config: Path) -> None:
+    result = check_channel_timing_preflight(
+        "desk.local",
+        1,
+        config_path=timing_config,
+        phy=PHY_500K_1M,
+        channel_state="stopped",
+    )
+    assert result.state == TimingCompatibility.INACTIVE_OR_AMBIGUOUS
+    assert "not proof of active bus traffic" in result.remediation
+    assert "passive frame evidence" in result.remediation
+    assert "automatic PHY PUT" not in result.remediation
 
 
 def test_mismatch_blocks_enforce_on_active_channel(timing_config: Path) -> None:
