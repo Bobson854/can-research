@@ -120,6 +120,9 @@ Precedence for CANsub host:
 | `GET /api/can/{channel}/phy` | Channel PHY timing (read-only) |
 | `WS /api/can/{channel}/ws` | Live CAN RX (read-only; binary HDLC-framed messages) |
 
+PHY **write** via REST is not verified in this project; see
+[CANSUB_PHY_API_INVESTIGATION.md](CANSUB_PHY_API_INVESTIGATION.md).
+
 Per vendor documentation, only **one WebSocket client** may be connected to each
 channel at a time.
 

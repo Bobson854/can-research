@@ -80,9 +80,14 @@ Optional explicit apply (device configuration — requires `--yes`, never automa
 uv run canresearch device apply-phy-timing 1 --yes
 ```
 
-Prefer webCAN when bitrates are not in a known preset. CAN Research remains passive
-RX-only; applying PHY timing is a documented REST `PUT /api/can/{channel}/phy` operation,
-not CAN frame transmission.
+**As of API 04.00 desk testing, automatic and CLI PHY apply are disabled** because
+`PUT /api/can/{channel}/phy` returned HTTP 400 with the current payload builder and the
+write contract is **not verified** in this repository. Prefer **webCAN** (or vendor
+tools) to set timing until the contract is captured — see
+[CANsub PHY API investigation](CANSUB_PHY_API_INVESTIGATION.md).
+
+CAN Research remains passive RX-only; PHY changes are device configuration, not CAN
+frame transmission.
 
 Verify channel status shows expected bus state before research:
 
