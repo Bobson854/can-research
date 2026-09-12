@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from canresearch.cansub.client import CansubClient, get_channel_info
+from canresearch.cansub.exceptions import CansubApiError
 from canresearch.cansub.timing import (
     CANSUB_PHY_PUT_VERIFIED,
     ConnectionPolicy,
     TimingCompatibility,
+    compare_phy_to_expectation,
     resolve_apply_phy_payload,
     validate_phy_put_payload,
 )
@@ -113,14 +115,12 @@ def _prepare_inactive_channel(
             f"Channel {channel} is inactive with uninitialised/default PHY "
             f"({result.actual_summary}). Configure the expected "
             f"{result.expected_summary} in webCAN before capture.\n"
-            "Automatic PHY PUT is disabled because the REST contract is not "
-            "verified on desk hardware (PUT /api/can/{channel}/phy returned HTTP 400).\n"
+            "Automatic PHY PUT is disabled because the REST contract is not verified.\n"
             f"{result.remediation}"
         )
         raise LiveResearchError("timing_prepare_required", message)
 
-    current_phy = client.get_channel_phy(channel)
-    payload = resolve_apply_phy_payload(expectation, current_phy)
+    payload = resolve_apply_phy_payload(expectation)
     if payload is None:
         message = (
             "Configured bitrates do not map to a known timing preset and no explicit "
@@ -131,19 +131,25 @@ def _prepare_inactive_channel(
     if validation_errors:
         joined = "; ".join(validation_errors)
         raise LiveResearchError("timing_prepare_required", joined)
-    client.set_channel_phy(channel, payload)
-    refreshed = get_channel_info(host, channel, timeout=timeout, verify_tls=verify_tls)
-    after = check_channel_timing_preflight(
-        host,
-        channel,
-        timeout=timeout,
-        verify_tls=verify_tls,
-        client=client,
-        phy=refreshed.phy,
-        channel_state=refreshed.state,
-    )
-    if after.state not in {TimingCompatibility.MATCH, TimingCompatibility.INACTIVE_OR_AMBIGUOUS}:
-        _raise_from_result(after)
+    try:
+        client.set_channel_phy(channel, payload)
+    except CansubApiError as exc:
+        message = (
+            f"PUT /api/can/{channel}/phy failed before capture: {exc}\n"
+            f"{result.remediation}"
+        )
+        raise LiveResearchError("timing_put_failed", message) from exc
+    readback_phy = client.get_channel_phy(channel)
+    verify_state = compare_phy_to_expectation(expectation, readback_phy)
+    if verify_state != TimingCompatibility.MATCH:
+        message = (
+            f"Channel {channel} PHY read-back after PUT does not match configuration.\n"
+            f"  Expected: {result.expected_summary}\n"
+            f"  Read-back: {readback_phy}\n"
+            f"  State: {verify_state.value}\n"
+            f"{result.remediation}"
+        )
+        raise LiveResearchError("timing_verify_failed", message)
     _run_passive_rx_proof(
         host,
         channel,
@@ -179,6 +185,13 @@ def _run_passive_rx_proof(
     if not proof.connected:
         message = (
             f"Passive RX proof could not connect on channel {channel} before capture."
+        )
+        raise LiveResearchError("timing_proof_failed", message)
+    if proof.frame_count <= 0:
+        message = (
+            f"Passive RX proof on channel {channel} connected but observed no CAN "
+            f"frames in {proof.duration_s:.2f}s. Check wiring, bus activity, and PHY "
+            "timing before capture."
         )
         raise LiveResearchError("timing_proof_failed", message)
 

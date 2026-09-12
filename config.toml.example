@@ -41,8 +41,9 @@ verify_tls = false
 # Optional explicit PHY segments for `device apply-phy-timing --yes`
 # (copy from `canresearch device channel-info 1` or webCAN when needed):
 #
-# timing = { brp = 2, seg1 = 63, seg2 = 16, sjw = 4 }
+# timing = { brp = 4, seg1 = 31, seg2 = 8, sjw = 4 }
 # timing_data = { brp = 4, seg1 = 15, seg2 = 4, sjw = 4 }
+# tx_ack_frames = true
 
 [connection]
 # Windows tunnel connection backend for this machine.

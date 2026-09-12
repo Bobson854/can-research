@@ -209,6 +209,9 @@ def _parse_cansub_channels(raw: Any) -> dict[int, ChannelTimingExpectation]:
         error_frames = value.get("error_frames")
         if error_frames is not None and not isinstance(error_frames, bool):
             raise ConfigError(f"[cansub.channels.{key}] error_frames must be a boolean")
+        tx_ack_frames = value.get("tx_ack_frames")
+        if tx_ack_frames is not None and not isinstance(tx_ack_frames, bool):
+            raise ConfigError(f"[cansub.channels.{key}] tx_ack_frames must be a boolean")
         connection_policy = _parse_connection_policy(
             value.get("connection_policy"),
             path=f"[cansub.channels.{key}]",
@@ -222,6 +225,7 @@ def _parse_cansub_channels(raw: Any) -> dict[int, ChannelTimingExpectation]:
             listen_only=listen_only,
             auto_reset=auto_reset,
             error_frames=error_frames,
+            tx_ack_frames=tx_ack_frames,
             connection_policy=connection_policy,
         )
     return channels
@@ -309,6 +313,10 @@ def _render_config(config: AppConfig) -> str:
         if expectation.error_frames is not None:
             lines.append(
                 f"error_frames = {'true' if expectation.error_frames else 'false'}"
+            )
+        if expectation.tx_ack_frames is not None:
+            lines.append(
+                f"tx_ack_frames = {'true' if expectation.tx_ack_frames else 'false'}"
             )
         if expectation.connection_policy.value != "none":
             lines.append(

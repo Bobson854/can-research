@@ -243,6 +243,8 @@ class CansubClient:
     def set_channel_phy(self, channel: int, phy: dict[str, Any]) -> dict[str, Any]:
         """PUT /api/can/{channel}/phy — set channel PHY configuration."""
         payload = self.put_json(f"/api/can/{channel}/phy", phy)
+        if payload is None:
+            return phy
         if not isinstance(payload, dict):
             raise CansubIdentificationError(
                 f"Unexpected CANsub.2 channel {channel} PHY PUT response: expected object"

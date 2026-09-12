@@ -243,7 +243,18 @@ def test_compare_expected_bitrates_match() -> None:
 
 
 def test_set_channel_phy_uses_put(monkeypatch: pytest.MonkeyPatch) -> None:
+    from canresearch.cansub.timing import resolve_apply_phy_payload
+    from canresearch.cansub.timing import ChannelTimingExpectation
+
     captured: dict[str, object] = {}
+    expectation = ChannelTimingExpectation(
+        channel=1,
+        nominal_bitrate=500_000,
+        data_bitrate=1_000_000,
+    )
+    planned = resolve_apply_phy_payload(expectation)
+    assert planned is not None
+    assert planned.get("tx_ack_frames") is True
 
     def fake_put_json(path: str, payload: dict) -> dict:
         captured["path"] = path
@@ -252,7 +263,7 @@ def test_set_channel_phy_uses_put(monkeypatch: pytest.MonkeyPatch) -> None:
 
     client = CansubClient("example.test")
     monkeypatch.setattr(client, "put_json", fake_put_json)
-    result = client.set_channel_phy(1, PHY_500K_1M)
+    result = client.set_channel_phy(1, planned)
     assert captured["path"] == "/api/can/1/phy"
-    assert captured["payload"] == PHY_500K_1M
-    assert result == PHY_500K_1M
+    assert captured["payload"] == planned
+    assert result == planned

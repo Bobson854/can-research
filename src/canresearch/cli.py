@@ -194,6 +194,8 @@ def device_apply_phy_timing(
     from canresearch.cansub.exceptions import CansubError
     from canresearch.cansub.timing import (
         CANSUB_PHY_PUT_VERIFIED,
+        TimingCompatibility,
+        compare_phy_to_expectation,
         resolve_apply_phy_payload,
         validate_phy_put_payload,
     )
@@ -207,9 +209,9 @@ def device_apply_phy_timing(
         )
     if not CANSUB_PHY_PUT_VERIFIED:
         raise SystemExit(
-            "Automatic PHY PUT is disabled: the CANsub PUT /api/can/{channel}/phy "
-            "contract is not verified on desk hardware (HTTP 400 observed).\n"
-            "Configure timing manually in webCAN, then verify with:\n"
+            "PHY PUT is disabled: the CANsub PUT /api/can/{channel}/phy contract "
+            "is not marked verified in this build.\n"
+            f"Configure timing in webCAN, then verify with:\n"
             f"  canresearch device timing-check {channel}"
         )
 
@@ -224,8 +226,7 @@ def device_apply_phy_timing(
 
     client = CansubClient(resolved_host, timeout=resolved_timeout, verify_tls=verify_tls)
     try:
-        current_phy = client.get_channel_phy(channel)
-        payload = resolve_apply_phy_payload(expectation, current_phy)
+        payload = resolve_apply_phy_payload(expectation)
         if payload is None:
             raise SystemExit(
                 "Configured bitrates do not map to a known CANsub timing preset and no "
@@ -252,12 +253,15 @@ def device_apply_phy_timing(
         click.echo(f"  Current:  {before.actual_summary}")
         click.echo(f"  Payload:  {payload}")
         client.set_channel_phy(channel, payload)
+        readback_phy = client.get_channel_phy(channel)
+        verify_state = compare_phy_to_expectation(expectation, readback_phy)
         after = check_channel_timing_preflight(
             resolved_host,
             channel,
             timeout=resolved_timeout,
             verify_tls=verify_tls,
             client=client,
+            phy=readback_phy,
         )
     except CansubError as exc:
         raise SystemExit(str(exc)) from exc
@@ -265,7 +269,11 @@ def device_apply_phy_timing(
     click.echo("")
     click.echo(f"Applied PHY timing on channel {channel}.")
     click.echo(f"Actual: {after.actual_summary}")
-    click.echo(f"Timing: {after.state.value}")
+    click.echo(f"Read-back: {verify_state.value}")
+    if verify_state != TimingCompatibility.MATCH:
+        raise SystemExit(
+            "PHY PUT succeeded but GET /phy read-back does not match configuration."
+        )
 
 
 @device_group.command("rx")

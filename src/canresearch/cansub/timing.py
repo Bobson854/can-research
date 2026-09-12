@@ -107,9 +107,14 @@ class ConnectionPolicy(StrEnum):
     ENSURE_BEFORE_RX = "ensure_before_rx"
 
 
-# Desk testing returned HTTP 400 for PUT /api/can/{channel}/phy on API 04.00 with the
-# current payload builder. Automatic PHY mutation stays disabled until re-verified.
-CANSUB_PHY_PUT_VERIFIED = False
+# Verified on CANsub.2 API 04.00 (FW 02.04.00) via successful webCAN PUT observation.
+CANSUB_PHY_PUT_VERIFIED = True
+
+# webCAN PUT defaults when config does not override (API 04.00 observed schema).
+DEFAULT_PHY_PUT_LISTEN_ONLY = False
+DEFAULT_PHY_PUT_AUTO_RESET = True
+DEFAULT_PHY_PUT_ERROR_FRAMES = False
+DEFAULT_PHY_PUT_TX_ACK_FRAMES = True
 
 INACTIVE_CHANNEL_STATES = frozenset(
     {"stopped", "inactive", "init", "uninitialized", "idle"},
@@ -157,6 +162,7 @@ class ChannelTimingExpectation:
     listen_only: bool | None = None
     auto_reset: bool | None = None
     error_frames: bool | None = None
+    tx_ack_frames: bool | None = None
     connection_policy: ConnectionPolicy = ConnectionPolicy.NONE
 
     def expected_bitrates(self) -> ChannelBitrates:
@@ -193,17 +199,42 @@ TIMING_PRESET_BY_BITRATES: dict[tuple[int, int | None], dict[str, dict[str, int]
         "timing_data": {"brp": 4, "seg1": 15, "seg2": 4, "sjw": 4},
     },
     (500_000, 1_000_000): {
-        "timing": {"brp": 2, "seg1": 63, "seg2": 16, "sjw": 4},
+        # Observed successful webCAN PUT on API 04.00 (80 MHz, 500k / 1M).
+        "timing": {"brp": 4, "seg1": 31, "seg2": 8, "sjw": 4},
         "timing_data": {"brp": 4, "seg1": 15, "seg2": 4, "sjw": 4},
     },
 }
 
 
+def compare_phy_to_expectation(
+    expectation: ChannelTimingExpectation,
+    phy: dict[str, Any] | None,
+) -> TimingCompatibility:
+    """Compare GET /phy to configured expectation (ignores channel activity)."""
+    actual = ChannelBitrates.from_phy(phy)
+    bitrate_state = compare_expected_bitrates(expectation, actual)
+    if bitrate_state != TimingCompatibility.MATCH:
+        return bitrate_state
+    if expectation.timing is not None and expectation.timing_data is not None:
+        if phy is None:
+            return TimingCompatibility.UNKNOWN
+        for key, expected_seg in (
+            ("timing", expectation.timing),
+            ("timing_data", expectation.timing_data),
+        ):
+            parsed = BitTimingSegments.from_mapping(phy.get(key))
+            expected = BitTimingSegments.from_mapping(expected_seg)
+            if parsed is None or expected is None or parsed != expected:
+                return TimingCompatibility.MISMATCH
+    return TimingCompatibility.MATCH
+
+
 def resolve_apply_phy_payload(
     expectation: ChannelTimingExpectation,
-    current_phy: dict[str, Any],
+    current_phy: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
-    """Build a PUT /phy payload from config, preserving unspecified PHY flags."""
+    """Build a verified PUT /api/can/{channel}/phy JSON body from config."""
+    _ = current_phy
     if expectation.timing and expectation.timing_data:
         timing = dict(expectation.timing)
         timing_data = dict(expectation.timing_data)
@@ -220,17 +251,22 @@ def resolve_apply_phy_payload(
         "listen_only": (
             expectation.listen_only
             if expectation.listen_only is not None
-            else current_phy.get("listen_only", False)
+            else DEFAULT_PHY_PUT_LISTEN_ONLY
         ),
         "auto_reset": (
             expectation.auto_reset
             if expectation.auto_reset is not None
-            else current_phy.get("auto_reset", True)
+            else DEFAULT_PHY_PUT_AUTO_RESET
         ),
         "error_frames": (
             expectation.error_frames
             if expectation.error_frames is not None
-            else current_phy.get("error_frames", False)
+            else DEFAULT_PHY_PUT_ERROR_FRAMES
+        ),
+        "tx_ack_frames": (
+            expectation.tx_ack_frames
+            if expectation.tx_ack_frames is not None
+            else DEFAULT_PHY_PUT_TX_ACK_FRAMES
         ),
         "timing": timing,
         "timing_data": timing_data,
@@ -249,8 +285,8 @@ def validate_phy_put_payload(payload: dict[str, Any]) -> list[str]:
         parsed = BitTimingSegments.from_mapping(segments)
         if parsed is None:
             errors.append(f"{key} must contain positive brp/seg1/seg2/sjw integers")
-    for flag in ("listen_only", "auto_reset", "error_frames"):
+    for flag in ("listen_only", "auto_reset", "error_frames", "tx_ack_frames"):
         value = payload.get(flag)
-        if value is not None and not isinstance(value, bool):
-            errors.append(f"{flag} must be a boolean when present")
+        if not isinstance(value, bool):
+            errors.append(f"{flag} must be a boolean")
     return errors

@@ -80,11 +80,14 @@ Optional explicit apply (device configuration — requires `--yes`, never automa
 uv run canresearch device apply-phy-timing 1 --yes
 ```
 
-**As of API 04.00 desk testing, automatic and CLI PHY apply are disabled** because
-`PUT /api/can/{channel}/phy` returned HTTP 400 with the current payload builder and the
-write contract is **not verified** in this repository. Prefer **webCAN** (or vendor
-tools) to set timing until the contract is captured — see
-[CANsub PHY API investigation](CANSUB_PHY_API_INVESTIGATION.md).
+PHY apply via REST is **verified** on API **04.00** / FW **02.04.00** (see
+[CANsub PHY API investigation](CANSUB_PHY_API_INVESTIGATION.md)). With
+`connection_policy = "ensure_before_rx"`, capture preparation may **PUT** timing on an
+inactive/default PHY, **GET** read-back, then run a short passive RX proof (requires at
+least one frame). Active timing **mismatch** still fails closed (no silent overwrite).
+
+Optional PHY flag in config: `tx_ack_frames` (defaults to `true` when applying, matching
+webCAN).
 
 CAN Research remains passive RX-only; PHY changes are device configuration, not CAN
 frame transmission.
