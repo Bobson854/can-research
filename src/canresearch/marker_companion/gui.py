@@ -40,7 +40,35 @@ def bring_window_to_foreground(
     window.focus_force()
     try:
         window.attributes("-topmost", True)
-        window.after(topmost_ms, lambda: window.attributes("-topmost", False))
+        window.after(topmost_ms, lambda: _clear_topmost(window))
+    except tk.TclError:
+        pass
+
+
+def _clear_topmost(window: tk.Misc) -> None:
+    try:
+        window.attributes("-topmost", False)
+    except tk.TclError:
+        pass
+
+
+def _raise_hidden_owner_for_modal(root: tk.Tk, *, topmost_ms: int = FOCUS_TOPMOST_MS) -> None:
+    """Prepare a withdrawn Tk root as a modal parent without showing an empty window."""
+    root.withdraw()
+    try:
+        root.overrideredirect(True)
+    except tk.TclError:
+        pass
+    try:
+        root.geometry("1x1+0+0")
+    except tk.TclError:
+        pass
+    root.update_idletasks()
+    root.lift()
+    root.focus_force()
+    try:
+        root.attributes("-topmost", True)
+        root.after(topmost_ms, lambda: _clear_topmost(root))
     except tk.TclError:
         pass
 
@@ -48,18 +76,19 @@ def bring_window_to_foreground(
 def show_startup_error(code: str, message: str) -> None:
     """Show a foreground error dialog for startup failures."""
     root = tk.Tk()
-    root.withdraw()
-    holder = tk.Toplevel(root)
-    holder.withdraw()
-    holder.update_idletasks()
-    bring_window_to_foreground(holder)
-    messagebox.showerror(
-        "Capture marker companion",
-        f"{code}\n\n{message}",
-        parent=holder,
-    )
-    holder.destroy()
-    root.destroy()
+    try:
+        _raise_hidden_owner_for_modal(root)
+        messagebox.showerror(
+            "Capture marker companion",
+            f"{code}\n\n{message}",
+            parent=root,
+        )
+    finally:
+        _clear_topmost(root)
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
 
 
 def report_startup_failure(code: str, message: str) -> int:

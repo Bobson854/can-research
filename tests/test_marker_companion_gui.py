@@ -48,27 +48,45 @@ def test_bring_window_to_foreground_ignores_topmost_tcl_error() -> None:
     window.lift.assert_called_once()
 
 
-def test_show_startup_error_uses_foreground_holder(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_show_startup_error_uses_hidden_owner_without_deiconify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     mock_root = MagicMock()
-    mock_holder = MagicMock()
     mock_tk = MagicMock(return_value=mock_root)
-    mock_toplevel = MagicMock(return_value=mock_holder)
+    mock_toplevel = MagicMock()
 
     monkeypatch.setattr("canresearch.marker_companion.gui.tk.Tk", mock_tk)
     monkeypatch.setattr("canresearch.marker_companion.gui.tk.Toplevel", mock_toplevel)
-    focus = MagicMock()
-    monkeypatch.setattr("canresearch.marker_companion.gui.bring_window_to_foreground", focus)
     msgbox = MagicMock()
     monkeypatch.setattr("canresearch.marker_companion.gui.messagebox.showerror", msgbox)
 
     show_startup_error("no_active_capture", "Start live capture first.")
 
+    mock_tk.assert_called_once()
+    mock_toplevel.assert_not_called()
     mock_root.withdraw.assert_called_once()
-    mock_toplevel.assert_called_once_with(mock_root)
-    focus.assert_called_once_with(mock_holder)
+    mock_root.deiconify.assert_not_called()
+    mock_root.lift.assert_called()
+    mock_root.focus_force.assert_called()
+    mock_root.attributes.assert_any_call("-topmost", True)
     msgbox.assert_called_once()
-    assert msgbox.call_args.kwargs["parent"] is mock_holder
-    mock_holder.destroy.assert_called_once()
+    assert msgbox.call_args.kwargs["parent"] is mock_root
+    mock_root.destroy.assert_called_once()
+
+
+def test_show_startup_error_destroys_root_when_messagebox_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mock_root = MagicMock()
+    monkeypatch.setattr("canresearch.marker_companion.gui.tk.Tk", lambda: mock_root)
+    monkeypatch.setattr(
+        "canresearch.marker_companion.gui.messagebox.showerror",
+        MagicMock(side_effect=RuntimeError("dialog failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="dialog failed"):
+        show_startup_error("no_active_capture", "Start live capture first.")
+
     mock_root.destroy.assert_called_once()
 
 
