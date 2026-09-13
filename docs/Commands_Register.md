@@ -17,7 +17,7 @@ cd C:\dev\Can-Research\Can-ResearchV1\can-research
 .\start-can-research.cmd
 
 New desktop commands
-cd C:\dev\Can_Research\Can-Research_V1\can-research>
+cd C:\dev\Can_Research\Can-Research_V1\can-research
 .\start-can-research.cmd
 .\status.cmd
 
