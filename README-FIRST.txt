@@ -3,8 +3,10 @@ CAN Research - First Run
 
 You do not need Git, Cursor, or a developer IDE.
 
+FIRST RUN (one-time setup)
+--------------------------
+
 1. If needed, install uv
-   uv is a small tool that installs Python and CAN Research dependencies for you.
    https://docs.astral.sh/uv/getting-started/installation/
    Windows (PowerShell): irm https://astral.sh/uv/install.ps1 | iex
 
@@ -20,16 +22,23 @@ You do not need Git, Cursor, or a developer IDE.
 
 5. Run .\start-can-research.cmd  (leave that window open)
 
-6. Open docs\AI_INTEGRATION.md — connect your AI frontend
+6. Open docs\AI_INTEGRATION.md — connect your AI frontend (once)
 
 7. Install bundled Skills from skills\dist\
    - can-onboarding.skill.zip  (install first)
-   - can-reference-builder.skill.zip
-   - can-signal-research.skill.zip
    Details: docs\SKILL_INSTALLATION.md
 
 8. Start can-onboarding in ChatGPT
 
-Health check: .\status.cmd
+NORMAL RESTART (every day / after reboot)
+-----------------------------------------
+
+You do NOT normally recreate tunnel, connector, or Skills.
+
+1. .\start-can-research.cmd
+2. .\status.cmd
+3. Use your existing AI connector — research
+
+Health check anytime: .\status.cmd
 Overview: README.md
-Developers: docs\INSTALLATION.md
+Developers: docs\INSTALLATION.md  (use: uv sync --extra dev)

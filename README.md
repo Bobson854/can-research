@@ -163,7 +163,7 @@ Install Skills → start can-onboarding
 Import DBC / reference knowledge → begin research
 ```
 
-Developers: git clone → `uv sync` → same MCP/AI steps. Details: [INSTALLATION.md](docs/INSTALLATION.md).
+Developers: git clone → `uv sync --extra dev` → same MCP/AI steps. Details: [INSTALLATION.md](docs/INSTALLATION.md).
 
 Architecture detail: [AI_GUIDED_SIGNAL_RESEARCH.md](docs/AI_GUIDED_SIGNAL_RESEARCH.md).
 
@@ -176,8 +176,11 @@ and similar) cannot always be made universally frictionless. **Repeated use shou
 After onboarding, the typical Windows workflow:
 
 ```text
-start-can-research.cmd  →  status.cmd  →  connect AI (if used)  →  READY FOR RESEARCH
+start-can-research.cmd  →  status.cmd  →  use existing AI connector  →  READY FOR RESEARCH
 ```
+
+You should **not** need to recreate the OpenAI tunnel identity, ChatGPT connector, or
+installed Skills after an ordinary reboot — only restart local services.
 
 `status.cmd` verifies CANsub reachability, local MCP, tunnel health (when configured),
 and related checks. Startup and recovery detail:
@@ -218,9 +221,9 @@ Details: [REFERENCE_DATA.md](docs/REFERENCE_DATA.md) · [AI_GUIDED_SIGNAL_RESEAR
 | Hardware | CANsub.2 (USB mDNS hostname or Ethernet) |
 | Reference | J1939/ISOBUS PDF catalogue; source registry + Reference Bundle V1 import |
 | DBC | Library register/inspect/coverage; `<asset>_standard.dbc` / `<asset>_research.dbc` |
-| MCP | **41 tools** (28 read-only · 7 live/passive · 6 signal research) — verify with `uv run canresearch mcp tools` |
-| Database schema | **v10** (`get_instance_info` reports current version) |
-| GUI | None — CLI-first |
+| MCP | **41 tools** baseline (28 read-only · 7 live/passive · 6 signal research) — verify with `uv run canresearch mcp tools` |
+| Database schema | **v11** (`get_instance_info` reports current version) |
+| Operator UI | **CLI-first**; optional local **Capture Marker Companion** during live capture (not a full application GUI) |
 
 Milestone history: [docs/V1_SCOPE.md](docs/V1_SCOPE.md). Bench/deployment records:
 [CANSUB_CONNECTION.md](docs/CANSUB_CONNECTION.md) · [MCP_CONNECTION.md](docs/MCP_CONNECTION.md).
@@ -236,7 +239,8 @@ Milestone history: [docs/V1_SCOPE.md](docs/V1_SCOPE.md). Bench/deployment record
 | Capture | SQLite metadata + JSONL frames under `{data_dir}/sessions/` |
 | Configuration | `data/config.toml`: `[instance]`, `[paths]`, `[cansub]` |
 | MCP | Passive analysis substrate for AI Skills |
-| Storage | SQLite schema v10; frames outside SQLite |
+| Storage | SQLite schema v11; frames outside SQLite |
+| Markers | Local **marker-companion.cmd** for low-latency experiment annotations during capture |
 
 ## Licensed / private data
 
@@ -270,8 +274,9 @@ See **`README-FIRST.txt`** in the extracted folder. Health check: **`status.cmd`
 ```powershell
 git clone <repo-url> can-research
 cd can-research
-uv sync
+uv sync --extra dev
 setup.cmd          # optional — same config bootstrap as release install
+uv run python -m pytest   # optional — verify dev environment
 ```
 
 Run MCP via **`start-can-research.cmd`** or `uv run canresearch mcp serve ...` — see
@@ -534,8 +539,9 @@ uv run canresearch session dbc abc123 --asset jd_6155r_01
 
 ```text
 setup.cmd             Windows first-run setup (release install)
-start-can-research.cmd Start local MCP service
+start-can-research.cmd Start local MCP service (+ tunnel when configured)
 status.cmd            Health check (CLI, MCP, CANsub)
+marker-companion.cmd  Optional live-capture experiment markers (local GUI)
 src/canresearch/
   cli.py              CLI entry point
   config.py           Instance, paths, CANsub configuration
@@ -560,6 +566,7 @@ scripts/              MCP HTTP verification helper
 | [docs/REFERENCE_DATA.md](docs/REFERENCE_DATA.md) | **CAN knowledge model** — catalogue, sources, bundles, DBCs, provenance |
 | [docs/REFERENCE_ONBOARDING.md](docs/REFERENCE_ONBOARDING.md) | Operator workflow — manual/PDF → bundle → import |
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, timing profiles, capture preparation |
+| [docs/MARKER_COMPANION.md](docs/MARKER_COMPANION.md) | Local experiment markers during live capture |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
 | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | All three Skills — package and install |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |

@@ -3,8 +3,12 @@
 Windows-local **passive annotation** during an active live capture. Records precise
 experiment markers on the capture host without ChatGPT, tunnel, or MCP round-trips.
 
-**This does not transmit CAN frames**, alter CANsub configuration, or change MCP capture
-semantics. It only appends rows to the existing `session_events` table.
+**This does not transmit CAN frames**, own CAN RX, or replace MCP/CLI capture. It only
+appends rows to the existing `session_events` table on the capture host.
+
+**Validation boundary:** Startup, attachment rules, and error dialogs are **locally
+acceptance-tested** on Windows. Practical marker ergonomics during real trial-bus /
+field experiments are **not** yet validated — treat workflow tuning as ongoing.
 
 ---
 
@@ -93,7 +97,9 @@ Keyboard shortcuts apply when the companion window is focused (not global system
 
 ---
 
-## Windows manual acceptance
+## Windows manual acceptance (UI / startup)
+
+These checks validate **local GUI behaviour**, not field experiment quality on a live bus.
 
 After starting live capture, run `marker-companion.cmd` from the repository root.
 

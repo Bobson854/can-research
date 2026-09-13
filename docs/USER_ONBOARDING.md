@@ -18,6 +18,40 @@ loads the CAN knowledge you already possess.
 
 ---
 
+## Minimum useful path
+
+```text
+install software
+  → configure CANsub (host + expected channel timing)
+  → start-can-research.cmd + status.cmd
+  → connect AI frontend (one-time) + install Skills
+  → register existing DBC / reference knowledge you already have
+  → verify traffic (timing-check, device rx, or MCP observe)
+  → capture → analyse → session DBC coverage (known-first)
+  → research only traffic not already described by your knowledge
+```
+
+**After that, normal Windows use** is not a full re-onboarding:
+
+```text
+start-can-research.cmd  →  status.cmd  →  existing AI connector  →  research
+```
+
+Do not recreate tunnel identity, ChatGPT connector, or Skills after an ordinary reboot.
+Details: [MCP_SETUP.md](MCP_SETUP.md#normal-startup-after-reboot).
+
+**Already have a DBC for this machine?** Register it before treating frames as unknown:
+
+```powershell
+uv run canresearch reference dbc register --key my_baseline path\to\file.dbc
+uv run canresearch session dbc-coverage <session-id>
+```
+
+Coverage shows which observed CAN IDs are already described — focus reverse-engineering
+on the remainder. See [REFERENCE_DATA.md](REFERENCE_DATA.md).
+
+---
+
 ## Before you start — inventory your knowledge
 
 Many reverse-engineering hours can be avoided if you already have:
@@ -269,7 +303,7 @@ Use this checklist on a **fresh second laptop**:
 
 | Step | Action |
 |------|--------|
-| A | Clone repo, `uv sync`, copy `config.toml.example` → `data/config.toml`, set `instance_key` |
+| A | Clone repo, `uv sync --extra dev`, copy `config.toml.example` → `data/config.toml`, set `instance_key` |
 | B | `uv run canresearch config show` — confirm `resolved_data_dir` |
 | C | `uv run canresearch reference source add path\to\private.pdf --key trial_manual --visibility private` |
 | D | `uv run canresearch reference source list` and `reference source inspect trial_manual` |

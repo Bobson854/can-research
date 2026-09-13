@@ -119,7 +119,15 @@ Do **not** reboot the whole system as the first response.
 5. Restart MCP: `uv run canresearch mcp serve ...`
 6. Re-run preflight (`device timing-check`, `observe_live_traffic`) before a new capture
 
-**Zero-frame captures:** A connected capture with no frames is not automatically an error. If timing preflight passed but you still see zero frames, verify bus traffic and timing in webCAN. Stop should still complete within seconds even when no frames arrive.
+**Zero frames — two different cases:**
+
+| Situation | What to expect |
+|-----------|------------------|
+| **A. Manual observation** (`device rx`, `observe_live_traffic`, or a capture **without** prepare gate) | Connect can succeed with **0 frames** — quiet bus, wrong channel, or timing not yet applied. Investigate wiring and traffic. |
+| **B. Capture with `ensure_before_rx` preparation** | Prepare applies/verifies PHY, then **passive RX proof** must see ≥1 frame **before** a persistent capture row is created. Zero frames → **`timing_proof_failed`** and **no** new session for that attempt. This is intentional — not a “successful empty capture.” |
+
+After a completed capture that **did** record frames, zero frames in analysis means
+something else (wrong session, filtered window, etc.).
 
 Full system reboot is a last resort, not the first fix.
 

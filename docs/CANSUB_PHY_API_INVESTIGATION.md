@@ -4,14 +4,23 @@ This document began as an **investigation** into the CANsub PHY write contract. 
 contract is now **verified** and **hardware acceptance-tested** on a documented baseline.
 It remains the technical reference for PUT schema, implementation notes, and known limits.
 
+## Document role
+
+| Section | Purpose |
+|---------|---------|
+| **Current status** | What is verified today |
+| **Historical investigation** | Why early PUT attempts failed (HTTP 400) |
+| **Hardware acceptance** | Desk/Office test results on device **7413f810** |
+| **Open / re-test** | Limits — do not generalise beyond tested baseline |
+
 ## Current status
 
 | Topic | Status |
 |-------|--------|
 | Read PHY (`GET /api/can/{channel}/phy`) | **Verified** |
 | Write PHY (`PUT /api/can/{channel}/phy`) | **Verified** (API **04.00**, FW **02.04.00**) |
-| Automatic prepare in capture (`ensure_before_rx`) | **Hardware acceptance-tested** |
-| Runtime PHY after full power cycle (tested baseline) | **Did not persist** — see below |
+| Automatic prepare in capture (`ensure_before_rx`) | **Hardware acceptance-tested** (live bus + failure path) |
+| Runtime PHY after full power cycle (tested baseline) | **Did not persist** — `ensure_before_rx` recovered automatically |
 | Applying **250 kbit/s / 1 Mbit/s** as a desired PUT profile | **Not acceptance-tested** |
 
 ## Verified baseline (desk / Office hardware)
@@ -56,7 +65,7 @@ Required JSON fields (observed successful webCAN and CAN Research apply):
 **Read path:** `GET /api/can/{channel}/phy` returns segment objects; CAN Research derives
 nominal/data bitrates for preflight comparison.
 
-## Historical investigation (HTTP 400)
+## Historical investigation (HTTP 400 — resolved)
 
 Early automated PUT attempts failed with **HTTP 400** because the body omitted
 **`tx_ack_frames`** (required on API 04.00). An alternate nominal segment set (`brp=2`)
@@ -91,7 +100,8 @@ With configured **500 kbit/s / 1 Mbit/s** and **`ensure_before_rx`**, `capture s
 2. Applied configured **500k/1M** via verified PUT
 3. **GET /phy** read-back succeeded
 4. Bounded passive RX proof observed real bus traffic
-5. Created persistent capture only after proof (**39 frames**, **3 s**, session completed)
+5. Created persistent capture only after proof (**39 frames**, **3 s**, **5 CAN IDs** on
+   a known-first validation session — user-supplied registered DBC, not shipped with CAN Research)
 
 No webCAN intervention required.
 

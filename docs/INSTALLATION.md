@@ -7,7 +7,7 @@ Software installation for CAN Research on Windows.
 | Path | Audience | Start here |
 |------|----------|------------|
 | **Release ZIP** | Ordinary Windows users | Extract ZIP → `setup.cmd` |
-| **Git + uv** | Developers / contributors | Clone → `uv sync` |
+| **Git + uv** | Developers / contributors | Clone → `uv sync --extra dev` |
 
 You do **not** need Git, Cursor, or an IDE for normal CAN Research use.
 
@@ -129,8 +129,11 @@ For contributors and anyone working from source control.
 ```powershell
 git clone <your-repo-url> can-research
 cd can-research
-uv sync
+uv sync --extra dev
 ```
+
+Plain `uv sync` does **not** install the optional dev dependency group. Use
+`uv sync --extra dev` before running tests or linters from source.
 
 All CLI examples use:
 
@@ -148,7 +151,7 @@ Same as release path — copy `config.toml.example` to `data\config.toml` or run
 ```powershell
 uv run canresearch --help
 uv run canresearch config show
-uv run pytest
+uv run python -m pytest
 ```
 
 Developers start MCP directly or use `start-can-research.cmd`:
@@ -220,8 +223,8 @@ intentional.
 
 ```powershell
 git pull
-uv sync
-uv run pytest
+uv sync --extra dev
+uv run python -m pytest
 ```
 
 Restart MCP after upgrade.

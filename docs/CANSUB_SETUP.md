@@ -5,6 +5,29 @@ Public guide for connecting a CSS Electronics CANsub.2 to CAN Research.
 **Bench-tested detail:** [CANSUB_CONNECTION.md](CANSUB_CONNECTION.md) (desk unit notes,
 verified firmware/API versions, historical bench lessons).
 
+## Normal operator path
+
+1. **Host** — `uv run canresearch config set-host <device-host>` (once per machine/move).
+2. **Expected timing** — in `data/config.toml`:
+
+   ```toml
+   [cansub.channels.1]
+   nominal_bitrate = 500000
+   data_bitrate = 1000000
+   connection_policy = "ensure_before_rx"
+   ```
+
+3. **Verify** — `device timing-check 1` and `device channel-info 1`.
+4. **Capture** — `capture start` (or MCP `start_live_capture`) when the bus should have traffic.
+
+With `ensure_before_rx`, a stopped/default-looking **250 kbit/s / 1 Mbit/s** PHY is
+prepared automatically (PUT → read-back → passive frame proof) on the verified API **04.00**
+baseline — webCAN is not required for that routine path. Active timing **mismatch** still
+fails closed.
+
+Deeper PHY/API notes: [Bitrate and PHY timing](#bitrate-and-phy-timing) below and
+[CANSUB_PHY_API_INVESTIGATION.md](CANSUB_PHY_API_INVESTIGATION.md).
+
 ## Connection model
 
 CAN Research talks to CANsub.2 over:
