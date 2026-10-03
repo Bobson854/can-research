@@ -455,7 +455,8 @@ Live experiment workflow (when passive evidence is insufficient):
 4. operator idle / no action
 5. `mark_experiment_event` (e.g. `scv2_extend`)
 6. operator performs physical action
-7. `stop_live_capture`
+7. `stop_live_capture` (successful stop finalizes the session as **`completed`**;
+   **`interrupted`** is for abnormal/orphan termination — see [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md))
 8. `compare_experiment_windows`
 9. `rank_signal_candidates` / `analyze_can_id_activity` / … as needed
 

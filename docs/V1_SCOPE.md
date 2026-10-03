@@ -35,7 +35,9 @@
 - [x] Import reference PGN/SPN data from user-owned J1939 PDF
 - [x] Import ISOBUS DDI data from user-owned PDF
 - [x] Windows-first CLI with `uv` workflow
-- [x] **Office ChatGPT MCP connector** — live, 32 tools, end-to-end validated
+- [x] **Office ChatGPT MCP connector** — live, end-to-end validated (**32 tools** at 2026-09-05; **41 tools** current baseline)
+- [x] **MCP ToolAnnotations** — explicit read vs write orchestration metadata on all **41** public tools (verified Office **2026-10-03**)
+- [x] **Live capture stop semantics** — deliberate `stop_live_capture` finalizes **`completed`**; **`interrupted`** reserved for abnormal/orphan paths (runtime verified **2026-10-03**)
 - [x] **CAN Signal Research Skill** — installed in ChatGPT on Office (`can-signal-research`)
 - [x] **First passive AI-guided proprietary signal trial** — Office bench, CANsub channel 1
   (15 s / 171 frames / 5 proprietary IDs; passive inferences without hardware manipulation;
@@ -93,7 +95,7 @@ Design reference: [AI_GUIDED_SIGNAL_RESEARCH.md](AI_GUIDED_SIGNAL_RESEARCH.md),
 
 1. Capture a session from CANsub.2 with real bus traffic and persist metadata + frames externally
 2. Classify captured frames against the local J1939/ISOBUS reference catalogue
-3. List and summarize sessions from CLI and MCP (32 tools including `get_instance_info`)
+3. List and summarize sessions from CLI and MCP (**41 tools** baseline including `get_instance_info` — verify with `uv run canresearch mcp tools`)
 4. Look up PGNs/SPNs from imported PDF reference data locally (DBC file import remains future work)
 5. Generate a draft tractor DBC from session observations (`<asset>_standard.dbc`)
 6. All tests pass; CLI and MCP modules import cleanly on Windows

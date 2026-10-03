@@ -5,7 +5,7 @@
 > This document records a previously validated **Office** installation and may contain
 > instance-specific paths, device IDs, ports, or **historical tool counts** (e.g. 32 tools
 > at verification time). For current setup, see [MCP_SETUP.md](MCP_SETUP.md) and verify
-> with `uv run canresearch mcp tools` (baseline **41 tools** as of schema v9).
+> with `uv run canresearch mcp tools` (baseline **41 tools**; SQLite schema **v11** on current builds).
 
 Per-instance operational guide for exposing a local CAN Research MCP server to ChatGPT
 via an OpenAI tunnel.
@@ -29,6 +29,8 @@ These must **all** agree before tools work in ChatGPT:
 
 ## Verified Office deployment record
 
+Shared infrastructure (unchanged across baseline updates):
+
 | Field | Value |
 |---|---|
 | `instance_key` | `office` |
@@ -41,12 +43,40 @@ These must **all** agree before tools work in ChatGPT:
 | Tunnel client version | `0.0.14` |
 | Tunnel health listener | `127.0.0.1:8081` |
 | ChatGPT connector/plugin | `can-research-office` / CAN Research - Office |
-| Expected tool count | **32** |
-| Read-only | 19 |
+
+### Historical tool baseline (2026-09-05 / 2026-09-06)
+
+| Field | Value |
+|---|---|
+| MCP tool count | **32** |
+| Read-only bindings | 19 |
 | Live (passive CANsub) | 7 |
 | Signal research | 6 |
 | Fresh-chat verification | **Passed 2026-09-05** |
-| Reboot recovery | **Passed 2026-09-06** — MCP + tunnel restart only |
+| Reboot recovery | **Passed 2026-09-06** — MCP + tunnel restart only; connector + Skill persisted |
+| DB schema at reboot check | **v8** (historical) |
+
+### Current tool baseline (verified **2026-10-03**)
+
+After MCP server restart and ChatGPT connector **Refresh tools**:
+
+| Field | Value |
+|---|---|
+| MCP public tools | **41** |
+| Read-only bindings | **28** |
+| Live (passive CANsub) | **7** |
+| Signal research | **6** |
+| ToolAnnotations | **38** read (`readOnlyHint=true`) · **3** write orchestration (`start_live_capture`, `stop_live_capture`, `mark_experiment_event`) |
+| CAN TX over MCP | **false** |
+
+**Live capture stop semantics (2026-10-03):** CH1 passive capture started via MCP;
+**18 frames** in ~2.23 s; deliberate `stop_live_capture` returned **`completed`**
+(session `ad61fe672155` — bench record). An immediate second start reached preflight only and
+failed with **`timing_proof_failed`** (no frames during passive proof window) — expected when
+the bus is quiet; **not** evidence of channel-release failure after the first stop.
+
+Prior runtime bug (pre-fix): clean operator/API stop incorrectly surfaced **`interrupted`**;
+corrected in application code — re-verify after deploy with `stop_live_capture` → `completed`.
 
 Port `8081` is used for the OpenAI tunnel health/admin listener because SABnzbd
 already owns `127.0.0.1:8080` on the Office workstation.
@@ -65,12 +95,15 @@ Confirm backend identity after connect with MCP tool `get_instance_info()`.
 | ChatGPT connector name | `CAN Research - Workshop` | `CAN Research - Travel` |
 | Last successful verification | _date_ | _date_ |
 
-## Expected tool inventory
+## Expected tool inventory (current)
 
 ```text
-Total: 32
-Read-only: 19 | Live: 7 | Signal research: 6
+Total: 41
+Read-only bindings: 28 | Live: 7 | Signal research: 6
+ToolAnnotations: 38 read · 3 write orchestration (41 exported tools)
 ```
+
+Historical September 2026 Office connector: **32** tools (19 / 7 / 6) — see table above.
 
 No CAN TX tools. No MCP create/review/confirm/reject candidate tools.
 
@@ -108,8 +141,8 @@ Expected:
 
 ```text
 url: http://127.0.0.1:8765/mcp
-tool_count: 32
-read_only: 19
+tool_count: 41
+read_only: 28
 live: 7
 signal_research: 6
 match: True
@@ -194,14 +227,16 @@ Ask:
 
 > How many CAN Research tools can you see? List their names.
 
-Expected:
+Expected (current baseline):
 
 ```text
-32 tools
-19 read-only/offline
+41 tools
+28 read-only/offline bindings
 7 live CANsub
 6 proprietary signal-research
 ```
+
+(Historical fresh-chat checks in September 2026 expected **32** tools / **19** read-only.)
 
 Then:
 
@@ -254,7 +289,9 @@ Always troubleshoot from the inside out:
 
 ## Connector verification checklist
 
-- [x] MCP tools frozen at 32 (19 / 7 / 6)
+**September 2026 (historical — 32-tool baseline)**
+
+- [x] MCP tools at **32** (19 / 7 / 6) at initial Office validation
 - [x] Streamable HTTP transport at `http://127.0.0.1:8765/mcp`
 - [x] Local initialize + 32-tool verification passed
 - [x] Multi-instance configuration (`instance_key`, `display_name`, `get_instance_info`)
@@ -265,5 +302,12 @@ Always troubleshoot from the inside out:
 - [x] Tunnel doctor passed using health listener `127.0.0.1:8081`
 - [x] ChatGPT plugin discovered the Actions schema
 - [x] Fresh-chat tool-name/count check passed with **32 tools**
-- [x] `get_instance_info` rechecked after Windows reboot (**2026-09-06**) — `office` / schema v8 / 32 tools
+- [x] `get_instance_info` rechecked after Windows reboot (**2026-09-06**) — `office` / schema **v8** / **32 tools**
+
+**October 2026 (current — 41-tool baseline)**
+
+- [x] MCP server restarted; connector **Refresh tools** — **41** public tools visible
+- [x] Explicit **ToolAnnotations** on every exported tool (38 read · 3 write orchestration)
+- [x] CH1 `start_live_capture` → `recording`; deliberate `stop_live_capture` → **`completed`** (**2026-10-03**)
+- [x] Subsequent start rejected at passive timing preflight (`timing_proof_failed`) when bus quiet — not channel stuck
 - [ ] Re-run `get_cansub_device_status` when hardware is available

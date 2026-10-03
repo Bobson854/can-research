@@ -30,6 +30,22 @@ Implementation: `src/canresearch/mcp/tool_annotations.py` + `_ToolBinding.semant
 - **Write orchestration** — Creates/stops local capture sessions or appends experiment
   markers. Still **not** CAN bus transmission.
 
+### Live capture session terminal status (not MCP annotations)
+
+These SQLite session **`status`** values are returned in MCP stop/start responses as
+`capture_state` where applicable:
+
+| Status | Meaning |
+|--------|---------|
+| `recording` | Active capture after successful `start_live_capture` |
+| `completed` | Normal finalization — including a **healthy deliberate** `stop_live_capture` |
+| `interrupted` | Abnormal cancellation, orphan/reconcile, service interruption, or comparable non-clean termination |
+| `failed` | Worker or WebSocket errors during capture |
+
+There is **no** separate session state named `stopped` (CANsub PHY may report `stopped`
+independently). Preflight rejections such as **`timing_proof_failed`** occur **before** a
+recording session is created.
+
 ### Destructive
 
 No public MCP tool is classified **`destructiveHint=true`**. Stopping capture finalizes a
@@ -73,7 +89,9 @@ After changing the MCP tool registry or annotations:
 7. Smoke-test one **read** tool (`get_instance_info`) and one **write** tool
    (`mark_experiment_event` on an active capture, or start/stop capture in a test session).
 
-Tool counts in documentation are **checkpoints** — verify with `uv run canresearch mcp tools`.
+Baseline checkpoint: **41** exported tools — **28** read-only bindings, **7** live, **6**
+signal research; **38** tools with `readOnlyHint=true` and **3** write-orchestration tools.
+Counts are **checkpoints** — verify with `uv run canresearch mcp tools`.
 
 ## Related docs
 
