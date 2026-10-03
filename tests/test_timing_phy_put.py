@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import canresearch.core.capture_prepare as capture_prepare_mod
 from canresearch.cansub.client import CansubClient
 from canresearch.cansub.exceptions import CansubApiError
 from canresearch.cansub.timing import (
@@ -18,12 +19,11 @@ from canresearch.cansub.timing import (
     validate_phy_put_payload,
 )
 from canresearch.cansub.ws_client import CansubRxResult
-import canresearch.core.capture_prepare as capture_prepare_mod
 from canresearch.core.live_errors import LiveResearchError
 
 # Bind before conftest autouse replaces the module attribute with a noop.
 _REAL_PREPARE = capture_prepare_mod.prepare_channel_for_capture
-from tests.test_timing_preflight import PHY_250K_1M, PHY_500K_1M
+from tests.test_timing_preflight import PHY_250K_1M, PHY_500K_1M  # noqa: E402
 
 OBSERVED_PUT_500K_1M = {
     "listen_only": False,

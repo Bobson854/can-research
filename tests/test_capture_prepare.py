@@ -7,11 +7,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from canresearch.cansub.timing import ConnectionPolicy, TimingCompatibility
+from canresearch.cansub.timing import TimingCompatibility
 from canresearch.core.capture_prepare import prepare_channel_for_capture
 from canresearch.core.live_errors import LiveResearchError
 from canresearch.core.timing_preflight import check_channel_timing_preflight
-from tests.test_timing_preflight import PHY_250K_1M, PHY_500K_1M
+from tests.test_timing_preflight import PHY_250K_1M
 
 
 @pytest.fixture

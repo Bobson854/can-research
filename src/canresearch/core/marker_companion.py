@@ -14,8 +14,6 @@ from canresearch.core.sessions import (
     get_session,
     list_sessions_by_status,
 )
-from canresearch.storage.database import default_db_path
-
 
 LOCAL_COMPANION_ORIGIN = "local_companion"
 

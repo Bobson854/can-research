@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import tkinter as tk
 from unittest.mock import MagicMock
 
 import pytest
-import tkinter as tk
 
 from canresearch.core.marker_companion import AttachedSession, MarkerCompanionError
 from canresearch.core.sessions import SessionStatus

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from canresearch.cansub.timing import ChannelTimingExpectation
+from canresearch.cansub.timing import ChannelTimingExpectation, ConnectionPolicy
 
 INSTANCE_KEY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -188,7 +188,8 @@ def _parse_cansub_channels(raw: Any) -> dict[int, ChannelTimingExpectation]:
         nominal = value.get("nominal_bitrate")
         if nominal is None:
             raise ConfigError(
-                f"[cansub.channels.{key}] nominal_bitrate is required when a channel block is present"
+                f"[cansub.channels.{key}] nominal_bitrate is required "
+                "when a channel block is present"
             )
         if not isinstance(nominal, int) or nominal <= 0:
             raise ConfigError(f"[cansub.channels.{key}] nominal_bitrate must be a positive integer")
@@ -247,9 +248,7 @@ def _parse_timing_table(raw: Any, path: str) -> dict[str, int] | None:
     return parsed
 
 
-def _parse_connection_policy(raw: Any, *, path: str) -> "ConnectionPolicy":
-    from canresearch.cansub.timing import ConnectionPolicy
-
+def _parse_connection_policy(raw: Any, *, path: str) -> ConnectionPolicy:
     if raw is None:
         return ConnectionPolicy.NONE
     if not isinstance(raw, str):

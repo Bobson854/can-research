@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -13,6 +11,7 @@ from canresearch.cansub.live_capture import LiveCaptureRegistry
 from canresearch.cansub.timing import (
     BitTimingSegments,
     ChannelBitrates,
+    ChannelTimingExpectation,
     TimingCompatibility,
     compare_expected_bitrates,
 )
@@ -23,9 +22,7 @@ from canresearch.core.timing_preflight import (
     check_channel_timing_preflight,
     enforce_channel_timing_preflight,
 )
-from canresearch.cansub.timing import ChannelTimingExpectation
 from canresearch.storage.database import initialize
-
 
 PHY_250K_1M = {
     "listen_only": False,
@@ -240,7 +237,7 @@ def test_mcp_and_cli_share_preflight_message(timing_config: Path) -> None:
         phy=PHY_250K_1M,
         channel_state="error_active",
     )
-    with pytest.raises(LiveResearchError) as exc:
+    with pytest.raises(LiveResearchError):
         enforce_channel_timing_preflight(
             "desk.local",
             1,
@@ -262,8 +259,7 @@ def test_compare_expected_bitrates_match() -> None:
 
 
 def test_set_channel_phy_uses_put(monkeypatch: pytest.MonkeyPatch) -> None:
-    from canresearch.cansub.timing import resolve_apply_phy_payload
-    from canresearch.cansub.timing import ChannelTimingExpectation
+    from canresearch.cansub.timing import ChannelTimingExpectation, resolve_apply_phy_payload
 
     captured: dict[str, object] = {}
     expectation = ChannelTimingExpectation(

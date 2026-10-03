@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from canresearch.cansub.client import CansubClient, get_channel_info
+from canresearch.cansub.client import CansubClient
 from canresearch.cansub.exceptions import CansubApiError
 from canresearch.cansub.timing import (
     CANSUB_PHY_PUT_VERIFIED,
@@ -16,7 +16,6 @@ from canresearch.cansub.timing import (
     validate_phy_put_payload,
 )
 from canresearch.cansub.ws_client import ConnectFn, receive_frames_sync
-from canresearch.config import load_config
 from canresearch.core.live_errors import LiveResearchError
 from canresearch.core.timing_preflight import (
     TimingPreflightResult,

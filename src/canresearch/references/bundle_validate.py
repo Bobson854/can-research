@@ -7,9 +7,9 @@ from typing import Any
 
 from canresearch.references.bundle_common import (
     BUNDLE_SCHEMA_VERSION,
-    BundleFormatError,
     SQLITE_INTEGER_MAX,
     SQLITE_INTEGER_MIN,
+    BundleFormatError,
     coerce_storable_integer,
     family_matches,
     finite_float,
@@ -221,11 +221,18 @@ def validate_reference_bundle(
             except (TypeError, ValueError):
                 report.add_error("dlc", f"{mpath}: dlc must be integer", mpath)
 
-        for field in ("pgn", "source_address", "destination_address", "period_ms", "priority", "dlc"):
+        for msg_field in (
+            "pgn",
+            "source_address",
+            "destination_address",
+            "period_ms",
+            "priority",
+            "dlc",
+        ):
             _validate_sqlite_integer_field(
-                message.get(field),
+                message.get(msg_field),
                 path=mpath,
-                field=field,
+                field=msg_field,
                 report=report,
             )
 

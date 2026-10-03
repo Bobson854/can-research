@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import io
-import os
-import socket
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -125,7 +122,9 @@ install_dir = "{install.as_posix()}"
     assert cw.resolve_kind(cfg) == "openai-runtime-env"
 
 
-def test_derived_secret_names_when_secrets_section_omitted(config_dir: Path, tmp_path: Path) -> None:
+def test_derived_secret_names_when_secrets_section_omitted(
+    config_dir: Path, tmp_path: Path
+) -> None:
     install = tmp_path / "tunnel"
     install.mkdir()
     write_config(
@@ -275,7 +274,10 @@ def test_start_check_reuses_healthy_listener(
 
 
 def test_status_output_does_not_echo_secrets(
-    config_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    config_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     install = tmp_path / "tunnel"
     install.mkdir()
@@ -293,9 +295,11 @@ def test_status_output_does_not_echo_secrets(
             return secret_tunnel
         return None
 
-    with patch.object(cw, "read_user_env", side_effect=fake_read):
-        with patch.object(cw, "tcp_open", return_value=True):
-            code = cw.status_cmd()
+    with (
+        patch.object(cw, "read_user_env", side_effect=fake_read),
+        patch.object(cw, "tcp_open", return_value=True),
+    ):
+        code = cw.status_cmd()
 
     out = capsys.readouterr().out
     assert code == 0
@@ -304,7 +308,10 @@ def test_status_output_does_not_echo_secrets(
 
 
 def test_configure_reuses_persisted_values(
-    config_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    config_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     install = tmp_path / "tunnel"
     install.mkdir()
@@ -317,11 +324,15 @@ def test_configure_reuses_persisted_values(
     monkeypatch.setenv(tunnel_env, "tunnel_" + "d" * 32)
 
     def fake_runtime(_exe: Path) -> tuple[bool, str]:
-        return True, "CONTROL_PLANE_API_KEY CONTROL_PLANE_TUNNEL_ID MCP_SERVER_URL HEALTH_LISTEN_ADDR"
+        return True, (
+            "CONTROL_PLANE_API_KEY CONTROL_PLANE_TUNNEL_ID MCP_SERVER_URL HEALTH_LISTEN_ADDR"
+        )
 
-    with patch.object(cw, "runtime_supports_env_model", side_effect=fake_runtime):
-        with patch.object(cw, "persist_user_env") as persist:
-            code = cw.configure_cmd()
+    with (
+        patch.object(cw, "runtime_supports_env_model", side_effect=fake_runtime),
+        patch.object(cw, "persist_user_env") as persist,
+    ):
+        code = cw.configure_cmd()
 
     assert code == 0
     persist.assert_not_called()
@@ -391,12 +402,18 @@ def test_configure_migrates_legacy_secrets_without_prompt(
             return legacy_tunnel
         return None
 
-    with patch.object(cw, "runtime_supports_env_model", side_effect=_fake_runtime):
-        with patch.object(cw, "read_user_env", side_effect=fake_read):
-            with patch.object(cw, "persist_user_env") as persist:
-                with patch.object(cw.getpass, "getpass", side_effect=AssertionError("should not prompt")):
-                    with patch("builtins.input", side_effect=AssertionError("should not prompt")):
-                        code = cw.configure_cmd()
+    with (
+        patch.object(cw, "runtime_supports_env_model", side_effect=_fake_runtime),
+        patch.object(cw, "read_user_env", side_effect=fake_read),
+        patch.object(cw, "persist_user_env") as persist,
+        patch.object(
+            cw.getpass,
+            "getpass",
+            side_effect=AssertionError("should not prompt"),
+        ),
+        patch("builtins.input", side_effect=AssertionError("should not prompt")),
+    ):
+        code = cw.configure_cmd()
 
     assert code == 0
     persist.assert_any_call(cfg.api_key_env, legacy_key)
@@ -424,11 +441,13 @@ def test_configure_invalid_legacy_tunnel_id_not_migrated(
             return "tunnel_invalid_legacy"
         return None
 
-    with patch.object(cw, "runtime_supports_env_model", side_effect=_fake_runtime):
-        with patch.object(cw, "read_user_env", side_effect=fake_read):
-            with patch.object(cw, "persist_user_env") as persist:
-                with patch("builtins.input", return_value=valid_tunnel):
-                    code = cw.configure_cmd()
+    with (
+        patch.object(cw, "runtime_supports_env_model", side_effect=_fake_runtime),
+        patch.object(cw, "read_user_env", side_effect=fake_read),
+        patch.object(cw, "persist_user_env") as persist,
+        patch("builtins.input", return_value=valid_tunnel),
+    ):
+        code = cw.configure_cmd()
 
     assert code == 0
     tunnel_calls = [call for call in persist.call_args_list if call.args[0] == cfg.tunnel_id_env]
@@ -458,10 +477,12 @@ def test_configure_namespaced_values_precede_legacy(
             return "tunnel_" + "8" * 32
         return None
 
-    with patch.object(cw, "runtime_supports_env_model", side_effect=_fake_runtime):
-        with patch.object(cw, "read_user_env", side_effect=fake_read):
-            with patch.object(cw, "persist_user_env") as persist:
-                code = cw.configure_cmd()
+    with (
+        patch.object(cw, "runtime_supports_env_model", side_effect=_fake_runtime),
+        patch.object(cw, "read_user_env", side_effect=fake_read),
+        patch.object(cw, "persist_user_env") as persist,
+    ):
+        code = cw.configure_cmd()
 
     assert code == 0
     persist.assert_not_called()
@@ -473,7 +494,10 @@ def test_configure_namespaced_values_precede_legacy(
 
 
 def test_run_tunnel_launches_subprocess_with_child_env(
-    config_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    config_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     install = _install_runtime_config(config_dir, tmp_path, instance_key="laptop")
     cfg = cw.settings()

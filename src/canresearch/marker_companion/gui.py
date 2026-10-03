@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 import tkinter as tk
+from collections.abc import Callable
 from pathlib import Path
 from tkinter import messagebox, ttk
-from typing import Callable
 
 from canresearch.core.marker_companion import (
     STANDARD_MARKER_LABELS,
@@ -46,23 +47,17 @@ def bring_window_to_foreground(
 
 
 def _clear_topmost(window: tk.Misc) -> None:
-    try:
+    with contextlib.suppress(tk.TclError):
         window.attributes("-topmost", False)
-    except tk.TclError:
-        pass
 
 
 def _raise_hidden_owner_for_modal(root: tk.Tk, *, topmost_ms: int = FOCUS_TOPMOST_MS) -> None:
     """Prepare a withdrawn Tk root as a modal parent without showing an empty window."""
     root.withdraw()
-    try:
+    with contextlib.suppress(tk.TclError):
         root.overrideredirect(True)
-    except tk.TclError:
-        pass
-    try:
+    with contextlib.suppress(tk.TclError):
         root.geometry("1x1+0+0")
-    except tk.TclError:
-        pass
     root.update_idletasks()
     root.lift()
     root.focus_force()
@@ -85,10 +80,8 @@ def show_startup_error(code: str, message: str) -> None:
         )
     finally:
         _clear_topmost(root)
-        try:
+        with contextlib.suppress(tk.TclError):
             root.destroy()
-        except tk.TclError:
-            pass
 
 
 def report_startup_failure(code: str, message: str) -> int:

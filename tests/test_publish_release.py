@@ -139,9 +139,11 @@ def test_publish_powershell_parses_when_windows_powershell_available() -> None:
     powershell = shutil.which("powershell") or shutil.which("powershell.exe")
     if powershell is None:
         pytest.skip("Windows PowerShell is not available on this test host")
+    ps1 = PUBLISH_PS1.as_posix()
     command = (
         "$e=$null; "
-        f"[System.Management.Automation.Language.Parser]::ParseFile('{PUBLISH_PS1.as_posix()}',[ref]$null,[ref]$e) | Out-Null; "
+        f"[System.Management.Automation.Language.Parser]::ParseFile('{ps1}',[ref]$null,[ref]$e) "
+        "| Out-Null; "
         "if($e.Count -ne 0){$e | ForEach-Object {$_.ToString()}; exit 1}"
     )
     result = subprocess.run(

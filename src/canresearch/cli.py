@@ -317,9 +317,9 @@ def _run_device_rx(
     verify_tls: bool,
 ) -> None:
     from canresearch.cansub.exceptions import CansubWebSocketError
+    from canresearch.cansub.ws_client import receive_frames_sync
     from canresearch.core.live_errors import LiveResearchError
     from canresearch.core.timing_preflight import enforce_channel_timing_preflight
-    from canresearch.cansub.ws_client import receive_frames_sync
 
     try:
         enforce_channel_timing_preflight(
@@ -2546,7 +2546,10 @@ def reference_bundle_validate(bundle_path: str, allow_unregistered: bool) -> Non
     from pathlib import Path
 
     from canresearch.references.bundle_common import BundleFormatError, load_bundle_json
-    from canresearch.references.bundle_validate import format_bundle_warnings, validate_reference_bundle
+    from canresearch.references.bundle_validate import (
+        format_bundle_warnings,
+        validate_reference_bundle,
+    )
 
     try:
         payload = load_bundle_json(Path(bundle_path))

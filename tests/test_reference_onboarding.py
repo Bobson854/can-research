@@ -205,7 +205,12 @@ def test_format_bundle_warnings_summarizes_pgn_only_can_id() -> None:
     from canresearch.references.bundle_validate import BundleValidationIssue
 
     warnings = [
-        BundleValidationIssue("warning", "incomplete", "no exact CAN ID on message", f"messages[{i}]")
+        BundleValidationIssue(
+            "warning",
+            "incomplete",
+            "no exact CAN ID on message",
+            f"messages[{i}]",
+        )
         for i in range(117)
     ]
     lines = format_bundle_warnings(warnings)

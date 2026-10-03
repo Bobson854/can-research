@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -11,14 +12,18 @@ from pathlib import Path
 from canresearch.cansub.capture import cansub_frame_to_can_frame, default_capture_store
 from canresearch.cansub.client import probe_host
 from canresearch.cansub.exceptions import CansubConnectionError, CansubWebSocketError
-from canresearch.cansub.ws_client import ConnectFn, abort_channel_websocket_sync, receive_frames_sync
+from canresearch.cansub.ws_client import (
+    ConnectFn,
+    abort_channel_websocket_sync,
+    receive_frames_sync,
+)
+from canresearch.core import capture_prepare
 from canresearch.core.assets import link_session_asset
 from canresearch.core.capture_liveness import (
     CAPTURE_HEARTBEAT_INTERVAL_S,
     bind_capture_session,
     touch_capture_heartbeat,
 )
-from canresearch.core import capture_prepare
 from canresearch.core.live_errors import LiveResearchError
 from canresearch.core.sessions import (
     CaptureStore,
@@ -271,15 +276,13 @@ class LiveCaptureRegistry:
             verify_tls = capture.verify_tls
 
         capture.stop_event.set()
-        try:
+        with contextlib.suppress(CansubWebSocketError):
             abort_channel_websocket_sync(
                 host,
                 channel,
                 timeout=timeout,
                 verify_tls=verify_tls,
             )
-        except CansubWebSocketError:
-            pass
 
         if capture.thread is not None:
             capture.thread.join(timeout=STOP_JOIN_TIMEOUT_S)
