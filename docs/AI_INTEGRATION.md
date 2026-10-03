@@ -41,6 +41,7 @@ uv run canresearch mcp tools
 ```
 
 Baseline **41 tools** — treat documentation counts as checkpoints, not immutable forever.
+Tool metadata (read/write hints): [MCP_TOOL_CONTRACT.md](MCP_TOOL_CONTRACT.md).
 
 ---
 

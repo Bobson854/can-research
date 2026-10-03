@@ -17,6 +17,11 @@ from canresearch.mcp import (
     signal_research_handlers,
 )
 from canresearch.mcp.errors import McpToolError
+from canresearch.mcp.tool_annotations import (
+    ToolSemantic,
+    tool_annotations_for_binding,
+    validate_tool_binding_semantics,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +30,7 @@ class _ToolBinding:
     description: str
     handler: Callable[..., dict[str, Any]]
     live: bool = False
+    semantic: ToolSemantic = ToolSemantic.READ
 
 
 def _invoke(handler: Callable[..., dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
@@ -277,12 +283,14 @@ LIVE_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
         ),
         handler=live_handlers.handle_start_live_capture,
         live=True,
+        semantic=ToolSemantic.WRITE_ORCHESTRATION,
     ),
     _ToolBinding(
         name="stop_live_capture",
         description="Stop an active background live capture by session_id.",
         handler=live_handlers.handle_stop_live_capture,
         live=True,
+        semantic=ToolSemantic.WRITE_ORCHESTRATION,
     ),
     _ToolBinding(
         name="observe_live_traffic",
@@ -302,6 +310,7 @@ LIVE_TOOL_BINDINGS: tuple[_ToolBinding, ...] = (
         ),
         handler=live_handlers.handle_mark_experiment_event,
         live=True,
+        semantic=ToolSemantic.WRITE_ORCHESTRATION,
     ),
     _ToolBinding(
         name="compare_experiment_windows",
@@ -384,6 +393,9 @@ def list_tool_names() -> list[str]:
     return [binding.name for binding in TOOL_BINDINGS]
 
 
+validate_tool_binding_semantics(TOOL_BINDINGS)
+
+
 def create_server() -> MCPServer:
     """Build the can-research MCP server with read-only and live research tools."""
     server = MCPServer(
@@ -407,19 +419,25 @@ def create_server() -> MCPServer:
         ),
     )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[0].description)
+    def bind(binding: _ToolBinding):
+        return server.tool(
+            description=binding.description,
+            annotations=tool_annotations_for_binding(binding),
+        )
+
+    @bind(READ_ONLY_TOOL_BINDINGS[0])
     def get_instance_info() -> dict[str, Any]:
         return _invoke(handlers.handle_get_instance_info)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[1].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[1])
     def list_sessions(limit: int | None = None) -> dict[str, Any]:
         return _invoke(handlers.handle_list_sessions, limit=limit)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[2].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[2])
     def get_session(session_id: str) -> dict[str, Any]:
         return _invoke(handlers.handle_get_session, session_id=session_id)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[3].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[3])
     def analyze_session(
         session_id: str,
         pgn: int | None = None,
@@ -434,7 +452,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[4].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[4])
     def decode_session(
         session_id: str,
         pgn: int | None = None,
@@ -451,7 +469,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[5].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[5])
     def inspect_transport(
         session_id: str,
         pgn: int | None = None,
@@ -468,7 +486,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[6].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[6])
     def list_session_nodes(
         session_id: str,
         source_address: int | None = None,
@@ -481,27 +499,27 @@ def create_server() -> MCPServer:
             manufacturer_code=manufacturer_code,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[7].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[7])
     def list_assets(limit: int | None = None) -> dict[str, Any]:
         return _invoke(handlers.handle_list_assets, limit=limit)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[8].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[8])
     def get_asset(asset_key: str) -> dict[str, Any]:
         return _invoke(handlers.handle_get_asset, asset_key=asset_key)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[9].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[9])
     def list_asset_nodes(asset_key: str) -> dict[str, Any]:
         return _invoke(handlers.handle_list_asset_nodes, asset_key=asset_key)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[10].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[10])
     def lookup_pgn(pgn: int) -> dict[str, Any]:
         return _invoke(handlers.handle_lookup_pgn, pgn=pgn)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[11].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[11])
     def lookup_spn(spn: int) -> dict[str, Any]:
         return _invoke(handlers.handle_lookup_spn, spn=spn)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[12].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[12])
     def build_session_dbc_preview(
         session_id: str,
         asset_key: str,
@@ -516,7 +534,7 @@ def create_server() -> MCPServer:
             preview_lines=preview_lines,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[13].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[13])
     def list_research_candidates(
         asset_key: str | None = None,
         status: str | None = None,
@@ -531,14 +549,14 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[14].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[14])
     def get_research_candidate(candidate_id: str) -> dict[str, Any]:
         return _invoke(
             research_candidate_handlers.handle_get_research_candidate,
             candidate_id=candidate_id,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[15].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[15])
     def list_candidate_evidence(
         candidate_id: str,
         limit: int | None = None,
@@ -549,7 +567,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[16].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[16])
     def preview_research_dbc(
         asset_key: str,
         preview_lines: int | None = None,
@@ -562,7 +580,7 @@ def create_server() -> MCPServer:
             include_protocol_fields=include_protocol_fields,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[17].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[17])
     def list_session_events(
         session_id: str,
         limit: int | None = None,
@@ -573,7 +591,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[18].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[18])
     def preview_candidate_values(
         session_id: str,
         can_id: int,
@@ -600,11 +618,11 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[19].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[19])
     def list_dbc_sources(asset_key: str | None = None) -> dict[str, Any]:
         return _invoke(dbc_handlers.handle_list_dbc_sources, asset_key=asset_key)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[20].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[20])
     def inspect_dbc(
         source_key: str,
         message_limit: int | None = None,
@@ -617,7 +635,7 @@ def create_server() -> MCPServer:
             signals_per_message=signals_per_message,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[21].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[21])
     def lookup_dbc_message(
         source_keys: list[str] | None = None,
         asset_key: str | None = None,
@@ -634,7 +652,7 @@ def create_server() -> MCPServer:
             message_name=message_name,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[22].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[22])
     def lookup_dbc_signal(
         source_keys: list[str] | None = None,
         asset_key: str | None = None,
@@ -651,7 +669,7 @@ def create_server() -> MCPServer:
             is_extended=is_extended,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[23].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[23])
     def analyze_dbc_coverage(
         session_id: str,
         source_keys: list[str] | None = None,
@@ -666,15 +684,15 @@ def create_server() -> MCPServer:
             row_limit=row_limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[24].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[24])
     def list_reference_sources() -> dict[str, Any]:
         return _invoke(reference_handlers.handle_list_reference_sources)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[25].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[25])
     def inspect_reference_source(source_key: str) -> dict[str, Any]:
         return _invoke(reference_handlers.handle_inspect_reference_source, source_key=source_key)
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[26].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[26])
     def search_reference_knowledge(
         query: str,
         source_key: str | None = None,
@@ -687,7 +705,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=READ_ONLY_TOOL_BINDINGS[27].description)
+    @bind(READ_ONLY_TOOL_BINDINGS[27])
     def lookup_reference_message(
         can_id: int | None = None,
         is_extended: bool | None = None,
@@ -702,7 +720,7 @@ def create_server() -> MCPServer:
             source_key=source_key,
         )
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[0].description)
+    @bind(LIVE_TOOL_BINDINGS[0])
     def get_cansub_device_status(
         host: str | None = None,
         timeout: float | None = None,
@@ -713,7 +731,7 @@ def create_server() -> MCPServer:
             timeout=timeout,
         )
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[1].description)
+    @bind(LIVE_TOOL_BINDINGS[1])
     def get_cansub_channel_status(
         channel: int,
         host: str | None = None,
@@ -726,7 +744,7 @@ def create_server() -> MCPServer:
             timeout=timeout,
         )
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[2].description)
+    @bind(LIVE_TOOL_BINDINGS[2])
     def start_live_capture(
         channel: int,
         session_name: str | None = None,
@@ -745,11 +763,11 @@ def create_server() -> MCPServer:
             timeout=timeout,
         )
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[3].description)
+    @bind(LIVE_TOOL_BINDINGS[3])
     def stop_live_capture(session_id: str) -> dict[str, Any]:
         return _invoke(live_handlers.handle_stop_live_capture, session_id=session_id)
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[4].description)
+    @bind(LIVE_TOOL_BINDINGS[4])
     def observe_live_traffic(
         channel: int,
         duration_seconds: float | None = None,
@@ -772,7 +790,7 @@ def create_server() -> MCPServer:
             timeout=timeout,
         )
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[5].description)
+    @bind(LIVE_TOOL_BINDINGS[5])
     def mark_experiment_event(
         session_id: str,
         label: str,
@@ -785,7 +803,7 @@ def create_server() -> MCPServer:
             notes=notes,
         )
 
-    @server.tool(description=LIVE_TOOL_BINDINGS[6].description)
+    @bind(LIVE_TOOL_BINDINGS[6])
     def compare_experiment_windows(
         session_id: str,
         baseline_event: str,
@@ -800,7 +818,7 @@ def create_server() -> MCPServer:
             window_seconds=window_seconds,
         )
 
-    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[0].description)
+    @bind(SIGNAL_RESEARCH_TOOL_BINDINGS[0])
     def rank_signal_candidates(
         session_id: str,
         baseline_event: str,
@@ -825,7 +843,7 @@ def create_server() -> MCPServer:
             limit=limit,
         )
 
-    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[1].description)
+    @bind(SIGNAL_RESEARCH_TOOL_BINDINGS[1])
     def analyze_can_id_activity(
         session_id: str,
         can_id: int,
@@ -842,7 +860,7 @@ def create_server() -> MCPServer:
             window_seconds=window_seconds,
         )
 
-    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[2].description)
+    @bind(SIGNAL_RESEARCH_TOOL_BINDINGS[2])
     def analyze_repeated_action(
         session_id: str,
         baseline_events: list[str],
@@ -859,7 +877,7 @@ def create_server() -> MCPServer:
             can_id=can_id,
         )
 
-    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[3].description)
+    @bind(SIGNAL_RESEARCH_TOOL_BINDINGS[3])
     def detect_counters(session_id: str, can_id: int) -> dict[str, Any]:
         return _invoke(
             signal_research_handlers.handle_detect_counters,
@@ -867,7 +885,7 @@ def create_server() -> MCPServer:
             can_id=can_id,
         )
 
-    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[4].description)
+    @bind(SIGNAL_RESEARCH_TOOL_BINDINGS[4])
     def detect_checksums(session_id: str, can_id: int) -> dict[str, Any]:
         return _invoke(
             signal_research_handlers.handle_detect_checksums,
@@ -875,7 +893,7 @@ def create_server() -> MCPServer:
             can_id=can_id,
         )
 
-    @server.tool(description=SIGNAL_RESEARCH_TOOL_BINDINGS[5].description)
+    @bind(SIGNAL_RESEARCH_TOOL_BINDINGS[5])
     def correlate_candidate_field(
         session_id: str,
         can_id: int,

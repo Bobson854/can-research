@@ -259,7 +259,14 @@ Verify current registry:
 ```cmd
 uv run canresearch mcp tools
 uv run python scripts/mcp_verify_http.py
+uv run python -m pytest tests/test_mcp_tool_annotations.py
 ```
+
+Each tool should export non-null **ToolAnnotations** (read vs write orchestration). Policy:
+[MCP_TOOL_CONTRACT.md](MCP_TOOL_CONTRACT.md).
+
+After changing tools or annotations: restart MCP → `status.cmd` → **Refresh tools** in
+ChatGPT (schema refresh; not the same as recreating tunnel/connector unless broken).
 
 Current project baseline at the time of this document update: **41 tools** (28 read-only / 7 live / 6 signal research). Treat counts as checkpoints, not immutable constants.
 

@@ -568,6 +568,7 @@ scripts/              MCP HTTP verification helper
 | [docs/CANSUB_SETUP.md](docs/CANSUB_SETUP.md) | CANsub.2 connectivity, timing profiles, capture preparation |
 | [docs/MARKER_COMPANION.md](docs/MARKER_COMPANION.md) | Local experiment markers during live capture |
 | [docs/MCP_SETUP.md](docs/MCP_SETUP.md) | MCP serve, tunnel, ChatGPT connector, reboot startup |
+| [docs/MCP_TOOL_CONTRACT.md](docs/MCP_TOOL_CONTRACT.md) | MCP ToolAnnotations (read vs write metadata for clients) |
 | [docs/SKILL_INSTALLATION.md](docs/SKILL_INSTALLATION.md) | All three Skills — package and install |
 | [docs/MULTI_INSTANCE_DEPLOYMENT.md](docs/MULTI_INSTANCE_DEPLOYMENT.md) | Independent machines (office, workshop, laptop, travel) |
 | [docs/RELEASING.md](docs/RELEASING.md) | Release build (maintainers) |
