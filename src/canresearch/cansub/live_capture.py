@@ -200,7 +200,11 @@ class LiveCaptureRegistry:
                 )
                 capture.duration_s = rx.duration_s
                 capture.exit_reason = rx.exit_reason
-                if rx.exit_reason in {"interrupted", "stopped"}:
+                if rx.exit_reason == "stopped":
+                    # Explicit stop_live_capture / CLI stop (stop_event + WS abort).
+                    final_status = SessionStatus.COMPLETED
+                    interrupted_reason = None
+                elif rx.exit_reason == "interrupted":
                     final_status = SessionStatus.INTERRUPTED
                     interrupted_reason = "capture_stopped"
             except CansubWebSocketError as exc:

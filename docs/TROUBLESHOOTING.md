@@ -113,7 +113,7 @@ Do **not** reboot the whole system as the first response.
 **Recovery:**
 
 1. Try `stop_live_capture` with the session ID, or CLI: `uv run canresearch capture stop [<session-id>]`
-2. Confirm the session status is `interrupted` or `completed` and no capture remains active on that channel
+2. Confirm the session status is `completed` (normal operator/API stop) or `interrupted` (orphan/reconcile/abnormal) and no capture remains active on that channel
 3. Reconnect webCAN on that channel if you need the browser UI again
 4. If stop still fails, stop the MCP server process (Ctrl+C in its terminal)
 5. Restart MCP: `uv run canresearch mcp serve ...`
